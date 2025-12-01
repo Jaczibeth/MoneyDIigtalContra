@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gestión de Actividades - Money Digital | GROUP JAD</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-dark: rgba(255, 255, 255, 0.06);
+            --border-dark: rgba(255, 255, 255, 0.12);
+            --neon-cyan: #00eaff;
+            --neon-purple: #b400ff;
+            --text-light: #e5e5e5;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-dark);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border-dark);
+            padding: 20px 40px;
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: #bbb;
+            padding: 10px 18px;
+            border-radius: 10px;
+            transition: 0.3s;
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        nav a:hover, nav a.active {
+            background: rgba(0, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .card {
+            background: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            border-radius: 18px;
+            backdrop-filter: blur(12px);
+            padding: 24px;
+            transition: 0.3s;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-dark);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-family: inherit;
+        }
+
+        input:focus, textarea:focus, select:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <header class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+            Money Digital - GROUP JAD
+        </h1>
+        <nav class="flex gap-6">
+            <a href="Inicio.html">🏠 Inicio</a>
+            <a href="gestion-actividades.html" class="active">📝 Crear Actividades</a>
+            <a href="revision-actividades.html">📋 Revisar Evidencias</a>
+            <a href="progreso-estudiantes.html">📊 Progreso</a>
+            <a href="gestion-recompensas.html">🎁 Recompensas</a>
+        </nav>
+    </header>
+
+    <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
+        <div class="text-center mb-10">
+            <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+                Gestión de Actividades
+            </h2>
+            <p class="text-gray-400">Crea actividades para tus estudiantes y asigna tokens por completarlas</p>
+        </div>
+
+        <!-- Formulario para crear actividad -->
+        <div class="card mb-8">
+            <h3 class="text-2xl font-bold mb-6">➕ Crear Nueva Actividad</h3>
+            <form id="createActivityForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-gray-400 mb-2">Título de la Actividad *</label>
+                        <input type="text" id="activityTitle" required placeholder="Ej: Proyecto de Programación" />
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 mb-2">Tokens a Otorgar *</label>
+                        <input type="number" id="activityTokens" required min="1" placeholder="50" />
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-gray-400 mb-2">Descripción *</label>
+                    <textarea id="activityDescription" rows="4" required placeholder="Describe la actividad, qué deben hacer los estudiantes, criterios de evaluación..."></textarea>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-gray-400 mb-2">Fecha Límite *</label>
+                        <input type="datetime-local" id="activityDeadline" required />
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 mb-2">Materia (opcional)</label>
+                        <input type="text" id="activitySubject" placeholder="Ej: Programación" />
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-gray-400 mb-2">Instrucciones o Material (opcional)</label>
+                    <textarea id="activityInstructions" rows="3" placeholder="Agrega instrucciones adicionales, enlaces, o material de apoyo..."></textarea>
+                </div>
+
+                <div class="flex gap-4">
+                    <button type="submit" class="btn btn-primary">Crear Actividad</button>
+                    <button type="reset" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Limpiar</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Lista de Actividades Creadas -->
+        <div class="card">
+            <h3 class="text-2xl font-bold mb-6">📋 Mis Actividades Creadas</h3>
+            <div id="activitiesList" class="space-y-4">
+                <p class="text-gray-400 text-center py-8">Cargando actividades...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/activities-system.js"></script>
+    <script>
+        // Verificación de sesión
+        (function() {
+            const currentUserStr = localStorage.getItem('currentUser');
+            if (!currentUserStr) {
+                alert('Por favor, inicia sesión para acceder a esta página.');
+                window.location.href = 'Index.html';
+                return;
+            }
+            
+            const currentUser = JSON.parse(currentUserStr);
+            if (currentUser.role !== 'docente') {
+                alert('Esta página es solo para docentes.');
+                window.location.href = 'Inicio.html';
+                return;
+            }
+        })();
+
+        function loadActivities() {
+            if (typeof activitiesSystem === 'undefined') {
+                setTimeout(loadActivities, 100);
+                return;
+            }
+
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const activities = activitiesSystem.getActivities()
+                .filter(a => a.createdBy === currentUser.username)
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            const container = document.getElementById('activitiesList');
+            
+            if (activities.length === 0) {
+                container.innerHTML = `
+                    <p class="text-gray-400 text-center py-8">No has creado actividades aún. Usa el formulario de arriba para crear una.</p>
+                `;
+                return;
+            }
+
+            container.innerHTML = activities.map(activity => {
+                const submissions = activitiesSystem.getSubmissionsByActivity(activity.id);
+                const pendingCount = submissions.filter(s => s.status === 'pending').length;
+                const approvedCount = submissions.filter(s => s.status === 'approved').length;
+                const deadline = new Date(activity.deadline);
+                const isActive = activity.status === 'active';
+
+                return `
+                    <div class="p-4 rounded-lg" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-dark);">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex-1">
+                                <h4 class="text-lg font-bold mb-2">${escapeHtml(activity.title)}</h4>
+                                <p class="text-gray-400 text-sm mb-3">${escapeHtml(activity.description)}</p>
+                                <div class="flex gap-4 text-sm text-gray-500">
+                                    <span>💰 ${activity.tokens || 0} tokens</span>
+                                    <span>📅 ${deadline.toLocaleDateString()}</span>
+                                    <span>📝 ${submissions.length} envíos</span>
+                                    <span>⏳ ${pendingCount} pendientes</span>
+                                    <span>✓ ${approvedCount} aprobadas</span>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 rounded-lg text-xs font-semibold ${isActive ? 'bg-green-500 bg-opacity-20 text-green-400' : 'bg-gray-500 bg-opacity-20 text-gray-400'}">
+                                ${isActive ? 'Activa' : 'Inactiva'}
+                            </span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="editActivity('${activity.id}')" class="btn" style="background: rgba(255,255,255,0.1); color: white; padding: 8px 16px; font-size: 14px;">
+                                Editar
+                            </button>
+                            <button onclick="toggleActivity('${activity.id}', ${isActive})" class="btn" style="background: rgba(255,255,255,0.1); color: white; padding: 8px 16px; font-size: 14px;">
+                                ${isActive ? 'Desactivar' : 'Activar'}
+                            </button>
+                            <button onclick="viewSubmissions('${activity.id}')" class="btn btn-primary" style="padding: 8px 16px; font-size: 14px;">
+                                Ver Envíos (${submissions.length})
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('createActivityForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const activityData = {
+                title: document.getElementById('activityTitle').value.trim(),
+                description: document.getElementById('activityDescription').value.trim(),
+                tokens: parseInt(document.getElementById('activityTokens').value) || 0,
+                deadline: document.getElementById('activityDeadline').value,
+                subject: document.getElementById('activitySubject').value.trim() || null,
+                instructions: document.getElementById('activityInstructions').value.trim() || null,
+                createdBy: currentUser.username
+            };
+
+            if (!activityData.title || !activityData.description || !activityData.deadline) {
+                alert('Por favor, completa todos los campos obligatorios');
+                return;
+            }
+
+            activitiesSystem.createActivity(activityData);
+            alert('✓ Actividad creada exitosamente');
+            document.getElementById('createActivityForm').reset();
+            loadActivities();
+        });
+
+        function toggleActivity(id, isActive) {
+            activitiesSystem.updateActivity(id, { status: isActive ? 'inactive' : 'active' });
+            loadActivities();
+        }
+
+        function editActivity(id) {
+            const activity = activitiesSystem.getActivityById(id);
+            if (!activity) return;
+
+            document.getElementById('activityTitle').value = activity.title;
+            document.getElementById('activityDescription').value = activity.description;
+            document.getElementById('activityTokens').value = activity.tokens || 0;
+            document.getElementById('activityDeadline').value = activity.deadline.substring(0, 16);
+            document.getElementById('activitySubject').value = activity.subject || '';
+            document.getElementById('activityInstructions').value = activity.instructions || '';
+
+            // Scroll al formulario
+            document.getElementById('createActivityForm').scrollIntoView({ behavior: 'smooth' });
+            
+            // Cambiar el botón a "Actualizar"
+            const submitBtn = document.querySelector('#createActivityForm button[type="submit"]');
+            submitBtn.textContent = 'Actualizar Actividad';
+            submitBtn.onclick = (e) => {
+                e.preventDefault();
+                const updated = {
+                    title: document.getElementById('activityTitle').value.trim(),
+                    description: document.getElementById('activityDescription').value.trim(),
+                    tokens: parseInt(document.getElementById('activityTokens').value) || 0,
+                    deadline: document.getElementById('activityDeadline').value,
+                    subject: document.getElementById('activitySubject').value.trim() || null,
+                    instructions: document.getElementById('activityInstructions').value.trim() || null
+                };
+                activitiesSystem.updateActivity(id, updated);
+                alert('✓ Actividad actualizada');
+                document.getElementById('createActivityForm').reset();
+                submitBtn.textContent = 'Crear Actividad';
+                submitBtn.onclick = null;
+                loadActivities();
+            };
+        }
+
+        function viewSubmissions(activityId) {
+            window.location.href = `revision-actividades.html?activity=${activityId}`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Cargar actividades al iniciar
+        loadActivities();
+    </script>
+</body>
+</html>
+

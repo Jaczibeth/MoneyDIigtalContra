@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Gestión de Recompensas - Money Digital | GROUP JAD</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-dark: rgba(255, 255, 255, 0.06);
+            --border-dark: rgba(255, 255, 255, 0.12);
+            --neon-cyan: #00eaff;
+            --neon-purple: #b400ff;
+            --text-light: #e5e5e5;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-dark);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border-dark);
+            padding: 20px 40px;
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: #bbb;
+            padding: 10px 18px;
+            border-radius: 10px;
+            transition: 0.3s;
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        nav a:hover, nav a.active {
+            background: rgba(0, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .card {
+            background: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            border-radius: 18px;
+            backdrop-filter: blur(12px);
+            padding: 24px;
+            transition: 0.3s;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+            color: white;
+        }
+
+        input, textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-dark);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-family: inherit;
+        }
+
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <header class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+            Money Digital - GROUP JAD
+        </h1>
+        <nav class="flex gap-6">
+            <a href="Inicio.html">🏠 Inicio</a>
+            <a href="gestion-actividades.html">📝 Actividades</a>
+            <a href="revision-actividades.html">📋 Revisar</a>
+            <a href="gestion-recompensas.html" class="active">🎁 Recompensas</a>
+        </nav>
+    </header>
+
+    <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
+        <div class="text-center mb-10">
+            <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+                Gestión de Recompensas
+            </h2>
+            <p class="text-gray-400">Crea recompensas que los estudiantes pueden canjear con sus tokens</p>
+        </div>
+
+        <!-- Formulario para crear recompensa -->
+        <div class="card mb-8">
+            <h3 class="text-2xl font-bold mb-6">➕ Crear Nueva Recompensa</h3>
+            <form id="createRewardForm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-gray-400 mb-2">Nombre de la Recompensa *</label>
+                        <input type="text" id="rewardName" required placeholder="Ej: Certificado Digital" />
+                    </div>
+                    <div>
+                        <label class="block text-gray-400 mb-2">Costo en Tokens *</label>
+                        <input type="number" id="rewardCost" required min="1" placeholder="100" />
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-gray-400 mb-2">Descripción *</label>
+                    <textarea id="rewardDescription" rows="3" required placeholder="Describe la recompensa..."></textarea>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-gray-400 mb-2">Icono (emoji) *</label>
+                    <input type="text" id="rewardIcon" required placeholder="🎁" maxlength="2" />
+                </div>
+
+                <div class="flex gap-4">
+                    <button type="submit" class="btn btn-primary">Crear Recompensa</button>
+                    <button type="reset" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Limpiar</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Lista de Recompensas -->
+        <div class="card">
+            <h3 class="text-2xl font-bold mb-6">📋 Recompensas Disponibles</h3>
+            <div id="rewardsList" class="space-y-4">
+                <p class="text-gray-400 text-center py-8">Cargando recompensas...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/activities-system.js"></script>
+    <script>
+        // Verificación de sesión
+        (function() {
+            const currentUserStr = localStorage.getItem('currentUser');
+            if (!currentUserStr) {
+                alert('Por favor, inicia sesión para acceder a esta página.');
+                window.location.href = 'Index.html';
+                return;
+            }
+            
+            const currentUser = JSON.parse(currentUserStr);
+            if (currentUser.role !== 'docente') {
+                alert('Esta página es solo para docentes.');
+                window.location.href = 'Inicio.html';
+                return;
+            }
+        })();
+
+        function loadRewards() {
+            if (typeof activitiesSystem === 'undefined') {
+                setTimeout(loadRewards, 100);
+                return;
+            }
+
+            const rewards = activitiesSystem.getRewards();
+            const redemptions = activitiesSystem.getRedemptions();
+
+            const container = document.getElementById('rewardsList');
+            
+            if (rewards.length === 0) {
+                container.innerHTML = `
+                    <p class="text-gray-400 text-center py-8">No hay recompensas creadas. Usa el formulario de arriba para crear una.</p>
+                `;
+                return;
+            }
+
+            container.innerHTML = rewards.map(reward => {
+                const redeemedCount = redemptions.filter(r => r.rewardId === reward.id).length;
+                const isActive = reward.status === 'active';
+
+                return `
+                    <div class="p-4 rounded-lg" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-dark);">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex items-center gap-4 flex-1">
+                                <div class="text-4xl">${reward.icon || '🎁'}</div>
+                                <div class="flex-1">
+                                    <h4 class="text-lg font-bold mb-1">${escapeHtml(reward.name)}</h4>
+                                    <p class="text-gray-400 text-sm mb-2">${escapeHtml(reward.description)}</p>
+                                    <div class="flex gap-4 text-sm text-gray-500">
+                                        <span>💰 ${reward.cost} tokens</span>
+                                        <span>📊 ${redeemedCount} canjeadas</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <span class="px-3 py-1 rounded-lg text-xs font-semibold ${isActive ? 'bg-green-500 bg-opacity-20 text-green-400' : 'bg-gray-500 bg-opacity-20 text-gray-400'}">
+                                ${isActive ? 'Activa' : 'Inactiva'}
+                            </span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="toggleReward('${reward.id}', ${isActive})" class="btn" style="background: rgba(255,255,255,0.1); color: white; padding: 8px 16px; font-size: 14px;">
+                                ${isActive ? 'Desactivar' : 'Activar'}
+                            </button>
+                            <button onclick="deleteReward('${reward.id}')" class="btn" style="background: rgba(244, 67, 54, 0.2); color: #f44336; padding: 8px 16px; font-size: 14px;">
+                                Eliminar
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        document.getElementById('createRewardForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const rewardData = {
+                name: document.getElementById('rewardName').value.trim(),
+                description: document.getElementById('rewardDescription').value.trim(),
+                cost: parseInt(document.getElementById('rewardCost').value) || 0,
+                icon: document.getElementById('rewardIcon').value.trim() || '🎁'
+            };
+
+            if (!rewardData.name || !rewardData.description || rewardData.cost <= 0) {
+                alert('Por favor, completa todos los campos correctamente');
+                return;
+            }
+
+            activitiesSystem.createReward(rewardData);
+            alert('✓ Recompensa creada exitosamente');
+            document.getElementById('createRewardForm').reset();
+            loadRewards();
+        });
+
+        function toggleReward(id, isActive) {
+            const rewards = activitiesSystem.getRewards();
+            const index = rewards.findIndex(r => r.id === id);
+            if (index !== -1) {
+                rewards[index].status = isActive ? 'inactive' : 'active';
+                localStorage.setItem('rewards', JSON.stringify(rewards));
+                loadRewards();
+            }
+        }
+
+        function deleteReward(id) {
+            if (!confirm('¿Estás seguro de eliminar esta recompensa?')) return;
+            
+            const rewards = activitiesSystem.getRewards();
+            const filtered = rewards.filter(r => r.id !== id);
+            localStorage.setItem('rewards', JSON.stringify(filtered));
+            loadRewards();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Cargar recompensas al iniciar
+        loadRewards();
+    </script>
+</body>
+</html>
+

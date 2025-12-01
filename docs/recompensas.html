@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Recompensas - Money Digital | GROUP JAD</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-dark: rgba(255, 255, 255, 0.06);
+            --border-dark: rgba(255, 255, 255, 0.12);
+            --neon-cyan: #00eaff;
+            --neon-purple: #b400ff;
+            --text-light: #e5e5e5;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-dark);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border-dark);
+            padding: 20px 40px;
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: #bbb;
+            padding: 10px 18px;
+            border-radius: 10px;
+            transition: 0.3s;
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        nav a:hover, nav a.active {
+            background: rgba(0, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .card {
+            background: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            border-radius: 18px;
+            backdrop-filter: blur(12px);
+            padding: 24px;
+            transition: 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.1);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+        }
+
+        .btn-disabled {
+            background: rgba(255, 255, 255, 0.1);
+            color: #666;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <header class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+            Money Digital - GROUP JAD
+        </h1>
+        <nav class="flex gap-6">
+            <a href="Inicio.html">🏠 Inicio</a>
+            <a href="actividades-estudiante.html">🎯 Actividades</a>
+            <a href="recompensas.html" class="active">🏆 Recompensas</a>
+            <a href="historial-estudiante.html">📊 Mi Historial</a>
+            <a href="Wallet.html">💎 Wallet</a>
+        </nav>
+    </header>
+
+    <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
+        <div class="text-center mb-10">
+            <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+                Canjear Recompensas
+            </h2>
+            <p class="text-gray-400">Usa tus tokens para canjear recompensas disponibles</p>
+        </div>
+
+        <!-- Balance de Tokens -->
+        <div class="card mb-8 text-center">
+            <h3 class="text-2xl font-bold mb-2">💰 Tus Tokens</h3>
+            <div class="text-5xl font-bold mb-4" style="color: var(--neon-cyan);" id="userTokensBalance">0</div>
+            <p class="text-gray-400">Gana más tokens completando actividades</p>
+        </div>
+
+        <!-- Lista de Recompensas -->
+        <div id="rewardsList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div class="card text-center py-12">
+                <p class="text-gray-400">Cargando recompensas...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/activities-system.js"></script>
+    <script>
+        // Verificación de sesión
+        (function() {
+            const currentUserStr = localStorage.getItem('currentUser');
+            if (!currentUserStr) {
+                alert('Por favor, inicia sesión para acceder a esta página.');
+                window.location.href = 'Index.html';
+                return;
+            }
+            
+            const currentUser = JSON.parse(currentUserStr);
+            if (currentUser.role === 'docente') {
+                window.location.href = 'gestion-recompensas.html';
+                return;
+            }
+        })();
+
+        function loadRewards() {
+            if (typeof activitiesSystem === 'undefined') {
+                setTimeout(loadRewards, 100);
+                return;
+            }
+
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const userTokens = activitiesSystem.getUserTokens(currentUser.username);
+            const rewards = activitiesSystem.getRewards().filter(r => r.status === 'active');
+
+            // Actualizar balance
+            document.getElementById('userTokensBalance').textContent = userTokens.balance;
+
+            const container = document.getElementById('rewardsList');
+            
+            if (rewards.length === 0) {
+                container.innerHTML = `
+                    <div class="card text-center py-12 col-span-full">
+                        <p class="text-gray-400 text-lg">No hay recompensas disponibles en este momento.</p>
+                        <p class="text-gray-500 text-sm mt-2">Las recompensas aparecerán aquí cuando los docentes las creen.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = rewards.map(reward => {
+                const canAfford = userTokens.balance >= reward.cost;
+                
+                return `
+                    <div class="card">
+                        <div class="text-center mb-4">
+                            <div class="text-5xl mb-3">${reward.icon || '🎁'}</div>
+                            <h3 class="text-xl font-bold mb-2">${escapeHtml(reward.name)}</h3>
+                            <p class="text-gray-400 text-sm mb-4">${escapeHtml(reward.description)}</p>
+                            <div class="text-2xl font-bold mb-4" style="color: var(--neon-cyan);">
+                                💰 ${reward.cost} tokens
+                            </div>
+                        </div>
+                        <button 
+                            onclick="redeemReward('${reward.id}')" 
+                            class="btn w-full ${canAfford ? 'btn-primary' : 'btn-disabled'}"
+                            ${!canAfford ? 'disabled' : ''}
+                        >
+                            ${canAfford ? 'Canjear' : 'Tokens Insuficientes'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function redeemReward(rewardId) {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const reward = activitiesSystem.getRewards().find(r => r.id === rewardId);
+            
+            if (!reward) {
+                alert('Recompensa no encontrada');
+                return;
+            }
+
+            if (!confirm(`¿Deseas canjear "${reward.name}" por ${reward.cost} tokens?`)) {
+                return;
+            }
+
+            const result = activitiesSystem.redeemReward(currentUser.username, rewardId);
+            
+            if (result.success) {
+                alert(`✓ ¡Recompensa canjeada exitosamente!\nTu nuevo balance: ${result.newBalance} tokens`);
+                loadRewards();
+            } else {
+                alert('Error: ' + (result.message || 'No se pudo canjear la recompensa'));
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Cargar recompensas al iniciar
+        loadRewards();
+    </script>
+</body>
+</html>
+

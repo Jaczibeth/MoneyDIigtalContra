@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mi Historial - Money Digital | GROUP JAD</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-dark: rgba(255, 255, 255, 0.06);
+            --border-dark: rgba(255, 255, 255, 0.12);
+            --neon-cyan: #00eaff;
+            --neon-purple: #b400ff;
+            --text-light: #e5e5e5;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-dark);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border-dark);
+            padding: 20px 40px;
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: #bbb;
+            padding: 10px 18px;
+            border-radius: 10px;
+            transition: 0.3s;
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        nav a:hover, nav a.active {
+            background: rgba(0, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .card {
+            background: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            border-radius: 18px;
+            backdrop-filter: blur(12px);
+            padding: 24px;
+            transition: 0.3s;
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-approved { background: rgba(76, 175, 80, 0.2); color: #4caf50; }
+        .status-rejected { background: rgba(244, 67, 54, 0.2); color: #f44336; }
+        .status-pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+        .status-needs_correction { background: rgba(255, 152, 0, 0.2); color: #ff9800; }
+    </style>
+</head>
+<body>
+    <header class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+            Money Digital - GROUP JAD
+        </h1>
+        <nav class="flex gap-6">
+            <a href="Inicio.html">🏠 Inicio</a>
+            <a href="actividades-estudiante.html">🎯 Actividades</a>
+            <a href="recompensas.html">🏆 Recompensas</a>
+            <a href="historial-estudiante.html" class="active">📊 Mi Historial</a>
+            <a href="Wallet.html">💎 Wallet</a>
+        </nav>
+    </header>
+
+    <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
+        <div class="text-center mb-10">
+            <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+                Mi Historial
+            </h2>
+            <p class="text-gray-400">Todas tus actividades, tokens ganados y recompensas canjeadas</p>
+        </div>
+
+        <!-- Resumen -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="card text-center">
+                <div class="text-3xl font-bold mb-2" style="color: var(--neon-cyan);" id="totalSubmitted">0</div>
+                <div class="text-gray-400">Actividades Enviadas</div>
+            </div>
+            <div class="card text-center">
+                <div class="text-3xl font-bold mb-2" style="color: var(--neon-cyan);" id="totalApproved">0</div>
+                <div class="text-gray-400">Actividades Aprobadas</div>
+            </div>
+            <div class="card text-center">
+                <div class="text-3xl font-bold mb-2" style="color: var(--neon-purple);" id="totalTokensEarned">0</div>
+                <div class="text-gray-400">Tokens Ganados</div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="card mb-6">
+            <div class="flex gap-4 border-b" style="border-color: var(--border-dark);">
+                <button class="tab-btn active px-4 py-2 font-semibold" data-tab="activities">Actividades</button>
+                <button class="tab-btn px-4 py-2 font-semibold" data-tab="tokens">Tokens</button>
+                <button class="tab-btn px-4 py-2 font-semibold" data-tab="rewards">Recompensas</button>
+            </div>
+        </div>
+
+        <!-- Contenido de Tabs -->
+        <div id="tabActivities" class="tab-content">
+            <div id="activitiesHistory" class="space-y-4">
+                <div class="card text-center py-12">
+                    <p class="text-gray-400">Cargando historial...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="tabTokens" class="tab-content hidden">
+            <div id="tokensHistory" class="space-y-4">
+                <div class="card text-center py-12">
+                    <p class="text-gray-400">Cargando transacciones...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="tabRewards" class="tab-content hidden">
+            <div id="rewardsHistory" class="space-y-4">
+                <div class="card text-center py-12">
+                    <p class="text-gray-400">Cargando recompensas...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/activities-system.js"></script>
+    <script>
+        // Verificación de sesión
+        (function() {
+            const currentUserStr = localStorage.getItem('currentUser');
+            if (!currentUserStr) {
+                alert('Por favor, inicia sesión para acceder a esta página.');
+                window.location.href = 'Index.html';
+                return;
+            }
+            
+            const currentUser = JSON.parse(currentUserStr);
+            if (currentUser.role === 'docente') {
+                window.location.href = 'historial-docente.html';
+                return;
+            }
+        })();
+
+        let currentTab = 'activities';
+
+        function loadHistory() {
+            if (typeof activitiesSystem === 'undefined') {
+                setTimeout(loadHistory, 100);
+                return;
+            }
+
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const submissions = activitiesSystem.getSubmissionsByStudent(currentUser.username);
+            const userTokens = activitiesSystem.getUserTokens(currentUser.username);
+            const redemptions = activitiesSystem.getRedemptions().filter(r => r.username === currentUser.username);
+
+            // Actualizar resumen
+            document.getElementById('totalSubmitted').textContent = submissions.length;
+            document.getElementById('totalApproved').textContent = submissions.filter(s => s.status === 'approved').length;
+            document.getElementById('totalTokensEarned').textContent = submissions
+                .filter(s => s.status === 'approved')
+                .reduce((sum, s) => sum + (s.tokensAwarded || 0), 0);
+
+            // Cargar actividades
+            loadActivitiesHistory(submissions);
+            loadTokensHistory(userTokens.transactions);
+            loadRewardsHistory(redemptions);
+        }
+
+        function loadActivitiesHistory(submissions) {
+            const container = document.getElementById('activitiesHistory');
+            
+            if (submissions.length === 0) {
+                container.innerHTML = `
+                    <div class="card text-center py-12">
+                        <p class="text-gray-400">No has enviado actividades aún.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = submissions
+                .sort((a, b) => new Date(b.submittedAt) - new Date(a.submittedAt))
+                .map(submission => {
+                    const activity = activitiesSystem.getActivityById(submission.activityId);
+                    if (!activity) return '';
+
+                    const statusBadges = {
+                        approved: '<span class="status-badge status-approved">✓ Aprobada</span>',
+                        rejected: '<span class="status-badge status-rejected">✗ Rechazada</span>',
+                        pending: '<span class="status-badge status-pending">⏳ Pendiente</span>',
+                        needs_correction: '<span class="status-badge status-needs_correction">⚠ Necesita Corrección</span>'
+                    };
+
+                    return `
+                        <div class="card">
+                            <div class="flex justify-between items-start mb-3">
+                                <div class="flex-1">
+                                    <h3 class="text-lg font-bold mb-2">${escapeHtml(activity.title)}</h3>
+                                    <p class="text-sm text-gray-400 mb-2">Enviado: ${new Date(submission.submittedAt).toLocaleString()}</p>
+                                    ${submission.reviewedAt ? `<p class="text-sm text-gray-400">Revisado: ${new Date(submission.reviewedAt).toLocaleString()}</p>` : ''}
+                                </div>
+                                ${statusBadges[submission.status] || statusBadges.pending}
+                            </div>
+                            ${submission.comments ? `
+                                <div class="mb-3 p-3 rounded-lg" style="background: rgba(255,255,255,0.05);">
+                                    <p class="text-sm font-semibold mb-1">Comentarios del docente:</p>
+                                    <p class="text-sm text-gray-400">${escapeHtml(submission.comments)}</p>
+                                </div>
+                            ` : ''}
+                            ${submission.status === 'approved' && submission.tokensAwarded ? `
+                                <div class="p-3 rounded-lg" style="background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.3);">
+                                    <p class="text-green-400 font-semibold">💰 ${submission.tokensAwarded} tokens recibidos</p>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                }).join('');
+        }
+
+        function loadTokensHistory(transactions) {
+            const container = document.getElementById('tokensHistory');
+            
+            if (transactions.length === 0) {
+                container.innerHTML = `
+                    <div class="card text-center py-12">
+                        <p class="text-gray-400">No hay transacciones de tokens aún.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = transactions
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                .map(transaction => {
+                    const isEarned = transaction.type === 'earned';
+                    const isRedeemed = transaction.type === 'redeemed';
+                    
+                    return `
+                        <div class="card">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="font-semibold mb-1">${escapeHtml(transaction.description)}</p>
+                                    <p class="text-sm text-gray-400">${new Date(transaction.timestamp).toLocaleString()}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xl font-bold ${isEarned ? 'text-green-400' : 'text-red-400'}">
+                                        ${isEarned ? '+' : ''}${transaction.amount} tokens
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+        }
+
+        function loadRewardsHistory(redemptions) {
+            const container = document.getElementById('rewardsHistory');
+            
+            if (redemptions.length === 0) {
+                container.innerHTML = `
+                    <div class="card text-center py-12">
+                        <p class="text-gray-400">No has canjeado recompensas aún.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = redemptions
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                .map(redemption => {
+                    return `
+                        <div class="card">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <p class="font-semibold mb-1">${escapeHtml(redemption.rewardName)}</p>
+                                    <p class="text-sm text-gray-400">${new Date(redemption.timestamp).toLocaleString()}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-xl font-bold text-red-400">-${redemption.cost} tokens</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+        }
+
+        // Tabs
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.getAttribute('data-tab');
+                currentTab = tab;
+                
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.add('hidden'));
+                
+                btn.classList.add('active');
+                document.getElementById(`tab${tab.charAt(0).toUpperCase() + tab.slice(1)}`).classList.remove('hidden');
+            });
+        });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Cargar historial al iniciar
+        loadHistory();
+    </script>
+</body>
+</html>
+

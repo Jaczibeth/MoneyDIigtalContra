@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Money Digital — Tokens y Recompensas Digitales | GROUP JAD</title>
+
+  <!-- Tailwind (utility base) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Fuentes -->
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+
+  <!-- Font Awesome (icons) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="" crossorigin="anonymous"/>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root{
+      --bg-900: #0a0a0a;
+      --bg-800: #0f0f13;
+      --panel: #13131a;
+      --muted: #9aa4b2;
+      --accent-cyan: #00e5ff;
+      --accent-violet: #6a5acd;
+      --glass: rgba(255,255,255,0.03);
+      --glass-border: rgba(255,255,255,0.06);
+    }
+
+    html,body { height: 100%; }
+    body{
+      margin:0;
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(10,10,10,0.6), transparent),
+                  radial-gradient(1000px 500px at 90% 90%, rgba(26,18,50,0.5), transparent),
+                  var(--bg-900);
+      font-family: 'Poppins', system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      color: #e7eef8;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+
+    /* page layout */
+    .app {
+      max-width:1200px;
+      margin:32px auto;
+      padding:22px;
+      display:grid;
+      grid-template-columns: 1fr 420px;
+      gap:22px;
+    }
+
+    /* responsive */
+    @media (max-width: 1024px){
+      .app { grid-template-columns: 1fr; padding:16px; }
+      .right-col { order: 2; }
+    }
+
+    /* Top header */
+    header.topbar{
+      position:sticky;
+      top:12px;
+      z-index:40;
+      margin: 8px auto 18px;
+      max-width:1200px;
+      padding: 10px 20px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border-radius:14px;
+      border:1px solid var(--glass-border);
+      box-shadow: 0 6px 30px rgba(0,0,0,0.6);
+    }
+
+    .brand {
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+
+    .logo {
+      width:44px; height:44px;
+      display:inline-grid;
+      place-items:center;
+      border-radius:10px;
+      background: linear-gradient(135deg,var(--accent-violet),var(--accent-cyan));
+      box-shadow: 0 6px 18px rgba(106,90,205,0.18);
+      color: #04060a;
+      font-weight:700;
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .brand h1 { font-size:1.05rem; margin:0; letter-spacing:0.2px; color:#f5f8fb; font-weight:700; }
+
+    nav.topnav { display:flex; gap:10px; align-items:center; }
+    nav.topnav a {
+      color:var(--muted);
+      text-decoration:none;
+      font-size:0.92rem;
+      padding:8px 12px;
+      border-radius:10px;
+      transition: all .18s ease;
+    }
+    nav.topnav a.active, nav.topnav a:hover {
+      color:#fff;
+      background: linear-gradient(90deg, rgba(106,90,205,0.12), rgba(0,229,255,0.06));
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.01);
+      transform:translateY(-2px);
+    }
+
+    /* PARTICLES container (subtle) */
+    .bg-particles {
+      position: fixed;
+      inset:0;
+      z-index:0;
+      pointer-events:none;
+      overflow:hidden;
+      mask-image: radial-gradient(transparent 0%, black 12%);
+    }
+
+    .particle {
+      position:absolute;
+      width:6px;
+      height:6px;
+      border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(0,229,255,0.7));
+      opacity:0.08;
+      filter: blur(6px);
+    }
+
+    /* Left column - main content */
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border:1px solid var(--glass-border);
+      border-radius:16px;
+      padding:20px;
+      box-shadow: 0 10px 40px rgba(2,6,23,0.6);
+      position:relative;
+      overflow:hidden;
+      z-index:10;
+    }
+
+    .panel h2 {
+      margin:0 0 8px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight:700;
+      font-size:1.15rem;
+      color:#f3f7fb;
+    }
+
+    .panel p.lead {
+      margin:0 0 16px;
+      color:var(--muted);
+      font-size:0.94rem;
+    }
+
+    /* Balance summary */
+    .balance {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:18px;
+      padding:18px;
+      border-radius:12px;
+      background: linear-gradient(90deg, rgba(106,90,205,0.06), rgba(0,229,255,0.03));
+      border:1px solid rgba(255,255,255,0.02);
+      margin-bottom:18px;
+    }
+
+    .balance-left { display:flex; gap:14px; align-items:center; }
+    .badge {
+      width:64px; height:64px; display:grid; place-items:center; border-radius:12px;
+      background: linear-gradient(135deg,var(--accent-cyan),var(--accent-violet));
+      color:#021018; font-weight:700;
+      box-shadow: 0 10px 30px rgba(106,90,205,0.12);
+      font-family: 'Montserrat', sans-serif;
+    }
+
+    .balance-info { line-height:1; }
+    .balance-info .label { color:var(--muted); font-size:0.85rem; text-transform:uppercase; letter-spacing:0.8px; }
+    .balance-info .amount { font-size:1.8rem; font-weight:700; background: linear-gradient(90deg,var(--accent-cyan),var(--accent-violet)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+
+    .balance-actions { display:flex; gap:10px; align-items:center; }
+    .btn {
+      border-radius:10px;
+      padding:10px 14px;
+      font-weight:600;
+      cursor:pointer;
+      border:1px solid rgba(255,255,255,0.03);
+      background:transparent;
+      color: #e7f7fb;
+      transition: all .16s ease;
+    }
+    .btn.ghost { background: rgba(255,255,255,0.02); }
+    .btn.accent {
+      background: linear-gradient(90deg,var(--accent-violet),var(--accent-cyan));
+      color:#041018;
+      box-shadow: 0 8px 26px rgba(0,229,255,0.08);
+    }
+
+    /* small controls (currencies) */
+    .currency-list { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; }
+    .currency-chip {
+      padding:8px 12px; border-radius:999px;
+      background: rgba(255,255,255,0.02);
+      color:var(--muted);
+      font-weight:600;
+      font-size:0.9rem;
+      border:1px solid rgba(255,255,255,0.01);
+      cursor:pointer;
+      transition: all .14s ease;
+    }
+    .currency-chip.active { background: linear-gradient(90deg,var(--accent-cyan),var(--accent-violet)); color:#081016; box-shadow: 0 6px 20px rgba(0,229,255,0.06); transform:translateY(-3px); }
+
+    /* actions grid */
+    .actions-grid {
+      display:grid;
+      grid-template-columns: repeat(4,1fr);
+      gap:12px;
+      margin:18px 0 8px;
+    }
+    .action-card {
+      padding:14px; border-radius:12px; text-align:center;
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+      border:1px solid rgba(255,255,255,0.02);
+      cursor:pointer;
+      transition: transform .12s ease, box-shadow .12s ease;
+    }
+    .action-card:hover { transform: translateY(-6px); box-shadow: 0 20px 40px rgba(0,0,0,0.6); }
+    .action-card i { font-size:18px; color:var(--accent-cyan); display:block; margin-bottom:8px; }
+    .action-card .title { font-weight:700; font-size:0.95rem; color:#f5faff; }
+
+    /* right column: wallet + chart + transactions */
+    .right-col { display:flex; flex-direction:column; gap:16px; }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border: 1px solid var(--glass-border);
+      border-radius:14px;
+      padding:16px;
+      box-shadow: 0 10px 30px rgba(2,6,23,0.6);
+    }
+
+    .wallet-address {
+      font-family: 'Roboto Mono', monospace;
+      font-size:0.86rem;
+      color:var(--accent-cyan);
+      background: rgba(0,0,0,0.2);
+      padding:8px;
+      border-radius:8px;
+      word-break:break-word;
+      border:1px solid rgba(255,255,255,0.02);
+    }
+    .qr {
+      width:120px; height:120px; border-radius:8px; padding:6px; background:#fff; display:block; margin:12px auto 6px; border:1px solid rgba(0,0,0,0.06);
+    }
+
+    .tx-list { display:flex; flex-direction:column; gap:10px; max-height:300px; overflow:auto; padding-right:8px; }
+    .tx-item {
+      display:flex; gap:12px; align-items:center; padding:12px; border-radius:10px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005));
+      border:1px solid rgba(255,255,255,0.02);
+      transition: transform .12s ease, background .12s ease;
+    }
+    .tx-item:hover { transform: translateX(6px); background: rgba(0,229,255,0.02); }
+    .tx-icon {
+      width:44px; height:44px; display:grid; place-items:center; border-radius:10px; background: rgba(0,229,255,0.06); color:var(--accent-cyan);
+      font-size:18px;
+    }
+    .tx-meta { flex:1; min-width:0; }
+    .tx-meta .title { font-weight:700; color:#f3f7fb; }
+    .tx-meta .sub { color:var(--muted); font-size:0.86rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
+    .tx-amount { font-weight:800; min-width:85px; text-align:right; }
+    .tx-amount.negative { color:#ff6b6b; }
+    .tx-amount.positive { color:#7bffb3; }
+
+    /* chart wrapper */
+    .chart-wrap { padding:8px 6px; }
+
+    /* small utility */
+    .muted { color:var(--muted); font-size:0.9rem; }
+
+    /* custom scrollbar (dark) */
+    .tx-list::-webkit-scrollbar { width:8px; }
+    .tx-list::-webkit-scrollbar-track { background:transparent; }
+    .tx-list::-webkit-scrollbar-thumb { background: linear-gradient(180deg, rgba(106,90,205,0.16), rgba(0,229,255,0.12)); border-radius:10px; }
+
+  </style>
+</head>
+<body>
+
+  <!-- subtle particles -->
+  <div class="bg-particles" aria-hidden="true" id="particles"></div>
+
+  <!-- top header -->
+  <header class="topbar" role="banner" aria-label="Barra superior">
+    <div class="brand">
+      <div class="logo">MD</div>
+      <div>
+        <h1>Money Digital - GROUP JAD</h1>
+        <div class="muted">Dinero Inteligente, Futuro Brillante | Stellar</div>
+      </div>
+    </div>
+
+    <nav class="topnav" role="navigation" aria-label="Navegación principal">
+      <a href="Inicio.html">🏠 Inicio</a>
+      <a href="cursos.html">🎯 Actividades</a>
+      <a href="materias.html">📖 Materias</a>
+      <a href="niveles.html">📊 Mi Progreso</a>
+      <a href="Wallet.html">💎 Wallet</a>
+      <a href="Moneda.html" class="active">🪙 Tokens</a>
+      <a href="cetificado.html">🏆 Certificados</a>
+      <a href="Usuarios.html">👥 Comunidad</a>
+    </nav>
+  </header>
+
+  <!-- app container -->
+  <main class="app" role="main" aria-labelledby="main-title">
+
+    <!-- left column -->
+    <section class="panel" aria-labelledby="main-title">
+      <h2 id="main-title">Tokens y Recompensas Digitales</h2>
+      <p class="lead">Gestiona tus tokens ganados por participar en actividades extracurriculares. Consulta balances, realiza transacciones y convierte tus recompensas.</p>
+
+      <!-- Balance -->
+      <div class="balance" role="region" aria-label="Balance principal">
+        <div class="balance-left">
+          <div class="badge">X</div>
+          <div class="balance-info">
+            <div class="label">Balance total</div>
+            <div id="mainBalance" class="amount">3,542.12 XLM</div>
+            <div class="currency-list" id="currencyList">
+              <div class="currency-chip active" data-currency="XLM">XLM</div>
+              <div class="currency-chip" data-currency="BTC">BTC</div>
+              <div class="currency-chip" data-currency="USD">USD</div>
+              <div class="currency-chip" data-currency="USDT">USDT</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="balance-actions">
+          <button class="btn ghost" id="btnReceive"><i class="fa-solid fa-download"></i> Recibir</button>
+          <button class="btn ghost" id="btnSend"><i class="fa-solid fa-paper-plane"></i> Enviar</button>
+          <button class="btn accent" id="btnSwap"><i class="fa-solid fa-exchange-alt"></i> Swap</button>
+        </div>
+      </div>
+
+      <!-- actions -->
+      <div>
+        <h2 style="font-size:0.96rem; margin-bottom:10px;">Acciones rápidas</h2>
+        <div class="actions-grid" role="toolbar" aria-label="Acciones rápidas">
+          <div class="action-card" id="sendAction"><i class="fa-solid fa-paper-plane"></i><div class="title">Enviar</div></div>
+          <div class="action-card" id="receiveAction"><i class="fa-solid fa-qrcode"></i><div class="title">Recibir</div></div>
+          <div class="action-card" id="swapAction"><i class="fa-solid fa-exchange-alt"></i><div class="title">Swap</div></div>
+          <div class="action-card" id="historyAction"><i class="fa-solid fa-list"></i><div class="title">Historial</div></div>
+        </div>
+      </div>
+
+      <!-- transactions small (inline) -->
+      <div style="margin-top:18px;">
+        <h2 style="font-size:0.96rem; margin-bottom:10px;">Últimas transacciones</h2>
+        <div class="tx-list" id="transactionsListSmall" aria-live="polite">
+          <!-- Items inserted by JS -->
+        </div>
+      </div>
+
+    </section>
+
+    <!-- right column -->
+    <aside class="right-col">
+      <!-- wallet card -->
+      <div class="card" aria-label="Información de wallet">
+        <h3 style="margin:0 0 8px; font-family:Montserrat, sans-serif; font-weight:700; color:#f5f8fb;">Wallet</h3>
+        <p class="muted" style="margin-bottom:10px;">Dirección pública</p>
+        <div id="walletAddress" class="wallet-address">GABCDEF1234567890XYZSTELLARWALLETADDRESS</div>
+        <img id="qrImg" class="qr" src="https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=GABCDEF1234567890XYZSTELLARWALLETADDRESS" alt="Código QR de la wallet">
+
+        <div style="display:flex; gap:8px; justify-content:space-between; margin-top:8px;">
+          <button class="btn ghost" id="copyAddr"><i class="fa-regular fa-copy"></i> Copiar</button>
+          <button class="btn ghost" id="exportKey"><i class="fa-regular fa-file-export"></i> Exportar</button>
+        </div>
+      </div>
+
+      <!-- chart card -->
+      <div class="card chart-wrap" aria-label="Gráfico de balance">
+        <h3 style="margin:0 0 8px; font-family:Montserrat, sans-serif; font-weight:700; color:#f5f8fb;">Balance (últimos 30 días)</h3>
+        <canvas id="balanceChart" width="400" height="200" aria-label="Gráfico de balance"></canvas>
+      </div>
+
+      <!-- transactions detailed -->
+      <div class="card" aria-label="Lista de transacciones recientes">
+        <h3 style="margin:0 0 8px; font-family:Montserrat, sans-serif; font-weight:700; color:#f5f8fb;">Transacciones recientes</h3>
+        <div class="tx-list" id="transactionsList">
+          <!-- Items inserted by JS -->
+        </div>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- Demo data + interactions -->
+  <script>
+    // Verificación de sesión
+    (function() {
+      const currentUserStr = localStorage.getItem('currentUser');
+      if (!currentUserStr) {
+        alert('Por favor, inicia sesión para acceder a esta página.');
+        window.location.href = 'Index.html';
+        return;
+      }
+    })();
+
+    // Create subtle floating particles
+    function createParticles(count = 30) {
+      const container = document.getElementById('particles');
+      for (let i = 0; i < count; i++) {
+        const el = document.createElement('div');
+        el.className = 'particle';
+        const size = 2 + Math.round(Math.random() * 6);
+        el.style.width = size + 'px';
+        el.style.height = size + 'px';
+        el.style.left = Math.random() * 100 + '%';
+        el.style.top = Math.random() * 100 + '%';
+        el.style.opacity = (0.04 + Math.random() * 0.12).toString();
+        el.style.transform = `translate3d(0,0,0)`;
+        const dur = 8 + Math.random()*10;
+        el.style.animation = `float ${dur}s ease-in-out ${Math.random()*5}s infinite`;
+        container.appendChild(el);
+      }
+    }
+
+    // Demo balances
+    const balances = { XLM: 3542.12, BTC: 0.256, USD: 13456.23, USDT: 5000.50 };
+
+    // Demo transactions
+    const transactions = [
+      { type: "Sent", date: "2024-06-22 14:50", amount: -1.23, currency: "XLM", to: "GXYZ123...789ABC", icon: "fa-arrow-up-right" },
+      { type: "Received", date: "2024-06-21 19:20", amount: 0.75, currency: "BTC", from: "GBTC456...DEF789", icon: "fa-arrow-down-left" },
+      { type: "Swap", date: "2024-06-20 11:48", amount: -300, currency: "USD", details: "XLM → USD", icon: "fa-exchange-alt" },
+      { type: "Received", date: "2024-06-18 09:12", amount: 1500, currency: "USDT", from: "GUSDT789...JKL012", icon: "fa-arrow-down-left" },
+      { type: "Sent", date: "2024-06-15 22:06", amount: -0.015, currency: "BTC", to: "GBTC345...MNO678", icon: "fa-arrow-up-right" },
+    ];
+
+    // UTIL: format amount
+    function formatAmount(amount, currency) {
+      if (currency === 'USD' || currency === 'USDT') {
+        return (Math.abs(amount)).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) + (amount < 0 ? '' : '');
+      }
+      const maxFrac = (currency === 'BTC') ? 6 : 6;
+      return Math.abs(amount).toLocaleString('en-US', { maximumFractionDigits: maxFrac }) + ' ' + currency;
+    }
+
+    // Update main balance element
+    const mainBalanceEl = document.getElementById('mainBalance');
+    const currencyChips = document.querySelectorAll('.currency-chip');
+
+    function updateBalance(currency='XLM') {
+      if (balances[currency] !== undefined) {
+        mainBalanceEl.textContent = formatAmount(balances[currency], currency);
+      }
+      currencyChips.forEach(chip => {
+        chip.classList.toggle('active', chip.dataset.currency === currency);
+      });
+    }
+
+    // Render transaction item (shared)
+    function createTxElement(tx) {
+      const wrap = document.createElement('div');
+      wrap.className = 'tx-item';
+
+      const icon = document.createElement('div');
+      icon.className = 'tx-icon';
+      icon.innerHTML = `<i class="fa-solid ${tx.icon}"></i>`;
+      wrap.appendChild(icon);
+
+      const meta = document.createElement('div');
+      meta.className = 'tx-meta';
+      const title = document.createElement('div');
+      title.className = 'title';
+      title.textContent = tx.type;
+      const sub = document.createElement('div');
+      sub.className = 'sub';
+      if (tx.type === 'Sent') sub.textContent = `To ${tx.to} • ${tx.date}`;
+      else if (tx.type === 'Received') sub.textContent = `From ${tx.from} • ${tx.date}`;
+      else if (tx.type === 'Swap') sub.textContent = `${tx.details} • ${tx.date}`;
+      else sub.textContent = tx.date;
+      meta.appendChild(title);
+      meta.appendChild(sub);
+      wrap.appendChild(meta);
+
+      const amount = document.createElement('div');
+      amount.className = 'tx-amount ' + (tx.amount < 0 ? 'negative' : 'positive');
+      const sign = tx.amount < 0 ? '-' : '+';
+      amount.textContent = (tx.amount < 0 ? '-' : '+') + ' ' + formatAmount(Math.abs(tx.amount), tx.currency);
+      wrap.appendChild(amount);
+
+      return wrap;
+    }
+
+    function renderTransactions() {
+      const container = document.getElementById('transactionsList');
+      const small = document.getElementById('transactionsListSmall');
+      container.innerHTML = '';
+      small.innerHTML = '';
+      transactions.forEach(tx=>{
+        container.appendChild(createTxElement(tx));
+        small.appendChild(createTxElement(tx));
+      });
+    }
+
+    // Chart setup (balance over time)
+    function initChart() {
+      const ctx = document.getElementById('balanceChart').getContext('2d');
+      const labels = ['01 Jun','05 Jun','10 Jun','15 Jun','20 Jun','25 Jun','30 Jun'];
+      const dataPoints = [3200,3420,3505,3480,3600,3570,3542];
+
+      const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'XLM',
+            data: dataPoints,
+            fill: true,
+            backgroundColor: 'linear-gradient(180deg, rgba(0,229,255,0.06), rgba(106,90,205,0.02))',
+            borderColor: '#00e5ff',
+            borderWidth: 2.8,
+            tension: 0.36,
+            pointRadius: 4,
+            pointBackgroundColor: '#00e5ff'
+          }]
+        },
+        options: {
+          responsive:true,
+          plugins:{
+            legend: { display:false },
+            tooltip: {
+              backgroundColor:'#0b0b10',
+              titleColor:'#00e5ff',
+              bodyColor:'#eafcff',
+              displayColors:false,
+              borderColor:'#00e5ff',
+              borderWidth:1
+            }
+          },
+          scales:{
+            x:{ ticks:{ color:'#7fefff' }, grid:{ color:'rgba(0,229,255,0.04)' } },
+            y:{ ticks:{ color:'#7fefff' }, grid:{ color:'rgba(0,229,255,0.04)' } }
+          }
+        }
+      });
+    }
+
+    // Copy address button
+    document.addEventListener('click', (e)=>{
+      if (e.target.closest('#copyAddr')) {
+        const addr = document.getElementById('walletAddress').textContent.trim();
+        navigator.clipboard?.writeText(addr).then(()=> {
+          e.target.closest('button').textContent = 'Copiado ✓';
+          setTimeout(()=> e.target.closest('button').innerHTML = '<i class="fa-regular fa-copy"></i> Copiar', 1500);
+        }).catch(()=> alert('No se pudo copiar'));
+      }
+      if (e.target.closest('#exportKey')) {
+        alert('Función exportar: implementar según tu flujo seguro (no guardar secret en localStorage sin cifrar).');
+      }
+    });
+
+    // currency chip clicks
+    document.querySelectorAll('.currency-chip').forEach(chip=>{
+      chip.addEventListener('click', (e)=>{
+        updateBalance(chip.dataset.currency);
+      });
+    });
+
+    // action card placeholders
+    document.querySelectorAll('.action-card').forEach(card=>{
+      card.addEventListener('click', ()=> {
+        // hook: aquí puedes abrir modal / redirigir
+        const id = card.id;
+        if (id === 'sendAction') alert('Abrir modal Enviar');
+        if (id === 'receiveAction') alert('Abrir modal Recibir');
+        if (id === 'swapAction') alert('Abrir modal Swap');
+        if (id === 'historyAction') {
+          document.querySelector('#transactionsList').scrollIntoView({behavior:'smooth'});
+        }
+      });
+    });
+
+    // init
+    createParticles(28);
+    updateBalance('XLM');
+    renderTransactions();
+    initChart();
+
+    // populate wallet address & QR (example)
+    (function setWalletDemo(){
+      const addr = 'GABCDEF1234567890XYZSTELLARWALLETADDRESS';
+      document.getElementById('walletAddress').textContent = addr;
+      document.getElementById('qrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data='+encodeURIComponent(addr);
+    })();
+
+  </script>
+</body>
+</html>

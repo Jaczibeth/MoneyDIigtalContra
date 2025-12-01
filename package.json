@@ -1,0 +1,16 @@
+{
+  "name": "money-digital",
+  "version": "1.0.0",
+  "description": "Plataforma de recompensas digitales para actividades extracurriculares - GROUP JAD. Dinero Inteligente, Futuro Brillante. Basada en Stellar y Soroban",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "serve": "npx http-server docs -p 8080 -o"
+  },
+  "dependencies": {
+    "@stellar/freighter-api": "^4.1.0"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  }
+}

@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mis Actividades - Money Digital | GROUP JAD</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-dark: rgba(255, 255, 255, 0.06);
+            --border-dark: rgba(255, 255, 255, 0.12);
+            --neon-cyan: #00eaff;
+            --neon-purple: #b400ff;
+            --text-light: #e5e5e5;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-dark);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border-dark);
+            padding: 20px 40px;
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: #bbb;
+            padding: 10px 18px;
+            border-radius: 10px;
+            transition: 0.3s;
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        nav a:hover, nav a.active {
+            background: rgba(0, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .card {
+            background: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            border-radius: 18px;
+            backdrop-filter: blur(12px);
+            padding: 24px;
+            transition: 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.1);
+        }
+
+        .status-badge {
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+        .status-submitted { background: rgba(33, 150, 243, 0.2); color: #2196f3; }
+        .status-approved { background: rgba(76, 175, 80, 0.2); color: #4caf50; }
+        .status-rejected { background: rgba(244, 67, 54, 0.2); color: #f44336; }
+        .status-needs_correction { background: rgba(255, 152, 0, 0.2); color: #ff9800; }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <header class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+            Money Digital - GROUP JAD
+        </h1>
+        <nav class="flex gap-6">
+            <a href="Inicio.html">🏠 Inicio</a>
+            <a href="actividades-estudiante.html" class="active">🎯 Mis Actividades</a>
+            <a href="recompensas.html">🏆 Recompensas</a>
+            <a href="historial-estudiante.html">📊 Mi Historial</a>
+            <a href="Wallet.html">💎 Wallet</a>
+        </nav>
+    </header>
+
+    <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
+        <div class="text-center mb-10">
+            <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+                Mis Actividades
+            </h2>
+            <p class="text-gray-400">Sube evidencia de tus actividades y recibe tokens cuando sean aprobadas</p>
+        </div>
+
+        <!-- Filtros -->
+        <div class="card mb-6">
+            <div class="flex gap-4 items-center flex-wrap">
+                <span class="text-gray-400">Filtrar por estado:</span>
+                <button id="filterAll" class="btn btn-primary">Todas</button>
+                <button id="filterPending" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Pendientes</button>
+                <button id="filterSubmitted" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Enviadas</button>
+                <button id="filterApproved" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Aprobadas</button>
+            </div>
+        </div>
+
+        <!-- Lista de Actividades -->
+        <div id="activitiesList" class="space-y-4">
+            <div class="card text-center py-12">
+                <p class="text-gray-400">Cargando actividades...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal para Subir Evidencia -->
+    <div id="uploadModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+        <div class="card max-w-2xl w-full mx-4">
+            <h3 class="text-2xl font-bold mb-4" id="modalActivityTitle">Subir Evidencia</h3>
+            <div id="modalActivityDescription" class="text-gray-400 mb-4"></div>
+            
+            <form id="uploadForm">
+                <input type="hidden" id="modalActivityId" />
+                
+                <div class="mb-4">
+                    <label class="block text-gray-400 mb-2">Selecciona archivo (PDF, Imagen, Video)</label>
+                    <input type="file" id="evidenceFile" accept=".pdf,.jpg,.jpeg,.png,.gif,.mp4,.webm" class="w-full p-3 rounded-lg" style="background: rgba(255,255,255,0.1); border: 1px solid var(--border-dark);" required />
+                    <p class="text-xs text-gray-500 mt-1">Máximo 10MB. Formatos: PDF, JPG, PNG, GIF, MP4</p>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-gray-400 mb-2">Comentarios adicionales (opcional)</label>
+                    <textarea id="evidenceComments" rows="3" class="w-full p-3 rounded-lg" style="background: rgba(255,255,255,0.1); border: 1px solid var(--border-dark); color: white;" placeholder="Agrega cualquier comentario sobre tu evidencia..."></textarea>
+                </div>
+
+                <div class="flex gap-4">
+                    <button type="submit" class="btn btn-primary flex-1">Subir y Enviar</button>
+                    <button type="button" id="cancelUpload" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Cancelar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
+    <script src="js/activities-system.js"></script>
+    <script src="js/file-upload.js"></script>
+    <script src="js/stellar-integration.js"></script>
+    <script>
+        // Verificación de sesión
+        (function() {
+            const currentUserStr = localStorage.getItem('currentUser');
+            if (!currentUserStr) {
+                alert('Por favor, inicia sesión para acceder a esta página.');
+                window.location.href = 'Index.html';
+                return;
+            }
+            
+            const currentUser = JSON.parse(currentUserStr);
+            if (currentUser.role === 'docente') {
+                window.location.href = 'gestion-actividades.html';
+                return;
+            }
+        })();
+
+        let currentFilter = 'all';
+        let currentActivityId = null;
+
+        function loadActivities() {
+            if (typeof activitiesSystem === 'undefined') {
+                setTimeout(loadActivities, 100);
+                return;
+            }
+
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const username = currentUser.username;
+            const activities = activitiesSystem.getActivities().filter(a => a.status === 'active');
+            const submissions = activitiesSystem.getSubmissionsByStudent(username);
+
+            const container = document.getElementById('activitiesList');
+            
+            if (activities.length === 0) {
+                container.innerHTML = `
+                    <div class="card text-center py-12">
+                        <p class="text-gray-400 text-lg">No hay actividades disponibles en este momento.</p>
+                        <p class="text-gray-500 text-sm mt-2">Las actividades aparecerán aquí cuando tu docente las cree.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = activities.map(activity => {
+                const submission = submissions.find(s => s.activityId === activity.id);
+                const status = submission ? submission.status : 'pending';
+                const canSubmit = !submission || submission.status === 'rejected' || submission.status === 'needs_correction';
+                
+                let statusText = 'Pendiente';
+                let statusClass = 'status-pending';
+                if (status === 'submitted' || status === 'pending') {
+                    statusText = 'Enviada';
+                    statusClass = 'status-submitted';
+                } else if (status === 'approved') {
+                    statusText = 'Aprobada';
+                    statusClass = 'status-approved';
+                } else if (status === 'rejected') {
+                    statusText = 'Rechazada';
+                    statusClass = 'status-rejected';
+                } else if (status === 'needs_correction') {
+                    statusText = 'Necesita Corrección';
+                    statusClass = 'status-needs_correction';
+                }
+
+                const deadline = new Date(activity.deadline);
+                const isOverdue = deadline < new Date() && status !== 'approved';
+                const deadlineText = isOverdue ? 'Vencida' : `Vence: ${deadline.toLocaleDateString()}`;
+
+                return `
+                    <div class="card activity-card" data-status="${status}">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold mb-2">${escapeHtml(activity.title)}</h3>
+                                <p class="text-gray-400 mb-3">${escapeHtml(activity.description)}</p>
+                                <div class="flex gap-4 text-sm">
+                                    <span class="text-gray-500">💰 ${activity.tokens || 0} tokens</span>
+                                    <span class="text-gray-500 ${isOverdue ? 'text-red-400' : ''}">📅 ${deadlineText}</span>
+                                </div>
+                            </div>
+                            <span class="status-badge ${statusClass}">${statusText}</span>
+                        </div>
+                        
+                        ${submission && submission.comments ? `
+                            <div class="mb-4 p-3 rounded-lg" style="background: rgba(255,255,255,0.05);">
+                                <p class="text-sm font-semibold mb-1">Comentarios del docente:</p>
+                                <p class="text-sm text-gray-400">${escapeHtml(submission.comments)}</p>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="flex gap-4">
+                            ${canSubmit ? `
+                                <button onclick="openUploadModal('${activity.id}')" class="btn btn-primary">
+                                    ${submission ? 'Reenviar Evidencia' : 'Subir Evidencia'}
+                                </button>
+                            ` : ''}
+                            ${submission && submission.evidence ? `
+                                <button onclick="viewEvidence('${submission.evidence.fileId}')" class="btn" style="background: rgba(255,255,255,0.1); color: white;">
+                                    Ver Evidencia
+                                </button>
+                            ` : ''}
+                            ${status === 'approved' ? `
+                                <span class="text-green-400 font-semibold">✓ ${submission.tokensAwarded || 0} tokens recibidos</span>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            applyFilter();
+        }
+
+        function applyFilter() {
+            const cards = document.querySelectorAll('.activity-card');
+            cards.forEach(card => {
+                const status = card.getAttribute('data-status');
+                let show = false;
+                
+                if (currentFilter === 'all') show = true;
+                else if (currentFilter === 'pending' && status === 'pending') show = true;
+                else if (currentFilter === 'submitted' && (status === 'submitted' || status === 'pending')) show = true;
+                else if (currentFilter === 'approved' && status === 'approved') show = true;
+                
+                card.style.display = show ? 'block' : 'none';
+            });
+        }
+
+        function openUploadModal(activityId) {
+            const activity = activitiesSystem.getActivityById(activityId);
+            if (!activity) return;
+
+            currentActivityId = activityId;
+            document.getElementById('modalActivityId').value = activityId;
+            document.getElementById('modalActivityTitle').textContent = activity.title;
+            document.getElementById('modalActivityDescription').textContent = activity.description;
+            document.getElementById('uploadModal').classList.remove('hidden');
+        }
+
+        function closeUploadModal() {
+            document.getElementById('uploadModal').classList.add('hidden');
+            document.getElementById('uploadForm').reset();
+            currentActivityId = null;
+        }
+
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const fileInput = document.getElementById('evidenceFile');
+            const comments = document.getElementById('evidenceComments').value;
+            
+            if (!fileInput.files[0]) {
+                alert('Por favor, selecciona un archivo');
+                return;
+            }
+
+            try {
+                // Subir archivo
+                const fileData = await fileUploadSystem.uploadFile(
+                    fileInput.files[0],
+                    currentActivityId,
+                    currentUser.username
+                );
+
+                // Crear submission
+                const evidenceData = {
+                    fileId: fileData.id,
+                    fileName: fileData.name,
+                    fileType: fileData.type,
+                    comments: comments
+                };
+
+                activitiesSystem.submitActivity(
+                    currentActivityId,
+                    currentUser.username,
+                    evidenceData
+                );
+
+                alert('✓ Evidencia enviada correctamente. El docente la revisará pronto.');
+                closeUploadModal();
+                loadActivities();
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
+
+        document.getElementById('cancelUpload').addEventListener('click', closeUploadModal);
+
+        // Filtros
+        ['All', 'Pending', 'Submitted', 'Approved'].forEach(filter => {
+            const id = `filter${filter}`;
+            document.getElementById(id).addEventListener('click', () => {
+                currentFilter = filter.toLowerCase();
+                document.querySelectorAll('[id^="filter"]').forEach(btn => {
+                    btn.classList.remove('btn-primary');
+                    btn.style.background = 'rgba(255,255,255,0.1)';
+                });
+                document.getElementById(id).classList.add('btn-primary');
+                document.getElementById(id).style.background = '';
+                applyFilter();
+            });
+        });
+
+        function viewEvidence(fileId) {
+            const fileData = fileUploadSystem.getFile(fileId);
+            if (!fileData) {
+                alert('Archivo no encontrado');
+                return;
+            }
+            
+            if (fileData.type.startsWith('image/') || fileData.type === 'application/pdf') {
+                window.open(fileData.data, '_blank');
+            } else {
+                alert('Este tipo de archivo debe descargarse para visualizarse');
+                fileUploadSystem.downloadFile(fileId, fileData.name);
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Cargar actividades al iniciar
+        loadActivities();
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <!-- Tailwind -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <title>Money Digital - Actividades Extracurriculares y Recompensas</title>
+
+    <style>
+        /* ===========================
+           🎨 DARK PRO MODE VARIABLES
+        ============================*/
+        :root {
+            --bg-main: #050505;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(0, 255, 255, 0.15);
+
+            --text-main: #d9e6ff;
+            --text-soft: #8ea0c8;
+
+            --neon-cyan: #00eaff;
+            --neon-purple: #b400ff;
+
+            --gradient-cyan-purple: linear-gradient(135deg, #00d2ff, #8a00ff);
+            --gradient-purple-cyan: linear-gradient(135deg, #8a00ff, #00eaff);
+
+            --shadow-neon: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+
+        body {
+            background: var(--bg-main);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-main);
+            overflow-x: hidden;
+        }
+
+        /* ===========================
+           🔹 HEADER
+        ============================*/
+        header {
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid var(--glass-border);
+            backdrop-filter: blur(15px);
+            padding: 20px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.08);
+        }
+
+        header h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 2.4rem;
+            font-weight: 700;
+            background: var(--gradient-cyan-purple);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
+        }
+
+        nav a {
+            color: var(--text-main);
+            text-decoration: none;
+            font-weight: 500;
+            padding: 10px 18px;
+            border-radius: 12px;
+            transition: 0.3s ease;
+            position: relative;
+        }
+
+        nav a:hover {
+            color: #fff;
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* ===========================
+           🔹 WELCOME TEXT
+        ============================*/
+        .welcome-section h2 {
+            font-size: 3.2rem;
+            font-family: 'Poppins', sans-serif;
+            font-weight: 700;
+            background: var(--gradient-purple-cyan);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 12px;
+            text-shadow: 0 0 25px rgba(138, 0, 255, 0.35);
+        }
+
+        .welcome-section p {
+            color: var(--text-soft);
+            font-size: 1.2rem;
+        }
+
+        /* ===========================
+           🔹 GLASS CARDS
+        ============================*/
+        .glass-card {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(18px);
+            transition: 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Neon glow border effect */
+        .glass-card::before {
+            content: "";
+            position: absolute;
+            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            border-radius: 20px;
+            background: var(--gradient-cyan-purple);
+            opacity: 0;
+            transition: 0.4s ease;
+            z-index: -1;
+            filter: blur(18px);
+        }
+
+        .glass-card:hover::before {
+            opacity: 0.7;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.25);
+        }
+
+        .card-icon {
+            width: 65px;
+            height: 65px;
+            background: var(--gradient-purple-cyan);
+            border-radius: 16px;
+            font-size: 2rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            box-shadow: var(--shadow-neon);
+            margin-right: 18px;
+        }
+
+        .card-title {
+            font-size: 1.8rem;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .card-description {
+            font-size: 1rem;
+            color: #c7d1ea;
+            line-height: 1.6;
+            margin: 10px 0 25px 0;
+        }
+
+        .card-action {
+            display: inline-block;
+            width: 100%;
+            text-align: center;
+            padding: 14px 20px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 1px solid rgba(0, 255, 255, 0.25);
+            border-radius: 14px;
+            color: #00eaff;
+            transition: 0.3s ease;
+            font-weight: 500;
+        }
+
+        .card-action:hover {
+            background: rgba(0, 255, 255, 0.2);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        /* ===========================
+           🔹 FOOTER
+        ============================*/
+        footer {
+            text-align: center;
+            margin-top: 70px;
+            padding: 25px;
+            font-size: 0.95rem;
+            color: var(--text-soft);
+            border-top: 1px solid rgba(0, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <h1>Money Digital - GROUP JAD</h1>
+    <nav>
+        <a href="Inicio.html">🏠 Inicio</a>
+        <a href="cursos.html">🎯 Actividades</a>
+        <a href="Wallet.html">💎 Wallet</a>
+        <a href="cetificado.html">🏆 Certificados</a>
+        <a href="Usuarios.html">👥 Usuarios</a>
+        <a href="#" id="logoutBtn" class="text-red-400 hover:text-red-300">🚪 Cerrar Sesión</a>
+    </nav>
+    <div id="userInfo" class="text-sm text-gray-400 mt-2"></div>
+</header>
+
+<main class="max-w-6xl mx-auto mt-16 px-6">
+
+    <section class="welcome-section text-center mb-14">
+        <h2>DINERO INTELIGENTE, FUTURO BRILLANTE</h2>
+        <p id="welcomeMessage">Promueve tu participación en actividades extracurriculares y obtén recompensas digitales que apoyarán tu formación académica</p>
+    </section>
+
+    <!-- Dashboard del Estudiante -->
+    <div id="studentDashboard" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+            <div class="glass-card text-center">
+                <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="studentPendingActivities">0</div>
+                <div class="card-description">Actividades Pendientes</div>
+            </div>
+            <div class="glass-card text-center">
+                <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="studentSubmittedActivities">0</div>
+                <div class="card-description">Actividades Enviadas</div>
+            </div>
+            <div class="glass-card text-center">
+                <div class="text-4xl font-bold mb-2" style="color: var(--neon-purple);" id="studentTokensBalance">0</div>
+                <div class="card-description">Tokens Disponibles</div>
+            </div>
+            <div class="glass-card text-center">
+                <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="studentApprovedActivities">0</div>
+                <div class="card-description">Actividades Aprobadas</div>
+            </div>
+        </div>
+
+        <div class="glass-card mb-10">
+            <h3 class="card-title mb-4">📊 Tu Progreso</h3>
+            <div class="mb-4">
+                <div class="flex justify-between mb-2">
+                    <span>Progreso General</span>
+                    <span id="studentProgressPercent">0%</span>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); height: 20px; border-radius: 10px; overflow: hidden;">
+                    <div id="studentProgressBar" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); height: 100%; width: 0%; transition: width 0.5s;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Dashboard del Docente -->
+    <div id="teacherDashboard" class="hidden">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+            <div class="glass-card text-center">
+                <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="teacherActiveStudents">0</div>
+                <div class="card-description">Estudiantes Activos</div>
+            </div>
+            <div class="glass-card text-center">
+                <div class="text-4xl font-bold mb-2" style="color: var(--neon-purple);" id="teacherPendingReviews">0</div>
+                <div class="card-description">Pendientes de Revisar</div>
+            </div>
+            <div class="glass-card text-center">
+                <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="teacherTokensAwarded">0</div>
+                <div class="card-description">Tokens Otorgados</div>
+            </div>
+            <div class="glass-card text-center">
+                <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="teacherTotalActivities">0</div>
+                <div class="card-description">Actividades Creadas</div>
+            </div>
+        </div>
+
+        <div class="glass-card mb-10">
+            <div class="flex items-center mb-4">
+                <div class="card-icon">👨‍🏫</div>
+                <h3 class="card-title">Panel de Docente</h3>
+            </div>
+            <p class="card-description mb-4">Gestiona actividades, revisa evidencias y otorga tokens a tus estudiantes.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <a href="gestion-actividades.html" class="card-action text-center">➕ Crear Actividad</a>
+                <a href="revision-actividades.html" class="card-action text-center">📝 Revisar Evidencias</a>
+                <a href="progreso-estudiantes.html" class="card-action text-center">📊 Ver Progreso</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===========================
+         GRID — DASHBOARD CARDS
+    ============================ -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+
+        <!-- Actividades (Estudiante) -->
+        <div id="studentActivitiesCard" class="glass-card hidden">
+            <div class="flex items-center mb-4">
+                <div class="card-icon">🎯</div>
+                <h3 class="card-title">Mis Actividades</h3>
+            </div>
+            <p class="card-description">Ve tus actividades asignadas, sube evidencia y recibe tokens cuando sean aprobadas.</p>
+            <a href="actividades-estudiante.html" class="card-action">Ver Mis Actividades</a>
+        </div>
+
+        <!-- Gestión de Actividades (Docente) -->
+        <div id="teacherActivitiesCard" class="glass-card hidden">
+            <div class="flex items-center mb-4">
+                <div class="card-icon">📝</div>
+                <h3 class="card-title">Gestión de Actividades</h3>
+            </div>
+            <p class="card-description">Crea actividades, revisa evidencias y otorga tokens a tus estudiantes.</p>
+            <a href="gestion-actividades.html" class="card-action">Gestionar Actividades</a>
+        </div>
+
+        <!-- Recompensas (Estudiante) -->
+        <div id="studentRewardsCard" class="glass-card hidden">
+            <div class="flex items-center mb-4">
+                <div class="card-icon">🏆</div>
+                <h3 class="card-title">Canjear Recompensas</h3>
+            </div>
+            <p class="card-description">Usa tus tokens para canjear recompensas disponibles. Gana tokens completando actividades.</p>
+            <a href="recompensas.html" class="card-action">Ver Recompensas</a>
+        </div>
+
+        <!-- Recompensas (Docente) -->
+        <div id="teacherRewardsCard" class="glass-card hidden">
+            <div class="flex items-center mb-4">
+                <div class="card-icon">🎁</div>
+                <h3 class="card-title">Administrar Recompensas</h3>
+            </div>
+            <p class="card-description">Crea y gestiona recompensas que los estudiantes pueden canjear con sus tokens.</p>
+            <a href="gestion-recompensas.html" class="card-action">Gestionar Recompensas</a>
+        </div>
+
+        <div class="glass-card">
+            <div class="flex items-center mb-4">
+                <div class="card-icon">💎</div>
+                <h3 class="card-title">Wallet Digital</h3>
+            </div>
+            <p class="card-description">Gestiona tu wallet Stellar, consulta balances de tokens y realiza transacciones de forma segura en la blockchain.</p>
+            <a href="Wallet.html" class="card-action">Abrir Wallet</a>
+        </div>
+
+        <!-- Mi Historial (Estudiante) -->
+        <div id="studentHistoryCard" class="glass-card hidden">
+            <div class="flex items-center mb-4">
+                <div class="card-icon">📊</div>
+                <h3 class="card-title">Mi Historial</h3>
+            </div>
+            <p class="card-description">Consulta todas tus actividades enviadas, aprobadas y los tokens que has ganado.</p>
+            <a href="historial-estudiante.html" class="card-action">Ver Mi Historial</a>
+        </div>
+
+        <!-- Historial General (Docente) -->
+        <div id="teacherHistoryCard" class="glass-card hidden">
+            <div class="flex items-center mb-4">
+                <div class="card-icon">📋</div>
+                <h3 class="card-title">Historial General</h3>
+            </div>
+            <p class="card-description">Ve todas las actividades aprobadas, tokens entregados y recompensas canjeadas.</p>
+            <a href="historial-docente.html" class="card-action">Ver Historial</a>
+        </div>
+
+        <div class="glass-card">
+            <div class="flex items-center mb-4">
+                <div class="card-icon">🪙</div>
+                <h3 class="card-title">Tokens y Moneda</h3>
+            </div>
+            <p class="card-description">Información sobre los tokens digitales, conversión de recompensas y operaciones disponibles en la plataforma.</p>
+            <a href="Moneda.html" class="card-action">Ver Moneda</a>
+        </div>
+
+        <div class="glass-card">
+            <div class="flex items-center mb-4">
+                <div class="card-icon">👥</div>
+                <h3 class="card-title">Comunidad</h3>
+            </div>
+            <p class="card-description">Conoce a otros estudiantes participantes, docentes y administradores de la plataforma educativa.</p>
+            <a href="Usuarios.html" class="card-action">Ver Comunidad</a>
+        </div>
+
+    </div>
+</main>
+
+<footer>
+    © 2025 Money Digital - GROUP JAD — Dinero Inteligente, Futuro Brillante<br>
+    Promoviendo la participación de jóvenes en actividades extracurriculares mediante recompensas digitales basadas en blockchain Stellar.
+</footer>
+
+<script>
+    // Verificación de sesión y gestión de usuario
+    (function() {
+        // Verificar si hay sesión activa
+        const currentUserStr = localStorage.getItem('currentUser');
+        
+        if (!currentUserStr) {
+            // No hay sesión, redirigir al login
+            alert('Por favor, inicia sesión para acceder a esta página.');
+            window.location.href = 'Index.html';
+            return;
+        }
+
+        let currentUser;
+        try {
+            currentUser = JSON.parse(currentUserStr);
+        } catch (e) {
+            console.error('Error parseando usuario:', e);
+            localStorage.removeItem('currentUser');
+            window.location.href = 'Index.html';
+            return;
+        }
+
+        // Mostrar información del usuario
+        const userInfo = document.getElementById('userInfo');
+        const welcomeMessage = document.getElementById('welcomeMessage');
+        const role = currentUser.role || 'estudiante';
+        const username = currentUser.username || 'Usuario';
+
+        if (userInfo) {
+            userInfo.textContent = `👤 ${username} | ${role === 'docente' ? '👨‍🏫 Docente' : '🎓 Estudiante'}`;
+        }
+
+        if (welcomeMessage) {
+            if (role === 'docente') {
+                welcomeMessage.textContent = `Bienvenido/a ${username}. Gestiona actividades, asigna recompensas y supervisa el progreso de los estudiantes.`;
+            } else {
+                welcomeMessage.textContent = `Bienvenido/a ${username}. Promueve tu participación en actividades extracurriculares y obtén recompensas digitales que apoyarán tu formación académica.`;
+            }
+        }
+
+        // Cargar scripts del sistema de actividades
+        const script1 = document.createElement('script');
+        script1.src = 'js/activities-system.js';
+        document.head.appendChild(script1);
+
+        script1.onload = () => {
+            // Mostrar dashboard según el rol
+            if (role === 'docente') {
+                document.getElementById('studentDashboard').classList.add('hidden');
+                document.getElementById('teacherDashboard').classList.remove('hidden');
+                document.getElementById('studentActivitiesCard').classList.add('hidden');
+                document.getElementById('teacherActivitiesCard').classList.remove('hidden');
+                document.getElementById('studentRewardsCard').classList.add('hidden');
+                document.getElementById('teacherRewardsCard').classList.remove('hidden');
+                document.getElementById('studentHistoryCard').classList.add('hidden');
+                document.getElementById('teacherHistoryCard').classList.remove('hidden');
+                
+                // Cargar estadísticas del docente
+                loadTeacherStats();
+            } else {
+                document.getElementById('studentDashboard').classList.remove('hidden');
+                document.getElementById('teacherDashboard').classList.add('hidden');
+                document.getElementById('studentActivitiesCard').classList.remove('hidden');
+                document.getElementById('teacherActivitiesCard').classList.add('hidden');
+                document.getElementById('studentRewardsCard').classList.remove('hidden');
+                document.getElementById('teacherRewardsCard').classList.add('hidden');
+                document.getElementById('studentHistoryCard').classList.remove('hidden');
+                document.getElementById('teacherHistoryCard').classList.add('hidden');
+                
+                // Cargar estadísticas del estudiante
+                loadStudentStats();
+            }
+        };
+
+        function loadStudentStats() {
+            if (typeof activitiesSystem === 'undefined') return;
+            
+            const stats = activitiesSystem.getStudentStats(username);
+            document.getElementById('studentPendingActivities').textContent = stats.totalActivities - stats.submitted;
+            document.getElementById('studentSubmittedActivities').textContent = stats.submitted;
+            document.getElementById('studentTokensBalance').textContent = stats.tokensBalance;
+            document.getElementById('studentApprovedActivities').textContent = stats.approved;
+            
+            // Calcular progreso
+            const progress = stats.totalActivities > 0 
+                ? Math.round((stats.approved / stats.totalActivities) * 100) 
+                : 0;
+            document.getElementById('studentProgressPercent').textContent = progress + '%';
+            document.getElementById('studentProgressBar').style.width = progress + '%';
+        }
+
+        function loadTeacherStats() {
+            if (typeof activitiesSystem === 'undefined') return;
+            
+            const stats = activitiesSystem.getTeacherStats(username);
+            document.getElementById('teacherActiveStudents').textContent = stats.totalStudents;
+            document.getElementById('teacherPendingReviews').textContent = stats.pendingReviews;
+            document.getElementById('teacherTokensAwarded').textContent = stats.totalTokensAwarded;
+            document.getElementById('teacherTotalActivities').textContent = stats.totalActivities;
+        }
+
+        // Botón de cerrar sesión
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                    localStorage.removeItem('currentUser');
+                    window.location.href = 'Index.html';
+                }
+            });
+        }
+    })();
+</script>
+
+</body>
+</html>

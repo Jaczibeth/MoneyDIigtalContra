@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Progreso de Estudiantes - Money Digital | GROUP JAD</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-dark: rgba(255, 255, 255, 0.06);
+            --border-dark: rgba(255, 255, 255, 0.12);
+            --neon-cyan: #00eaff;
+            --neon-purple: #b400ff;
+            --text-light: #e5e5e5;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-dark);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border-dark);
+            padding: 20px 40px;
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: #bbb;
+            padding: 10px 18px;
+            border-radius: 10px;
+            transition: 0.3s;
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        nav a:hover, nav a.active {
+            background: rgba(0, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .card {
+            background: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            border-radius: 18px;
+            backdrop-filter: blur(12px);
+            padding: 24px;
+            transition: 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <header class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+            Money Digital - GROUP JAD
+        </h1>
+        <nav class="flex gap-6">
+            <a href="Inicio.html">🏠 Inicio</a>
+            <a href="gestion-actividades.html">📝 Actividades</a>
+            <a href="revision-actividades.html">📋 Revisar</a>
+            <a href="progreso-estudiantes.html" class="active">📊 Progreso</a>
+        </nav>
+    </header>
+
+    <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
+        <div class="text-center mb-10">
+            <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+                Progreso de Estudiantes
+            </h2>
+            <p class="text-gray-400">Ve el progreso y rendimiento de tus estudiantes</p>
+        </div>
+
+        <div id="studentsList" class="space-y-4">
+            <div class="card text-center py-12">
+                <p class="text-gray-400">Cargando estudiantes...</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/activities-system.js"></script>
+    <script>
+        // Verificación de sesión
+        (function() {
+            const currentUserStr = localStorage.getItem('currentUser');
+            if (!currentUserStr) {
+                alert('Por favor, inicia sesión para acceder a esta página.');
+                window.location.href = 'Index.html';
+                return;
+            }
+            
+            const currentUser = JSON.parse(currentUserStr);
+            if (currentUser.role !== 'docente') {
+                alert('Esta página es solo para docentes.');
+                window.location.href = 'Inicio.html';
+                return;
+            }
+        })();
+
+        function loadStudents() {
+            if (typeof activitiesSystem === 'undefined') {
+                setTimeout(loadStudents, 100);
+                return;
+            }
+
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const activities = activitiesSystem.getActivities().filter(a => a.createdBy === currentUser.username);
+            const allSubmissions = activitiesSystem.getSubmissions();
+            
+            // Obtener estudiantes únicos que han enviado actividades
+            const studentUsernames = new Set();
+            allSubmissions.forEach(s => {
+                const activity = activitiesSystem.getActivityById(s.activityId);
+                if (activity && activity.createdBy === currentUser.username) {
+                    studentUsernames.add(s.studentUsername);
+                }
+            });
+
+            const container = document.getElementById('studentsList');
+            
+            if (studentUsernames.size === 0) {
+                container.innerHTML = `
+                    <div class="card text-center py-12">
+                        <p class="text-gray-400 text-lg">Aún no hay estudiantes que hayan enviado actividades.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = Array.from(studentUsernames).map(username => {
+                const studentSubmissions = allSubmissions.filter(s => {
+                    const activity = activitiesSystem.getActivityById(s.activityId);
+                    return s.studentUsername === username && activity && activity.createdBy === currentUser.username;
+                });
+
+                const approved = studentSubmissions.filter(s => s.status === 'approved');
+                const pending = studentSubmissions.filter(s => s.status === 'pending');
+                const rejected = studentSubmissions.filter(s => s.status === 'rejected');
+                const totalTokens = approved.reduce((sum, s) => sum + (s.tokensAwarded || 0), 0);
+
+                return `
+                    <div class="card">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold mb-2">${escapeHtml(username)}</h3>
+                                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                                    <div>
+                                        <div class="text-2xl font-bold" style="color: var(--neon-cyan);">${studentSubmissions.length}</div>
+                                        <div class="text-gray-400">Total Enviadas</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-2xl font-bold" style="color: #4caf50;">${approved.length}</div>
+                                        <div class="text-gray-400">Aprobadas</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-2xl font-bold" style="color: #ffc107;">${pending.length}</div>
+                                        <div class="text-gray-400">Pendientes</div>
+                                    </div>
+                                    <div>
+                                        <div class="text-2xl font-bold" style="color: var(--neon-purple);">${totalTokens}</div>
+                                        <div class="text-gray-400">Tokens Ganados</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <p class="text-sm text-gray-400 mb-2">Progreso:</p>
+                            <div style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
+                                <div style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); height: 100%; width: ${activities.length > 0 ? (approved.length / activities.length * 100) : 0}%; transition: width 0.5s;"></div>
+                            </div>
+                            <p class="text-xs text-gray-500 mt-1">${approved.length} de ${activities.length} actividades completadas</p>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Cargar estudiantes al iniciar
+        loadStudents();
+    </script>
+</body>
+</html>
+

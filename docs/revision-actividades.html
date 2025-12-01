@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Revisar Evidencias - Money Digital | GROUP JAD</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-dark: rgba(255, 255, 255, 0.06);
+            --border-dark: rgba(255, 255, 255, 0.12);
+            --neon-cyan: #00eaff;
+            --neon-purple: #b400ff;
+            --text-light: #e5e5e5;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg-dark);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border-dark);
+            padding: 20px 40px;
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        nav a {
+            color: #bbb;
+            padding: 10px 18px;
+            border-radius: 10px;
+            transition: 0.3s;
+            font-weight: 500;
+            text-decoration: none;
+        }
+
+        nav a:hover, nav a.active {
+            background: rgba(0, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        .card {
+            background: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            border-radius: 18px;
+            backdrop-filter: blur(12px);
+            padding: 24px;
+            transition: 0.3s;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, #4caf50, #45a049);
+            color: white;
+        }
+
+        .btn-reject {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+            color: white;
+        }
+
+        .btn-correction {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            color: white;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--border-dark);
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-family: inherit;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <header class="flex justify-between items-center">
+        <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+            Money Digital - GROUP JAD
+        </h1>
+        <nav class="flex gap-6">
+            <a href="Inicio.html">🏠 Inicio</a>
+            <a href="gestion-actividades.html">📝 Crear Actividades</a>
+            <a href="revision-actividades.html" class="active">📋 Revisar Evidencias</a>
+            <a href="progreso-estudiantes.html">📊 Progreso</a>
+        </nav>
+    </header>
+
+    <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
+        <div class="text-center mb-10">
+            <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+                Revisión de Evidencias
+            </h2>
+            <p class="text-gray-400">Revisa las evidencias enviadas por los estudiantes y otorga tokens al aprobar</p>
+        </div>
+
+        <!-- Filtros -->
+        <div class="card mb-6">
+            <div class="flex gap-4 items-center flex-wrap">
+                <span class="text-gray-400">Filtrar por estado:</span>
+                <button id="filterAll" class="btn btn-primary">Todas</button>
+                <button id="filterPending" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Pendientes</button>
+                <button id="filterApproved" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Aprobadas</button>
+                <button id="filterRejected" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Rechazadas</button>
+            </div>
+        </div>
+
+        <!-- Lista de Submissions -->
+        <div id="submissionsList" class="space-y-4">
+            <div class="card text-center py-12">
+                <p class="text-gray-400">Cargando evidencias...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Revisión -->
+    <div id="reviewModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+        <div class="card max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <h3 class="text-2xl font-bold mb-4" id="modalStudentName">Revisar Evidencia</h3>
+            <div id="modalActivityInfo" class="text-gray-400 mb-4"></div>
+            
+            <div class="mb-4">
+                <label class="block text-gray-400 mb-2">Evidencia enviada:</label>
+                <div id="modalEvidencePreview" class="mb-4"></div>
+                <button id="downloadEvidenceBtn" class="btn" style="background: rgba(255,255,255,0.1); color: white;">
+                    📥 Descargar Archivo
+                </button>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-400 mb-2">Comentarios del estudiante:</label>
+                <p id="modalStudentComments" class="text-gray-300 p-3 rounded-lg" style="background: rgba(255,255,255,0.05);"></p>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-400 mb-2">Tu comentario de revisión:</label>
+                <textarea id="reviewComment" rows="4" placeholder="Escribe tus comentarios, retroalimentación o razones de aprobación/rechazo..."></textarea>
+            </div>
+
+            <div class="flex gap-4">
+                <button id="approveBtn" class="btn btn-approve flex-1">✓ Aprobar (Otorgar Tokens)</button>
+                <button id="rejectBtn" class="btn btn-reject flex-1">✗ Rechazar</button>
+                <button id="correctionBtn" class="btn btn-correction flex-1">⚠ Necesita Corrección</button>
+                <button id="cancelReviewBtn" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
+    <script src="js/activities-system.js"></script>
+    <script src="js/file-upload.js"></script>
+    <script src="js/stellar-integration.js"></script>
+    <script>
+        // Verificación de sesión
+        (function() {
+            const currentUserStr = localStorage.getItem('currentUser');
+            if (!currentUserStr) {
+                alert('Por favor, inicia sesión para acceder a esta página.');
+                window.location.href = 'Index.html';
+                return;
+            }
+            
+            const currentUser = JSON.parse(currentUserStr);
+            if (currentUser.role !== 'docente') {
+                alert('Esta página es solo para docentes.');
+                window.location.href = 'Inicio.html';
+                return;
+            }
+        })();
+
+        let currentFilter = 'all';
+        let currentSubmissionId = null;
+
+        function loadSubmissions() {
+            if (typeof activitiesSystem === 'undefined') {
+                setTimeout(loadSubmissions, 100);
+                return;
+            }
+
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const activities = activitiesSystem.getActivities().filter(a => a.createdBy === currentUser.username);
+            const allSubmissions = activitiesSystem.getSubmissions();
+            
+            // Filtrar submissions de actividades del docente
+            const submissions = allSubmissions.filter(s => {
+                const activity = activitiesSystem.getActivityById(s.activityId);
+                return activity && activity.createdBy === currentUser.username;
+            }).sort((a, b) => {
+                // Priorizar pendientes
+                if (a.status === 'pending' && b.status !== 'pending') return -1;
+                if (a.status !== 'pending' && b.status === 'pending') return 1;
+                return new Date(b.submittedAt) - new Date(a.submittedAt);
+            });
+
+            const container = document.getElementById('submissionsList');
+            
+            if (submissions.length === 0) {
+                container.innerHTML = `
+                    <div class="card text-center py-12">
+                        <p class="text-gray-400 text-lg">No hay evidencias para revisar en este momento.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = submissions.map(submission => {
+                const activity = activitiesSystem.getActivityById(submission.activityId);
+                if (!activity) return '';
+
+                const statusBadges = {
+                    pending: '<span style="background: rgba(255, 193, 7, 0.2); color: #ffc107; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">⏳ Pendiente</span>',
+                    approved: '<span style="background: rgba(76, 175, 80, 0.2); color: #4caf50; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✓ Aprobada</span>',
+                    rejected: '<span style="background: rgba(244, 67, 54, 0.2); color: #f44336; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✗ Rechazada</span>',
+                    needs_correction: '<span style="background: rgba(255, 152, 0, 0.2); color: #ff9800; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">⚠ Necesita Corrección</span>'
+                };
+
+                return `
+                    <div class="card submission-card" data-status="${submission.status}">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="flex-1">
+                                <h3 class="text-xl font-bold mb-2">${escapeHtml(activity.title)}</h3>
+                                <p class="text-gray-400 mb-3">Estudiante: <strong>${escapeHtml(submission.studentUsername)}</strong></p>
+                                <p class="text-sm text-gray-500 mb-2">Enviado: ${new Date(submission.submittedAt).toLocaleString()}</p>
+                                ${submission.reviewedAt ? `<p class="text-sm text-gray-500">Revisado: ${new Date(submission.reviewedAt).toLocaleString()}</p>` : ''}
+                            </div>
+                            ${statusBadges[submission.status] || statusBadges.pending}
+                        </div>
+                        
+                        ${submission.comments ? `
+                            <div class="mb-4 p-3 rounded-lg" style="background: rgba(255,255,255,0.05);">
+                                <p class="text-sm font-semibold mb-1">Comentarios anteriores:</p>
+                                <p class="text-sm text-gray-400">${escapeHtml(submission.comments)}</p>
+                            </div>
+                        ` : ''}
+                        
+                        ${submission.status === 'approved' ? `
+                            <div class="mb-4 p-3 rounded-lg" style="background: rgba(76, 175, 80, 0.1); border: 1px solid rgba(76, 175, 80, 0.3);">
+                                <p class="text-green-400 font-semibold">✓ ${submission.tokensAwarded || activity.tokens || 0} tokens otorgados</p>
+                            </div>
+                        ` : ''}
+                        
+                        <div class="flex gap-4">
+                            ${submission.status === 'pending' || submission.status === 'needs_correction' ? `
+                                <button onclick="openReviewModal('${submission.id}')" class="btn btn-primary">
+                                    Revisar
+                                </button>
+                            ` : ''}
+                            ${submission.evidence ? `
+                                <button onclick="viewEvidence('${submission.evidence.fileId}')" class="btn" style="background: rgba(255,255,255,0.1); color: white;">
+                                    Ver Evidencia
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            applyFilter();
+        }
+
+        function applyFilter() {
+            const cards = document.querySelectorAll('.submission-card');
+            cards.forEach(card => {
+                const status = card.getAttribute('data-status');
+                let show = false;
+                
+                if (currentFilter === 'all') show = true;
+                else if (currentFilter === 'pending' && status === 'pending') show = true;
+                else if (currentFilter === 'approved' && status === 'approved') show = true;
+                else if (currentFilter === 'rejected' && status === 'rejected') show = true;
+                
+                card.style.display = show ? 'block' : 'none';
+            });
+        }
+
+        function openReviewModal(submissionId) {
+            const submission = activitiesSystem.getSubmissionById(submissionId);
+            if (!submission) return;
+
+            const activity = activitiesSystem.getActivityById(submission.activityId);
+            currentSubmissionId = submissionId;
+
+            document.getElementById('modalStudentName').textContent = `Revisar: ${submission.studentUsername}`;
+            document.getElementById('modalActivityInfo').innerHTML = `
+                <p><strong>Actividad:</strong> ${escapeHtml(activity.title)}</p>
+                <p><strong>Tokens a otorgar:</strong> ${activity.tokens || 0}</p>
+            `;
+            
+            if (submission.evidence) {
+                const fileData = fileUploadSystem.getFile(submission.evidence.fileId);
+                if (fileData) {
+                    if (fileData.type.startsWith('image/')) {
+                        document.getElementById('modalEvidencePreview').innerHTML = `
+                            <img src="${fileData.data}" alt="Evidencia" style="max-width: 100%; border-radius: 8px;" />
+                        `;
+                    } else {
+                        document.getElementById('modalEvidencePreview').innerHTML = `
+                            <p class="text-gray-400">📄 ${fileData.name} (${(fileData.size / 1024).toFixed(2)} KB)</p>
+                        `;
+                    }
+                    document.getElementById('downloadEvidenceBtn').onclick = () => {
+                        fileUploadSystem.downloadFile(submission.evidence.fileId, fileData.name);
+                    };
+                }
+            }
+
+            document.getElementById('modalStudentComments').textContent = submission.evidence?.comments || 'Sin comentarios';
+            document.getElementById('reviewComment').value = submission.comments || '';
+            document.getElementById('reviewModal').classList.remove('hidden');
+        }
+
+        function closeReviewModal() {
+            document.getElementById('reviewModal').classList.add('hidden');
+            document.getElementById('reviewComment').value = '';
+            currentSubmissionId = null;
+        }
+
+        async function reviewSubmission(status) {
+            if (!currentSubmissionId) return;
+
+            const comment = document.getElementById('reviewComment').value.trim();
+            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+
+            try {
+                await activitiesSystem.reviewSubmission(currentSubmissionId, {
+                    status: status,
+                    comments: comment || null,
+                    reviewedBy: currentUser.username
+                });
+
+                let message = `✓ Evidencia ${status === 'approved' ? 'aprobada' : status === 'rejected' ? 'rechazada' : 'marcada para corrección'}`;
+                if (status === 'approved') {
+                    const submission = activitiesSystem.getSubmissionById(currentSubmissionId);
+                    const activity = activitiesSystem.getActivityById(submission.activityId);
+                    message += `\n💰 ${activity.tokens || 0} tokens otorgados al estudiante`;
+                }
+                alert(message);
+                closeReviewModal();
+                loadSubmissions();
+            } catch (error) {
+                console.error('Error en revisión:', error);
+                alert('Error al procesar la revisión: ' + error.message);
+            }
+        }
+
+        document.getElementById('approveBtn').addEventListener('click', () => reviewSubmission('approved'));
+        document.getElementById('rejectBtn').addEventListener('click', () => reviewSubmission('rejected'));
+        document.getElementById('correctionBtn').addEventListener('click', () => reviewSubmission('needs_correction'));
+        document.getElementById('cancelReviewBtn').addEventListener('click', closeReviewModal);
+
+        function viewEvidence(fileId) {
+            const fileData = fileUploadSystem.getFile(fileId);
+            if (!fileData) {
+                alert('Archivo no encontrado');
+                return;
+            }
+            
+            if (fileData.type.startsWith('image/') || fileData.type === 'application/pdf') {
+                window.open(fileData.data, '_blank');
+            } else {
+                fileUploadSystem.downloadFile(fileId, fileData.name);
+            }
+        }
+
+        // Filtros
+        ['All', 'Pending', 'Approved', 'Rejected'].forEach(filter => {
+            const id = `filter${filter}`;
+            document.getElementById(id).addEventListener('click', () => {
+                currentFilter = filter.toLowerCase();
+                document.querySelectorAll('[id^="filter"]').forEach(btn => {
+                    btn.classList.remove('btn-primary');
+                    btn.style.background = 'rgba(255,255,255,0.1)';
+                });
+                document.getElementById(id).classList.add('btn-primary');
+                document.getElementById(id).style.background = '';
+                applyFilter();
+            });
+        });
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Cargar submissions al iniciar
+        loadSubmissions();
+    </script>
+</body>
+</html>
+

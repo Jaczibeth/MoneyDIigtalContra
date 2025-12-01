@@ -1,0 +1,299 @@
+<!-- MATERIAS - Dark Pro Modern Professional -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Materias - Money Digital | GROUP JAD</title>
+
+    <style>
+        /* ====== ESTILO DARK PRO MODERN ====== */
+        :root {
+            --primary: #00e5ff;
+            --primary-soft: #00bcd4;
+            --bg-dark: #0d0d0f;
+            --bg-card: rgba(255, 255, 255, 0.06);
+            --bg-card-hover: rgba(255, 255, 255, 0.12);
+            --border-soft: rgba(255, 255, 255, 0.1);
+            --text-main: #e5e5e5;
+            --text-soft: #9aa0a6;
+            --radius: 14px;
+            --shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Poppins", sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            margin-top: 40px;
+            font-size: 32px;
+            letter-spacing: 1px;
+            font-weight: 600;
+            background: linear-gradient(90deg, var(--primary), var(--primary-soft));
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        /* ====== CONTENEDOR PRINCIPAL ====== */
+        .container {
+            margin-top: 30px;
+            width: 90%;
+            max-width: 900px;
+            background: var(--bg-card);
+            padding: 28px;
+            border-radius: var(--radius);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border-soft);
+            box-shadow: var(--shadow);
+        }
+
+        /* ====== FORMULARIO ====== */
+        .form-row {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 18px;
+        }
+
+        label {
+            font-size: 15px;
+            color: var(--text-soft);
+            margin-bottom: 6px;
+        }
+
+        input {
+            padding: 12px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-soft);
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--text-main);
+            font-size: 15px;
+            transition: 0.2s;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+            outline: none;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* ====== BOTONES ====== */
+        .btn {
+            padding: 12px 18px;
+            border-radius: var(--radius);
+            border: none;
+            font-size: 15px;
+            cursor: pointer;
+            margin-right: 10px;
+            transition: 0.25s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, var(--primary), var(--primary-soft));
+            color: #000;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.15);
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #d32f2f;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #ff5252;
+        }
+
+        /* ====== TABLA ====== */
+        table {
+            width: 100%;
+            margin-top: 25px;
+            border-collapse: collapse;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 14px;
+            text-align: left;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        td {
+            padding: 14px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+        }
+
+        tr:hover {
+            background: var(--bg-card-hover);
+        }
+
+        /* ====== NAVEGACIÓN ====== */
+        header {
+            width: 100%;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-soft);
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 24px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-soft));
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        nav {
+            display: flex;
+            gap: 20px;
+        }
+
+        nav a {
+            color: var(--text-soft);
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: 0.3s;
+            font-size: 14px;
+        }
+
+        nav a:hover, nav a.active {
+            background: rgba(0, 229, 255, 0.1);
+            color: var(--primary);
+        }
+
+        .page-title {
+            margin-top: 20px;
+            font-size: 32px;
+            letter-spacing: 1px;
+            font-weight: 600;
+            background: linear-gradient(90deg, var(--primary), var(--primary-soft));
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Money Digital - GROUP JAD</h1>
+        <nav>
+            <a href="Inicio.html">🏠 Inicio</a>
+            <a href="cursos.html">🎯 Actividades</a>
+            <a href="materias.html" class="active">📖 Materias</a>
+            <a href="niveles.html">📊 Mi Progreso</a>
+            <a href="Wallet.html">💎 Wallet</a>
+            <a href="cetificado.html">🏆 Certificados</a>
+            <a href="Usuarios.html">👥 Comunidad</a>
+        </nav>
+    </header>
+
+    <h1 class="page-title">Gestión de Materias</h1>
+    <p style="text-align: center; color: var(--text-soft); margin-top: 10px;">
+        Gestiona las materias relacionadas con las actividades extracurriculares
+    </p>
+
+    <div class="container">
+        <div class="form-row">
+            <label>Nombre de la Materia:</label>
+            <input type="text" id="materia" placeholder="Ejemplo: Matemáticas avanzadas" />
+        </div>
+
+        <div class="form-row">
+            <label>Descripción:</label>
+            <input type="text" id="descripcion" placeholder="Ejemplo: Cálculo integral y diferencial" />
+        </div>
+
+        <button class="btn btn-primary" onclick="agregarMateria()">Agregar</button>
+        <button class="btn btn-danger" onclick="limpiarCampos()">Limpiar</button>
+
+        <table id="tablaMaterias">
+            <thead>
+                <tr>
+                    <th>Materia</th>
+                    <th>Descripción</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Verificación de sesión
+        (function() {
+            const currentUserStr = localStorage.getItem('currentUser');
+            if (!currentUserStr) {
+                alert('Por favor, inicia sesión para acceder a esta página.');
+                window.location.href = 'Index.html';
+                return;
+            }
+        })();
+
+        function agregarMateria() {
+            let materia = document.getElementById("materia").value;
+            let descripcion = document.getElementById("descripcion").value;
+
+            if (materia === "" || descripcion === "") {
+                alert("Completa los campos");
+                return;
+            }
+
+            let tabla = document.getElementById("tablaMaterias").querySelector("tbody");
+            let fila = document.createElement("tr");
+
+            fila.innerHTML = `
+                <td>${materia}</td>
+                <td>${descripcion}</td>
+                <td>
+                    <button class="btn btn-primary" onclick="editarFila(this)">Editar</button>
+                    <button class="btn btn-danger" onclick="eliminarFila(this)">Eliminar</button>
+                </td>
+            `;
+
+            tabla.appendChild(fila);
+            limpiarCampos();
+        }
+
+        function limpiarCampos() {
+            document.getElementById("materia").value = "";
+            document.getElementById("descripcion").value = "";
+        }
+
+        function eliminarFila(btn) {
+            btn.parentNode.parentNode.remove();
+        }
+
+        function editarFila(btn) {
+            let fila = btn.parentNode.parentNode;
+            document.getElementById("materia").value = fila.children[0].innerText;
+            document.getElementById("descripcion").value = fila.children[1].innerText;
+            fila.remove();
+        }
+    </script>
+</body>
+</html>
