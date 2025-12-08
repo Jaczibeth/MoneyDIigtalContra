@@ -10,7 +10,7 @@ const SOROBAN_RPC_URL = 'https://rpc-testnet.stellar.org';
 
 // Variables globales para Freighter
 let connectedWallet = null;
-let publicKey = null;
+let publicKey = null; 
 // Passphrase oficial de la Testnet pública
 let networkPassphrase = StellarSdk.Networks.TESTNET;
 
