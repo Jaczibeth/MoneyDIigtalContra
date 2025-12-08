@@ -16,6 +16,15 @@
 
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+  
+  <!-- Stellar SDK -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
+  <!-- Freighter API -->
+  <script src="https://unpkg.com/@stellar/freighter-api@4.1.0/dist/freighter-api.min.js"></script>
+  
+  <!-- Auth and Wallet Managers -->
+  <script src="js/auth-manager.js"></script>
+  <script src="js/wallet-manager.js"></script>
 
   <style>
     :root{
@@ -597,8 +606,30 @@
     initChart();
 
     // populate wallet address & QR (example)
+    // Validar sesión
+    (function() {
+      if (typeof window.authManager !== 'undefined') {
+        window.authManager.validateSession({ requireAuth: true, redirectTo: 'Index.html' });
+      } else {
+        const currentUserStr = localStorage.getItem('currentUser');
+        if (!currentUserStr) {
+          alert('Por favor, inicia sesión para acceder a esta página.');
+          window.location.href = 'Index.html';
+        }
+      }
+    })();
+
     (function setWalletDemo(){
-      const addr = 'GABCDEF1234567890XYZSTELLARWALLETADDRESS';
+      // Intentar usar wallet real si está disponible
+      let addr = 'GABCDEF1234567890XYZSTELLARWALLETADDRESS';
+      if (typeof window.walletManager !== 'undefined' && window.walletManager.isConnected()) {
+        addr = window.walletManager.getPublicKey();
+      } else {
+        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+        if (currentUser.stellarPublic) {
+          addr = currentUser.stellarPublic;
+        }
+      }
       document.getElementById('walletAddress').textContent = addr;
       document.getElementById('qrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data='+encodeURIComponent(addr);
     })();

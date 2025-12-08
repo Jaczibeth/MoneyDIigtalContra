@@ -27,6 +27,14 @@ function isFreighterAvailable() {
   return typeof window.freighterApi !== 'undefined';
 }
 
+// Usar wallet-manager si está disponible
+function getWalletManager() {
+  if (typeof window.walletManager !== 'undefined') {
+    return window.walletManager;
+  }
+  return null;
+}
+
 // Conectar con Freighter Wallet
 async function connectFreighterWallet() {
   if (!isFreighterAvailable()) {

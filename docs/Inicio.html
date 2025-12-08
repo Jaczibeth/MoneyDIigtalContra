@@ -5,35 +5,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <!-- Tailwind -->
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/modern-theme.css">
 
     <title>Money Digital - Actividades Extracurriculares y Recompensas</title>
 
     <style>
-        /* ===========================
-           🎨 DARK PRO MODE VARIABLES
-        ============================*/
-        :root {
-            --bg-main: #050505;
-            --glass: rgba(255, 255, 255, 0.05);
-            --glass-border: rgba(0, 255, 255, 0.15);
-
-            --text-main: #d9e6ff;
-            --text-soft: #8ea0c8;
-
-            --neon-cyan: #00eaff;
-            --neon-purple: #b400ff;
-
-            --gradient-cyan-purple: linear-gradient(135deg, #00d2ff, #8a00ff);
-            --gradient-purple-cyan: linear-gradient(135deg, #8a00ff, #00eaff);
-
-            --shadow-neon: 0 0 20px rgba(0, 255, 255, 0.5);
-        }
-
         body {
             background: var(--bg-main);
             font-family: 'Inter', sans-serif;
@@ -389,27 +369,35 @@
     Promoviendo la participación de jóvenes en actividades extracurriculares mediante recompensas digitales basadas en blockchain Stellar.
 </footer>
 
+<!-- Scripts -->
+<script src="js/auth-manager.js"></script>
+<script src="js/wallet-manager.js"></script>
 <script>
     // Verificación de sesión y gestión de usuario
     (function() {
-        // Verificar si hay sesión activa
-        const currentUserStr = localStorage.getItem('currentUser');
-        
-        if (!currentUserStr) {
-            // No hay sesión, redirigir al login
-            alert('Por favor, inicia sesión para acceder a esta página.');
-            window.location.href = 'Index.html';
-            return;
-        }
-
-        let currentUser;
-        try {
-            currentUser = JSON.parse(currentUserStr);
-        } catch (e) {
-            console.error('Error parseando usuario:', e);
-            localStorage.removeItem('currentUser');
-            window.location.href = 'Index.html';
-            return;
+        // Usar auth-manager para validar sesión
+        if (typeof window.authManager !== 'undefined') {
+            if (!window.authManager.validateSession({ requireAuth: true, redirectTo: 'Index.html' })) {
+                return;
+            }
+            var currentUser = window.authManager.getCurrentUser();
+        } else {
+            // Fallback sin auth-manager
+            const currentUserStr = localStorage.getItem('currentUser');
+            if (!currentUserStr) {
+                alert('Por favor, inicia sesión para acceder a esta página.');
+                window.location.href = 'Index.html';
+                return;
+            }
+            var currentUser;
+            try {
+                currentUser = JSON.parse(currentUserStr);
+            } catch (e) {
+                console.error('Error parseando usuario:', e);
+                localStorage.removeItem('currentUser');
+                window.location.href = 'Index.html';
+                return;
+            }
         }
 
         // Mostrar información del usuario
@@ -419,7 +407,11 @@
         const username = currentUser.username || 'Usuario';
 
         if (userInfo) {
-            userInfo.textContent = `👤 ${username} | ${role === 'docente' ? '👨‍🏫 Docente' : '🎓 Estudiante'}`;
+            if (typeof window.authManager !== 'undefined') {
+                window.authManager.displayUserInfo('userInfo');
+            } else {
+                userInfo.textContent = `👤 ${username} | ${role === 'docente' ? '👨‍🏫 Docente' : '🎓 Estudiante'}`;
+            }
         }
 
         if (welcomeMessage) {
@@ -497,7 +489,11 @@
             logoutBtn.addEventListener('click', function(e) {
                 e.preventDefault();
                 if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                    localStorage.removeItem('currentUser');
+                    if (typeof window.authManager !== 'undefined') {
+                        window.authManager.logout();
+                    } else {
+                        localStorage.removeItem('currentUser');
+                    }
                     window.location.href = 'Index.html';
                 }
             });
