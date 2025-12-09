@@ -26,11 +26,14 @@ const server = http.createServer((req, res) => {
   console.log(`${req.method} ${req.url}`);
 
   // Parse URL
-  let filePath = '.' + req.url;
+  // Parse URL (remove query string)
+  const cleanUrl = req.url.split('?')[0];
+
+  let filePath = '.' + cleanUrl;
   if (filePath === './') {
     filePath = './docs/Index.html';
   } else if (!filePath.startsWith('./docs/')) {
-    filePath = './docs' + req.url;
+    filePath = './docs' + cleanUrl;
   }
 
   const extname = String(path.extname(filePath)).toLowerCase();
@@ -57,7 +60,7 @@ const server = http.createServer((req, res) => {
       }
     } else {
       // 200 - Success
-      res.writeHead(200, { 
+      res.writeHead(200, {
         'Content-Type': contentType,
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',

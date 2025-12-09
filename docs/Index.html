@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <title>Money Digital | Acceso Premium</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <link href="css/professional.css?v=2" rel="stylesheet">
+  <link href="css/fintech-premium.css" rel="stylesheet">
   <!-- Stellar SDK -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
 </head>
@@ -17,8 +17,7 @@
     <!-- Left Column: Branding / Marketing -->
     <div class="hero-section">
       <div class="brand-logo">
-        <span
-          style="background: var(--brand-blue); color:white; width: 32px; height: 32px; display:flex; align-items:center; justify-content:center; border-radius:6px; font-weight:bold;">M</span>
+        <div class="brand-icon">M</div>
         Money Digital
       </div>
       <h1 class="hero-title">Gestión Financiera Educativa Integral</h1>
@@ -54,7 +53,8 @@
         </div>
 
         <div class="input-group">
-          <label class="input-label">Llave de Seguridad (Imagen)</label>
+          <label class="input-label">Llave de Seguridad (Imagen) <span
+              style="font-size: 0.8em; opacity: 0.7;">(Opcional)</span></label>
           <div id="imageUpload" class="file-drop-area">
             <svg class="file-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -62,7 +62,7 @@
             </svg>
             <span class="upload-text" style="color: var(--text-secondary); font-size: 0.9rem;">Arrastra tu imagen o
               <strong>haz clic</strong></span>
-            <input type="file" accept="image/*" class="hidden" required />
+            <input type="file" accept="image/*" class="hidden" />
           </div>
         </div>
 
