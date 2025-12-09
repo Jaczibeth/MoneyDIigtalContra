@@ -100,3 +100,4 @@ function initPage(options = {}) {
 // Exportar función global
 window.initPage = initPage;
 
+

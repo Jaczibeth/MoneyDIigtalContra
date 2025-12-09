@@ -193,3 +193,4 @@ window.validateAuth = (options) => {
     return window.authManager.validateSession(options);
 };
 
+

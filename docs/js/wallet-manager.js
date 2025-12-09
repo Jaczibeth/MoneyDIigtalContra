@@ -284,3 +284,4 @@ if (typeof StellarSdk !== 'undefined') {
     window.walletManager.loadFromStorage();
 }
 
+
