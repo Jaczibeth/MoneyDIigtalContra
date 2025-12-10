@@ -31,7 +31,7 @@ const server = http.createServer((req, res) => {
 
   let filePath = '.' + cleanUrl;
   if (filePath === './') {
-    filePath = './docs/Index.html';
+    filePath = './docs/index.html';
   } else if (!filePath.startsWith('./docs/')) {
     filePath = './docs' + cleanUrl;
   }
@@ -44,7 +44,7 @@ const server = http.createServer((req, res) => {
     if (error) {
       if (error.code === 'ENOENT') {
         // 404 - File not found
-        fs.readFile('./docs/Index.html', (error, content) => {
+        fs.readFile('./docs/index.html', (error, content) => {
           if (error) {
             res.writeHead(500);
             res.end('Error interno del servidor');

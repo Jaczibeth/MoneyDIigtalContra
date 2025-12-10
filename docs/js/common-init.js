@@ -62,7 +62,7 @@ function initPage(options = {}) {
             if (typeof window.authManager !== 'undefined') {
                 const isValid = window.authManager.validateSession({
                     requireAuth: true,
-                    redirectTo: 'Index.html',
+                    redirectTo: 'index.html',
                     requireRole: requireRole,
                     redirectIfRole: redirectIfRole,
                     redirectIfRoleTo: redirectIfRoleTo
@@ -73,7 +73,7 @@ function initPage(options = {}) {
                 const currentUserStr = localStorage.getItem('currentUser');
                 if (!currentUserStr) {
                     alert('Por favor, inicia sesión para acceder a esta página.');
-                    window.location.href = 'Index.html';
+                    window.location.href = 'index.html';
                     return;
                 }
                 
@@ -86,7 +86,7 @@ function initPage(options = {}) {
                     }
                 } catch (e) {
                     localStorage.removeItem('currentUser');
-                    window.location.href = 'Index.html';
+                    window.location.href = 'index.html';
                     return;
                 }
             }

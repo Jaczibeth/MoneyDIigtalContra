@@ -100,7 +100,7 @@
       </div>
 
       <div class="flex justify-between items-center mt-4">
-        <a href="Index.html" class="text-cyan-400 hover:underline text-sm">¿Ya tienes cuenta? Inicia sesión</a>
+        <a href="index.html" class="text-cyan-400 hover:underline text-sm">¿Ya tienes cuenta? Inicia sesión</a>
 
         <button type="submit" class="btn-primary px-5 py-2 rounded-lg font-semibold text-black">
           Registrarse
@@ -112,7 +112,7 @@
   </div>
 
   <script>
-    // Funciones auxiliares para hash de contraseña (igual que en Index.html)
+    // Funciones auxiliares para hash de contraseña (igual que en index.html)
     function buf2hex(buffer) {
       return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
     }
@@ -328,7 +328,7 @@
 
           // Redirigir al login después de 2 segundos
           setTimeout(() => {
-            window.location.href = 'Index.html';
+            window.location.href = 'index.html';
           }, 2000);
         } else {
           throw new Error('No se pudo guardar el usuario');

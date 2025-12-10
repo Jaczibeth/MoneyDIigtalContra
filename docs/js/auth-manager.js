@@ -128,7 +128,7 @@ class AuthManager {
     validateSession(options = {}) {
         const {
             requireAuth = true,
-            redirectTo = 'Index.html',
+            redirectTo = 'index.html',
             requireRole = null,
             redirectIfRole = null,
             redirectIfRoleTo = null
