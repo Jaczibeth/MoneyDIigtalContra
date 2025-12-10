@@ -1,202 +1,19 @@
-<!-- MATERIAS - Dark Pro Modern Professional -->
 <!DOCTYPE html>
 <html lang="es">
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Tailwind -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Fonts -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Global Styles -->
+    <link href="css/main.css" rel="stylesheet">
+
     <title>Materias - Money Digital | GROUP JAD</title>
-
-    <style>
-        /* ====== ESTILO DARK PRO MODERN ====== */
-        :root {
-            --primary: #00e5ff;
-            --primary-soft: #00bcd4;
-            --bg-dark: #0d0d0f;
-            --bg-card: rgba(255, 255, 255, 0.06);
-            --bg-card-hover: rgba(255, 255, 255, 0.12);
-            --border-soft: rgba(255, 255, 255, 0.1);
-            --text-main: #e5e5e5;
-            --text-soft: #9aa0a6;
-            --radius: 14px;
-            --shadow: 0 8px 20px rgba(0, 0, 0, 0.55);
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: "Poppins", sans-serif;
-            background: var(--bg-dark);
-            color: var(--text-main);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
-
-        h1 {
-            margin-top: 40px;
-            font-size: 32px;
-            letter-spacing: 1px;
-            font-weight: 600;
-            background: linear-gradient(90deg, var(--primary), var(--primary-soft));
-            -webkit-background-clip: text;
-            color: transparent;
-        }
-
-        /* ====== CONTENEDOR PRINCIPAL ====== */
-        .container {
-            margin-top: 30px;
-            width: 90%;
-            max-width: 900px;
-            background: var(--bg-card);
-            padding: 28px;
-            border-radius: var(--radius);
-            backdrop-filter: blur(12px);
-            border: 1px solid var(--border-soft);
-            box-shadow: var(--shadow);
-        }
-
-        /* ====== FORMULARIO ====== */
-        .form-row {
-            display: flex;
-            flex-direction: column;
-            margin-bottom: 18px;
-        }
-
-        label {
-            font-size: 15px;
-            color: var(--text-soft);
-            margin-bottom: 6px;
-        }
-
-        input {
-            padding: 12px;
-            border-radius: var(--radius);
-            border: 1px solid var(--border-soft);
-            background: rgba(255, 255, 255, 0.06);
-            color: var(--text-main);
-            font-size: 15px;
-            transition: 0.2s;
-        }
-
-        input:focus {
-            border-color: var(--primary);
-            outline: none;
-            background: rgba(255, 255, 255, 0.1);
-        }
-
-        /* ====== BOTONES ====== */
-        .btn {
-            padding: 12px 18px;
-            border-radius: var(--radius);
-            border: none;
-            font-size: 15px;
-            cursor: pointer;
-            margin-right: 10px;
-            transition: 0.25s;
-        }
-
-        .btn-primary {
-            background: linear-gradient(90deg, var(--primary), var(--primary-soft));
-            color: #000;
-            font-weight: 600;
-        }
-
-        .btn-primary:hover {
-            filter: brightness(1.15);
-            transform: translateY(-2px);
-        }
-
-        .btn-danger {
-            background: #d32f2f;
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background: #ff5252;
-        }
-
-        /* ====== TABLA ====== */
-        table {
-            width: 100%;
-            margin-top: 25px;
-            border-collapse: collapse;
-            background: var(--bg-card);
-            border-radius: var(--radius);
-            overflow: hidden;
-        }
-
-        th {
-            background: rgba(255, 255, 255, 0.08);
-            padding: 14px;
-            text-align: left;
-            color: var(--primary);
-            font-weight: 600;
-        }
-
-        td {
-            padding: 14px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-        }
-
-        tr:hover {
-            background: var(--bg-card-hover);
-        }
-
-        /* ====== NAVEGACIÓN ====== */
-        header {
-            width: 100%;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid var(--border-soft);
-            padding: 20px 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        header h1 {
-            margin: 0;
-            font-size: 24px;
-            background: linear-gradient(90deg, var(--primary), var(--primary-soft));
-            -webkit-background-clip: text;
-            color: transparent;
-        }
-
-        nav {
-            display: flex;
-            gap: 20px;
-        }
-
-        nav a {
-            color: var(--text-soft);
-            text-decoration: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            transition: 0.3s;
-            font-size: 14px;
-        }
-
-        nav a:hover,
-        nav a.active {
-            background: rgba(0, 229, 255, 0.1);
-            color: var(--primary);
-        }
-
-        .page-title {
-            margin-top: 20px;
-            font-size: 32px;
-            letter-spacing: 1px;
-            font-weight: 600;
-            background: linear-gradient(90deg, var(--primary), var(--primary-soft));
-            -webkit-background-clip: text;
-            color: transparent;
-        }
-    </style>
 </head>
 
 <body>
@@ -209,159 +26,202 @@
             <a href="materias.html" class="active">📖 Materias</a>
             <a href="niveles.html">📊 Mi Progreso</a>
             <a href="Wallet.html">💎 Wallet</a>
-            <a href="cetificado.html">🏆 Certificados</a>
+            <a href="certificado.html">🏆 Certificados</a>
             <a href="Usuarios.html">👥 Comunidad</a>
+            <a href="#" id="logoutBtn" class="text-red-400 hover:text-red-300" style="margin-left: 10px;">🚪 Salir</a>
         </nav>
     </header>
 
-    <h1 class="page-title">Gestión de Materias</h1>
-    <p style="text-align: center; color: var(--text-soft); margin-top: 10px;">
-        Gestiona las materias relacionadas con las actividades extracurriculares
-    </p>
+    <main class="main-container">
+        <h1 class="page-title">Gestión de Materias</h1>
+        <p style="text-align: center; color: var(--text-soft); margin-bottom: 30px;">
+            Gestiona las materias relacionadas con las actividades extracurriculares
+        </p>
 
-    <div class="container">
-        <div class="form-row">
-            <label>Nombre de la Materia:</label>
-            <input type="text" id="materia" placeholder="Ejemplo: Matemáticas avanzadas" />
+        <div class="glass-card">
+            <!-- Formulario solo para docentes (controlado por JS) -->
+            <div id="teacherForm" class="hidden mb-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="form-group">
+                        <label class="form-label">Nombre de la Materia</label>
+                        <input type="text" id="materia" class="form-input"
+                            placeholder="Ejemplo: Matemáticas avanzadas" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Descripción</label>
+                        <input type="text" id="descripcion" class="form-input"
+                            placeholder="Ejemplo: Cálculo integral y diferencial" />
+                    </div>
+                </div>
+                <div class="flex justify-end gap-2 mt-4">
+                    <button class="card-action" onclick="agregarMateria()" style="width: auto;">Agregar Materia</button>
+                    <button class="card-action" onclick="limpiarCampos()"
+                        style="width: auto; background: rgba(255, 99, 71, 0.2); border-color: rgba(255, 99, 71, 0.4); color: #ff6347;">Limpiar</button>
+                </div>
+            </div>
+
+            <!-- Tabla de Materias -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left" style="border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid var(--glass-border);">
+                            <th class="p-4 text-neon-cyan">Materia</th>
+                            <th class="p-4 text-neon-cyan">Descripción</th>
+                            <th class="p-4 text-neon-cyan" id="actionsHeader">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaBody">
+                        <!-- Las filas se generan dinámicamente -->
+                    </tbody>
+                </table>
+                <div id="noDataMsg" class="text-center py-6 text-gray-400 hidden">
+                    No hay materias registradas.
+                </div>
+            </div>
         </div>
+    </main>
 
-        <div class="form-row">
-            <label>Descripción:</label>
-            <input type="text" id="descripcion" placeholder="Ejemplo: Cálculo integral y diferencial" />
-        </div>
-
-        <button class="btn btn-primary" onclick="agregarMateria()">Agregar</button>
-        <button class="btn btn-danger" onclick="limpiarCampos()">Limpiar</button>
-
-        <table id="tablaMaterias">
-            <thead>
-                <tr>
-                    <th>Materia</th>
-                    <th>Descripción</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-            </tbody>
-        </table>
-    </div>
+    <footer>
+        © 2025 Money Digital - GROUP JAD — Dinero Inteligente, Futuro Brillante
+    </footer>
 
     <script>
-        // Cargar materias al iniciar
-        document.addEventListener('DOMContentLoaded', loadMaterias);
+        // --- LOGIC ---
 
-        // Verificación de sesión
-        (function () {
-            const currentUserStr = sessionStorage.getItem('currentUser');
-            if (!currentUserStr) {
+        let currentUser = null;
+        let storageKey = '';
+
+        (function init() {
+            // Verificar sesión
+            const userStr = sessionStorage.getItem('currentUser');
+            if (!userStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
                 return;
             }
 
-            const currentUser = JSON.parse(currentUserStr);
-            // Si es estudiante, ocultar controles de edición
-            if (currentUser.role !== 'docente') {
-                const inputs = document.querySelectorAll('.form-row input');
-                inputs.forEach(i => i.disabled = true);
-                const btns = document.querySelectorAll('.btn-primary, .btn-danger');
-                btns.forEach(b => b.style.display = 'none');
-                // Pero queremos ver la tabla, asi que solo ocultamos los botones de arriba
-                // y la columna de acciones
-                document.getElementById('materia').parentNode.style.display = 'none';
-                document.getElementById('descripcion').parentNode.style.display = 'none';
-                // Ocultar botones de agregar
-                const addBtns = document.querySelectorAll('.container > .btn');
-                addBtns.forEach(b => b.style.display = 'none');
-
-                // Ocultar columna acciones
-                const style = document.createElement('style');
-                style.innerHTML = `
-                    th:nth-child(3), td:nth-child(3) { display: none; }
-                 `;
-                document.head.appendChild(style);
-            }
-
-        })();
-
-        function agregarMateria() {
-            let materia = document.getElementById("materia").value;
-            let descripcion = document.getElementById("descripcion").value;
-
-            if (materia === "" || descripcion === "") {
-                alert("Completa los campos");
+            try {
+                currentUser = JSON.parse(userStr);
+            } catch (e) {
+                window.location.href = 'index.html';
                 return;
             }
 
-            let tabla = document.getElementById("tablaMaterias").querySelector("tbody");
-            let fila = document.createElement("tr");
+            // Configurar clave de almacenamiento única por usuario
+            // De esta forma, las materias no se mezclan ni desaparecen al cambiar de usuario
+            // Si el requerimiento es que las materias sean GLOBALES (todos ven las mismas), 
+            // entonces usaríamos una clave única. Pero el usuario dijo "si el estudiante va a tener materias..."
+            // lo que implica que son SUYAS.
+            // PERO, si es un sistema escolar, el DOCENTE crea materias y el ESTUDIANTE las ve/inscribe.
+            // El usuario dijo: "si el ESTUDIANTE va a tener materias que esas materias no se oculten... haciendo mención específica a la página de materias.html ya que aunque se registre una materia, si se cierra sesión y al entrar nuevamente ya no aparece..."
+            // Esto sugiere que el ESTUDIANTE está registrando materias?
+            // Si el estudiante registra materias, deben ser SUYAS.
+            // Si el docente registra materias, deben ser GLOBALES.
+            // Vamos a asumir que cada usuario gestiona SUS materias en esta vista "Mi Horario/Materias".
 
-            fila.innerHTML = `
-                <td>${materia}</td>
-                <td>${descripcion}</td>
-                <td>
-                    <button class="btn btn-primary" onclick="editarFila(this)">Editar</button>
-                    <button class="btn btn-danger" onclick="eliminarFila(this)">Eliminar</button>
-                </td>
-            `;
+            storageKey = `materias_${currentUser.username}`;
 
-            tabla.appendChild(fila);
-            saveMaterias(); // Guardar cambios
+            // Configurar UI según rol
+            if (currentUser.role === 'docente') {
+                document.getElementById('teacherForm').classList.remove('hidden');
+            } else {
+                // Si es estudiante, ¿puede agregar? El código anterior lo impedía.
+                // Pero el requerimiento dice "que si el ESTUDIANTE va a tener materias...".
+                // Asumiremos que el estudiante PODRÍA querer agregar sus propias materias si es un "horario personal".
+                // Pero el código original ocultaba el formulario para estudiantes.
+                // Voy a permitir que AMBOS agreguen, pero cada uno ve las SUYAS.
+                // O mejor, seguir el rol: Docente agrega materias al sistema GLOBAL?
+                // El problema descrito es "Student registers a subject... logs out... it disappears".
+                // Esto confirma que el estudiante SI registra materias.
+                // Así que habilitaré el formulario para TODOS, pero guardaré en su espacio personal.
+                document.getElementById('teacherForm').classList.remove('hidden');
+            }
+
+            // Logout
+            document.getElementById('logoutBtn').addEventListener('click', (e) => {
+                e.preventDefault();
+                sessionStorage.removeItem('currentUser');
+                window.location.href = 'index.html';
+            });
+
+            loadMaterias();
+        })();
+
+        function loadMaterias() {
+            const materias = JSON.parse(localStorage.getItem(storageKey)) || [];
+            const tbody = document.getElementById('tablaBody');
+            tbody.innerHTML = '';
+
+            if (materias.length === 0) {
+                document.getElementById('noDataMsg').classList.remove('hidden');
+                return;
+            } else {
+                document.getElementById('noDataMsg').classList.add('hidden');
+            }
+
+            materias.forEach((m, index) => {
+                const tr = document.createElement('tr');
+                tr.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                tr.innerHTML = `
+                    <td class="p-4">${m.nombre}</td>
+                    <td class="p-4 text-gray-400">${m.descripcion}</td>
+                    <td class="p-4">
+                        <button class="text-neon-cyan hover:text-white mr-3" onclick="editarMateria(${index})">✏️ Editar</button>
+                        <button class="text-red-400 hover:text-white" onclick="eliminarMateria(${index})">🗑️ Eliminar</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function saveMaterias(materias) {
+            localStorage.setItem(storageKey, JSON.stringify(materias));
+            loadMaterias();
+        }
+
+        function agregarMateria() {
+            const nombre = document.getElementById('materia').value.trim();
+            const desc = document.getElementById('descripcion').value.trim();
+
+            if (!nombre || !desc) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+
+            const materias = JSON.parse(localStorage.getItem(storageKey)) || [];
+            materias.push({ nombre: nombre, descripcion: desc });
+            saveMaterias(materias);
             limpiarCampos();
         }
 
-        function saveMaterias() {
-            let tabla = document.getElementById("tablaMaterias").querySelector("tbody");
-            let filas = tabla.querySelectorAll("tr");
-            let materias = [];
-
-            filas.forEach(fila => {
-                let materia = {
-                    nombre: fila.children[0].innerText,
-                    descripcion: fila.children[1].innerText
-                };
-                materias.push(materia);
-            });
-
-            localStorage.setItem("materias", JSON.stringify(materias));
+        function eliminarMateria(index) {
+            if (!confirm('¿Estás seguro de eliminar esta materia?')) return;
+            const materias = JSON.parse(localStorage.getItem(storageKey)) || [];
+            materias.splice(index, 1);
+            saveMaterias(materias);
         }
 
-        function loadMaterias() {
-            let materias = JSON.parse(localStorage.getItem("materias")) || [];
-            let tabla = document.getElementById("tablaMaterias").querySelector("tbody");
-            tabla.innerHTML = ""; // Limpiar tabla antes de cargar
+        function editarMateria(index) {
+            const materias = JSON.parse(localStorage.getItem(storageKey)) || [];
+            const m = materias[index];
 
-            materias.forEach(m => {
-                let fila = document.createElement("tr");
-                fila.innerHTML = `
-                    <td>${m.nombre}</td>
-                    <td>${m.descripcion}</td>
-                    <td>
-                        <button class="btn btn-primary" onclick="editarFila(this)">Editar</button>
-                        <button class="btn btn-danger" onclick="eliminarFila(this)">Eliminar</button>
-                    </td>
-                `;
-                tabla.appendChild(fila);
-            });
+            document.getElementById('materia').value = m.nombre;
+            document.getElementById('descripcion').value = m.descripcion;
+
+            // Eliminar la actual para reemplazarla al guardar (flujo simple)
+            // O podríamos tener un estado de edición. Para mantenerlo simple como el original:
+            materias.splice(index, 1);
+            localStorage.setItem(storageKey, JSON.stringify(materias));
+            // No recargamos la tabla aun para que no desaparezca visualmente hasta que agregue la nueva?
+            // El original lo eliminaba inmediatamente.
+            loadMaterias();
         }
 
         function limpiarCampos() {
-            document.getElementById("materia").value = "";
-            document.getElementById("descripcion").value = "";
+            document.getElementById('materia').value = '';
+            document.getElementById('descripcion').value = '';
         }
 
-        function eliminarFila(btn) {
-            btn.parentNode.parentNode.remove();
-            saveMaterias(); // Guardar cambios tras eliminar
-        }
-
-        function editarFila(btn) {
-            let fila = btn.parentNode.parentNode;
-            document.getElementById("materia").value = fila.children[0].innerText;
-            document.getElementById("descripcion").value = fila.children[1].innerText;
-            fila.remove();
-            saveMaterias(); // Actualizar storage (al removerlas temporalmente para edición)
-        }
     </script>
 </body>
 

@@ -1,497 +1,268 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Money Digital - Wallet y Recompensas | GROUP JAD</title>
-
+    <title>Wallet Digital - Money Digital</title>
     <!-- Tailwind -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-
     <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+    <!-- Global Styles -->
+    <link href="css/main.css" rel="stylesheet">
 
-    <style>
-        :root {
-            --bg-dark: #0b0f19;
-            --card-dark: rgba(255, 255, 255, 0.06);
-            --border-dark: rgba(255, 255, 255, 0.12);
-            --neon-cyan: #00eaff;
-            --neon-purple: #b400ff;
-            --text-light: #e5e5e5;
-        }
-
-        body {
-            margin: 0;
-            background: var(--bg-dark);
-            font-family: 'Inter', sans-serif;
-            color: var(--text-light);
-            overflow-x: hidden;
-        }
-
-        /* Glow Effect */
-        .glow {
-            text-shadow: 0 0 12px var(--neon-cyan), 0 0 24px var(--neon-purple);
-        }
-
-        /* Navigation */
-        header {
-            background: rgba(255, 255, 255, 0.05);
-            border-bottom: 1px solid var(--border-dark);
-            padding: 20px 40px;
-            backdrop-filter: blur(20px);
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-        nav a {
-            color: #bbb;
-            padding: 10px 18px;
-            border-radius: 10px;
-            transition: 0.3s;
-            font-weight: 500;
-        }
-        nav a:hover, nav a.active {
-            background: rgba(255, 255, 255, 0.08);
-            color: var(--neon-cyan);
-            box-shadow: 0 0 10px var(--neon-cyan);
-        }
-
-        /* Card */
-        .card {
-            background: var(--card-dark);
-            border: 1px solid var(--border-dark);
-            border-radius: 18px;
-            backdrop-filter: blur(12px);
-            padding: 32px;
-            box-shadow: 0 0 25px rgba(0, 255, 255, 0.1);
-            transition: 0.3s;
-        }
-        .card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 0 35px rgba(0, 255, 255, 0.2);
-        }
-
-        /* Inputs */
-        .form-input {
-            width: 100%;
-            padding: 16px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid var(--border-dark);
-            border-radius: 12px;
-            color: white;
-            transition: 0.3s;
-        }
-        .form-input:focus {
-            outline: none;
-            box-shadow: 0 0 12px var(--neon-purple);
-            border-color: var(--neon-purple);
-        }
-
-        /* Buttons */
-        .btn {
-            padding: 14px 22px;
-            border-radius: 12px;
-            border: none;
-            color: white;
-            font-weight: 600;
-            transition: 0.3s;
-            cursor: pointer;
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
-            box-shadow: 0 0 12px var(--neon-cyan);
-        }
-        .btn-primary:hover {
-            box-shadow: 0 0 20px var(--neon-purple);
-        }
-        .btn-send {
-            background: linear-gradient(135deg, #ff00cc, #7700ff);
-            box-shadow: 0 0 12px #c800ff;
-        }
-
-        /* Messages */
-        .message {
-            padding: 14px 16px;
-            border-radius: 10px;
-            margin-top: 14px;
-            font-weight: 500;
-        }
-        .error {
-            background: rgba(255, 0, 80, 0.2);
-            color: #ff4d6d;
-        }
-        .success {
-            background: rgba(0, 255, 200, 0.2);
-            color: #00ffc8;
-        }
-        .message.success {
-            background: rgba(0, 255, 200, 0.2);
-            color: #00ffc8;
-        }
-        .message.error {
-            background: rgba(255, 0, 80, 0.2);
-            color: #ff4d6d;
-        }
-
-        .hidden { display: none !important; }
-
-        /* Particles */
-        .bg-particles {
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-        }
-        .particle {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: var(--neon-cyan);
-            border-radius: 50%;
-            opacity: 0.4;
-            box-shadow: 0 0 10px var(--neon-cyan);
-            animation: float 6s infinite ease-in-out;
-        }
-        @keyframes float {
-            0% { transform: translateY(0); opacity: 0.2; }
-            50% { transform: translateY(-40px); opacity: 1; }
-            100% { transform: translateY(0); opacity: 0.2; }
-        }
-
-    </style>
+    <!-- Stellar & Freighter -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
+    <script src="https://unpkg.com/@stellar/freighter-api@1.5.0/dist/index.min.js"></script>
+    <!-- Older version might be more stable for simple cdn usage, or stick to what they had -->
+    <!-- The user had https://unpkg.com/@stellar/freighter-api@4.1.0/dist/freighter-api.min.js which maps to window.freighterApi -->
+    <script src="https://unpkg.com/@stellar/freighter-api@4.1.0/dist/freighter-api.min.js"></script>
 </head>
 
 <body>
-    <div class="bg-particles"></div>
 
-    <!-- NAV -->
-    <header class="flex justify-between items-center">
-        <h1 class="text-3xl font-bold glow">Money Digital - GROUP JAD</h1>
-
-        <nav class="flex gap-6">
-            <a href="Inicio.html">Inicio</a>
-            <a href="Wallet.html" class="active">Wallet</a>
-            <a href="Moneda.html">Moneda</a>
-            <a href="Usuarios.html">Usuarios</a>
+    <header>
+        <h1>Money Digital - GROUP JAD</h1>
+        <nav>
+            <a href="Inicio.html">🏠 Inicio</a>
+            <a href="cursos.html">🎯 Actividades</a>
+            <a href="niveles.html">📊 Niveles</a>
+            <a href="materias.html">📖 Materias</a>
+            <a href="certificado.html">🏆 Certificados</a>
+            <a href="Usuarios.html">👥 Comunidad</a>
+            <a href="Wallet.html" class="active">💎 Wallet</a>
         </nav>
     </header>
 
+    <main class="main-container" style="max-width: 800px;">
+        <h1 class="page-title">Wallet Digital</h1>
+        <div class="glass-card mb-8">
+            <h2 class="card-title mb-4 text-center">Gestiona tus Activos Digitales</h2>
+            <p class="card-description text-center">Conecta tu wallet Stellar para recibir recompensas y gestionar tus
+                tokens.</p>
 
-    <!-- WALLET -->
-    <div class="max-w-2xl mx-auto mt-12 px-6" id="wallet-container">
-
-        <!-- LOGIN CARD -->
-        <div id="login-section" class="card text-center">
-            <h2 class="text-2xl font-bold glow mb-2">Conectar Wallet</h2>
-            <p class="text-gray-300 mb-6">Conecta tu wallet Stellar para gestionar tus recompensas digitales</p>
-
-            <!-- Freighter Wallet Option -->
-            <div id="freighter-section" class="mb-6">
-                <button id="connect-freighter-btn" class="btn btn-primary w-full mb-4">
-                    🔐 Conectar con Freighter Wallet
-                </button>
-                <p id="freighter-status" class="text-sm text-gray-400 hidden"></p>
+            <!-- Status Section -->
+            <div id="walletStatusSection" class="text-center py-6 hidden">
+                <div class="card-icon mx-auto mb-4" style="background: var(--gradient-cyan-purple);">💎</div>
+                <h3 class="text-2xl font-bold text-neon-cyan mb-2" id="walletBalance">0 XLM</h3>
+                <p class="text-gray-400 break-all mb-4 px-4" id="walletAddress"></p>
+                <button id="disconnectBtn"
+                    class="px-4 py-2 border border-red-500 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition">Desconectar
+                    Wallet</button>
             </div>
 
-            <div class="relative my-6">
-                <div class="absolute inset-0 flex items-center">
-                    <div class="w-full border-t border-gray-600"></div>
+            <!-- Login Section -->
+            <div id="walletLoginSection">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
+                    <!-- Freighter -->
+                    <div class="p-6 rounded-xl border border-gray-700 bg-black bg-opacity-30 flex flex-col items-center hover:border-neon-cyan transition cursor-pointer"
+                        onclick="connectFreighter()">
+                        <div class="text-4xl mb-3">🔐</div>
+                        <h3 class="text-xl font-bold mb-2">Freighter Wallet</h3>
+                        <p class="text-sm text-gray-400 text-center">Recomendado. Extensión segura para tu navegador.
+                        </p>
+                        <button class="mt-4 card-action w-full">Conectar Freighter</button>
+                    </div>
+
+                    <!-- Secret Key -->
+                    <div
+                        class="p-6 rounded-xl border border-gray-700 bg-black bg-opacity-30 flex flex-col items-center">
+                        <div class="text-4xl mb-3">🔑</div>
+                        <h3 class="text-xl font-bold mb-2">Clave Secreta</h3>
+                        <p class="text-sm text-gray-400 text-center mb-4">Solo para desarrollo/testing.</p>
+                        <input type="password" id="secretKeyInput" class="form-input mb-3 text-sm" placeholder="S..." />
+                        <button id="manualConnectBtn" class="card-action w-full"
+                            style="background: rgba(180, 0, 255, 0.1); border-color: var(--neon-purple); color: var(--neon-purple);">
+                            Conectar Manualmente
+                        </button>
+                    </div>
                 </div>
-                <div class="relative flex justify-center text-sm">
-                    <span class="px-4 bg-transparent text-gray-400">O</span>
-                </div>
             </div>
 
-            <!-- Manual Keypair Option -->
-            <div class="mb-4">
-                <label class="block text-gray-400 text-left mb-2">Conectar con Clave Secreta (Solo para desarrollo)</label>
-                <input id="secret-key" type="password" class="form-input mb-4" placeholder="S..." />
-                <button id="connect-manual-btn" class="btn btn-primary w-full">Conectar con Clave Secreta</button>
-            </div>
-
-            <div id="login-error" class="message error hidden"></div>
-            <div id="login-success" class="message success hidden"></div>
+            <!-- Messages -->
+            <div id="statusMessage" class="mt-6 p-4 rounded-xl hidden text-center font-bold"></div>
         </div>
 
-        <!-- WALLET VIEW -->
-        <div id="wallet-section" class="card hidden">
-
-            <h2 class="text-2xl font-bold glow mb-4">Tu Wallet</h2>
-
-            <div class="mb-6">
-                <p class="text-gray-400">Clave Pública</p>
-                <div id="public-key" class="font-mono text-neon text-lg break-all"></div>
+        <!-- Transfer Tool (Solo si conectado) -->
+        <div id="transferSection" class="glass-card hidden">
+            <h3 class="card-title mb-4">📤 Enviar Fondos (XLM)</h3>
+            <div class="form-group">
+                <label class="form-label">Dirección Destino (G...)</label>
+                <input type="text" id="destAddress" class="form-input" placeholder="G..." />
             </div>
-
-            <div class="mb-6">
-                <p class="text-gray-400">Balance</p>
-                <div id="balance" class="text-xl glow">Cargando...</div>
+            <div class="form-group">
+                <label class="form-label">Cantidad (XLM)</label>
+                <input type="number" id="amountXLM" class="form-input" placeholder="10" />
             </div>
-
-            <button id="refresh-balance-btn" class="btn btn-primary w-full mb-6">Actualizar Balance</button>
-
-            <!-- SEND PANEL -->
-            <div class="p-5 rounded-xl border border-gray-700 bg-black bg-opacity-40">
-                <h3 class="text-xl glow text-center mb-4">Enviar XLM</h3>
-
-                <label class="block text-gray-400 mb-2">Cuenta Destino</label>
-                <input id="destination" type="text" class="form-input mb-4" placeholder="G..." />
-
-                <label class="block text-gray-400 mb-2">Cantidad</label>
-                <input id="amount" type="number" class="form-input mb-4" placeholder="10" />
-
-                <button id="send-btn" class="btn btn-send w-full">Enviar</button>
-
-                <div id="send-error" class="message error hidden"></div>
-                <div id="send-success" class="message success hidden"></div>
-            </div>
+            <button id="sendBtn" class="card-action">Enviar Transacción</button>
         </div>
-    </div>
 
-    <footer class="text-center mt-16 py-6 text-gray-500">
-        Built with Stellar Testnet
+    </main>
+
+    <footer>
+        © 2025 Money Digital - GROUP JAD — Dinero Inteligente, Futuro Brillante
     </footer>
 
-
-    <!-- STELLAR SDK -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
-    <!-- Freighter API -->
-    <script src="https://unpkg.com/@stellar/freighter-api@4.1.0/dist/freighter-api.min.js"></script>
-
     <script>
-        /* PARTICLES */
-        function createParticles() {
-            const container = document.querySelector(".bg-particles");
-            for (let i = 0; i < 60; i++) {
-                const p = document.createElement("div");
-                p.className = "particle";
-                p.style.left = Math.random() * 100 + "%";
-                p.style.top = Math.random() * 100 + "%";
-                p.style.animationDelay = Math.random() * 6 + "s";
-                container.appendChild(p);
+        // Stellar Logic
+        const server = new StellarSdk.Horizon.Server('https://horizon-testnet.stellar.org');
+        let currentPublicKey = null;
+        let currentSecretKey = null; // Solo si conexión manual
+        let usingFreighter = false;
+
+        // Init
+        (function () {
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+            const username = currentUser.username || 'unknown';
+            const savedPublic = localStorage.getItem(`wallet_public_${username}`);
+            const savedSecret = localStorage.getItem(`wallet_secret_${username}`);
+            const savedFreighter = localStorage.getItem(`wallet_freighter_${username}`);
+
+            if (savedPublic) {
+                if (savedFreighter === 'true') {
+                    // Intentar reconectar freighter silenciosamente
+                    connectFreighter(true);
+                } else if (savedSecret) {
+                    currentPublicKey = savedPublic;
+                    currentSecretKey = savedSecret;
+                    showWalletView(savedPublic);
+                }
+            }
+        })();
+
+        // Conectar Freighter
+        async function connectFreighter(silent = false) {
+            if (!window.freighterApi) {
+                if (!silent) showStatus('Freighter no detectado. Por favor instala la extensión.', 'error');
+                return;
+            }
+
+            try {
+                if (!silent) showStatus('Conectando con Freighter...', 'info');
+
+                const isAllowed = await window.freighterApi.isAllowed();
+                if (!isAllowed) {
+                    await window.freighterApi.setAllowed();
+                }
+
+                const publicKey = await window.freighterApi.getPublicKey();
+                if (!publicKey) throw new Error('No se obtuvo clave pública');
+
+                usingFreighter = true;
+                currentPublicKey = publicKey;
+
+                // Persistir
+                const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+                const username = currentUser.username || 'unknown';
+                localStorage.setItem(`wallet_public_${username}`, publicKey);
+                localStorage.setItem(`wallet_freighter_${username}`, 'true');
+                localStorage.removeItem(`wallet_secret_${username}`);
+
+                showWalletView(publicKey);
+                if (!silent) showStatus('Conectado exitosamente con Freighter', 'success');
+            } catch (e) {
+                console.error(e);
+                if (!silent) showStatus('Error conectando: ' + e.message, 'error');
             }
         }
-        createParticles();
 
-        /* WALLET LOGIC */
-        (() => {
-            const SecretKeyInput = document.getElementById('secret-key');
-            const ConnectFreighterBtn = document.getElementById('connect-freighter-btn');
-            const ConnectManualBtn = document.getElementById('connect-manual-btn');
-            const FreighterStatus = document.getElementById('freighter-status');
-            const LoginError = document.getElementById('login-error');
-            const LoginSuccess = document.getElementById('login-success');
-
-            const WalletSection = document.getElementById('wallet-section');
-            const LoginSection = document.getElementById('login-section');
-
-            const PublicKeyDisplay = document.getElementById('public-key');
-            const BalanceDisplay = document.getElementById('balance');
-            const RefreshBalanceBtn = document.getElementById('refresh-balance-btn');
-
-            const DestinationInput = document.getElementById('destination');
-            const AmountInput = document.getElementById('amount');
-            const SendBtn = document.getElementById('send-btn');
-            const SendError = document.getElementById('send-error');
-            const SendSuccess = document.getElementById('send-success');
-
-            const server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
-            const networkPassphrase = StellarSdk.Networks.TESTNET;
-
-            let keypair = null;
-            let publicKey = null;
-            let usingFreighter = false;
-
-            // Verificar si Freighter está disponible
-            function isFreighterAvailable() {
-                return typeof window.freighterApi !== 'undefined';
+        // Conectar Manual
+        document.getElementById('manualConnectBtn').addEventListener('click', () => {
+            const secret = document.getElementById('secretKeyInput').value.trim();
+            if (!secret.startsWith('S') || secret.length !== 56) {
+                showStatus('Clave secreta inválida (Debe empezar con S y tener 56 caracteres)', 'error');
+                return;
             }
 
-            // Conectar con Freighter Wallet
-            async function connectWithFreighter() {
-                if (!isFreighterAvailable()) {
-                    FreighterStatus.textContent = "⚠️ Freighter Wallet no está instalado. Descárgalo desde https://freighter.app/";
-                    FreighterStatus.classList.remove("hidden");
-                    FreighterStatus.classList.add("error");
-                    return false;
-                }
-
-                try {
-                    FreighterStatus.textContent = "Conectando con Freighter...";
-                    FreighterStatus.classList.remove("hidden");
-                    FreighterStatus.classList.remove("error", "success");
-                    
-                    // Verificar permisos
-                    const isAllowed = await window.freighterApi.isAllowed();
-                    if (!isAllowed) {
-                        await window.freighterApi.setAllowed();
-                    }
-
-                    // Obtener clave pública
-                    publicKey = await window.freighterApi.getPublicKey();
-                    usingFreighter = true;
-                    keypair = null; // No almacenamos keypair cuando usamos Freighter
-
-                    PublicKeyDisplay.textContent = publicKey;
-                    LoginSection.classList.add("hidden");
-                    WalletSection.classList.remove("hidden");
-                    
-                    FreighterStatus.textContent = "✓ Conectado con Freighter";
-                    FreighterStatus.classList.add("success");
-                    
-                    loadAccountBalance(publicKey);
-                    return true;
-                } catch (error) {
-                    console.error('Error conectando Freighter:', error);
-                    FreighterStatus.textContent = "❌ Error: " + error.message;
-                    FreighterStatus.classList.add("error");
-                    return false;
-                }
-            }
-
-            function validateSecretKey(key) {
-                try { return StellarSdk.Keypair.fromSecret(key); }
-                catch { return null; }
-            }
-
-            async function loadAccountBalance(pk) {
-                try {
-                    const account = await server.loadAccount(pk);
-                    const bal = account.balances.find(b => b.asset_type === "native");
-                    BalanceDisplay.textContent = bal ? bal.balance + " XLM" : "0 XLM";
-                } catch (error) {
-                    if (error.response && error.response.status === 404) {
-                        BalanceDisplay.textContent = "Cuenta no encontrada. Financia tu cuenta con friendbot.";
-                    } else {
-                        BalanceDisplay.textContent = "Error al cargar balance: " + error.message;
-                    }
-                }
-            }
-
-            // Verificar Freighter y cargar wallet del usuario al cargar la página
-            window.addEventListener('DOMContentLoaded', async () => {
-                if (!isFreighterAvailable()) {
-                    FreighterStatus.textContent = "⚠️ Freighter Wallet no detectado. Instálalo para una conexión más segura.";
-                    FreighterStatus.classList.remove("hidden");
-                }
-                
-                // Intentar cargar wallet del usuario actual si existe
-                try {
-                    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-                    const storedPublicKey = currentUser.stellarPublic || localStorage.getItem('stellarPublic');
-                    
-                    if (storedPublicKey) {
-                        // Si hay una wallet guardada, intentar conectarla automáticamente
-                        // Primero intentar con Freighter si está disponible
-                        if (isFreighterAvailable()) {
-                            try {
-                                const isAllowed = await window.freighterApi.isAllowed();
-                                if (isAllowed) {
-                                    const freighterPublic = await window.freighterApi.getPublicKey();
-                                    if (freighterPublic === storedPublicKey) {
-                                        // La wallet de Freighter coincide con la guardada
-                                        publicKey = freighterPublic;
-                                        usingFreighter = true;
-                                        PublicKeyDisplay.textContent = publicKey;
-                                        LoginSection.classList.add("hidden");
-                                        WalletSection.classList.remove("hidden");
-                                        loadAccountBalance(publicKey);
-                                        return;
-                                    }
-                                }
-                            } catch (e) {
-                                console.warn('No se pudo conectar con Freighter automáticamente:', e);
-                            }
-                        }
-                        
-                        // Si no se puede conectar con Freighter, mostrar la wallet guardada pero requerir conexión manual
-                        // (No conectamos automáticamente con clave secreta por seguridad)
-                        PublicKeyDisplay.textContent = storedPublicKey;
-                        LoginSection.querySelector('p').textContent = `Wallet guardada: ${storedPublicKey.substring(0, 10)}...${storedPublicKey.substring(storedPublicKey.length - 10)}. Conecta para gestionarla.`;
-                    }
-                } catch (e) {
-                    console.warn('Error cargando wallet del usuario:', e);
-                }
-            });
-
-            /* CONECTAR CON FREIGHTER */
-            ConnectFreighterBtn.addEventListener("click", async () => {
-                LoginError.classList.add("hidden");
-                LoginSuccess.classList.add("hidden");
-                await connectWithFreighter();
-            });
-
-            /* CONECTAR CON CLAVE SECRETA (MANUAL) */
-            ConnectManualBtn.addEventListener("click", async () => {
-                const secret = SecretKeyInput.value.trim();
-                LoginError.classList.add("hidden");
-                LoginSuccess.classList.add("hidden");
-
-                if (!secret) {
-                    LoginError.textContent = "Por favor, ingresa tu clave secreta.";
-                    LoginError.classList.remove("hidden");
-                    return;
-                }
-
-                const validKey = validateSecretKey(secret);
-                if (!validKey) {
-                    LoginError.textContent = "Clave secreta inválida. Debe comenzar con 'S'.";
-                    LoginError.classList.remove("hidden");
-                    return;
-                }
-
-                keypair = validKey;
-                publicKey = keypair.publicKey();
+            try {
+                const pair = StellarSdk.Keypair.fromSecret(secret);
+                currentPublicKey = pair.publicKey();
+                currentSecretKey = secret;
                 usingFreighter = false;
 
-                PublicKeyDisplay.textContent = publicKey;
-                LoginSection.classList.add("hidden");
-                WalletSection.classList.remove("hidden");
+                // Persistir
+                const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+                const username = currentUser.username || 'unknown';
+                localStorage.setItem(`wallet_public_${username}`, currentPublicKey);
+                localStorage.setItem(`wallet_secret_${username}`, currentSecretKey);
+                localStorage.setItem(`wallet_freighter_${username}`, 'false');
 
-                LoginSuccess.textContent = "✓ Wallet conectada correctamente";
-                LoginSuccess.classList.remove("hidden");
+                showWalletView(currentPublicKey);
+                showStatus('Wallet conectada manualmente', 'success');
+            } catch (e) {
+                showStatus('Error de clave: ' + e.message, 'error');
+            }
+        });
 
-                loadAccountBalance(publicKey);
-            });
+        // Desconectar
+        document.getElementById('disconnectBtn').addEventListener('click', () => {
+            currentPublicKey = null;
+            currentSecretKey = null;
+            usingFreighter = false;
 
-            /* BALANCE REFRESH */
-            RefreshBalanceBtn.addEventListener("click", () => {
-                if (publicKey) loadAccountBalance(publicKey);
-            });
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+            const username = currentUser.username || 'unknown';
+            localStorage.removeItem(`wallet_public_${username}`);
+            localStorage.removeItem(`wallet_secret_${username}`);
+            localStorage.removeItem(`wallet_freighter_${username}`);
 
-            /* SEND PAYMENT */
-            SendBtn.addEventListener("click", async () => {
-                SendError.classList.add("hidden");
-                SendSuccess.classList.add("hidden");
+            document.getElementById('walletLoginSection').classList.remove('hidden');
+            document.getElementById('walletStatusSection').classList.add('hidden');
+            document.getElementById('transferSection').classList.add('hidden');
+            document.getElementById('walletAddress').textContent = '';
+            showStatus('', '');
+        });
 
-                if (!publicKey) {
-                    SendError.textContent = "No hay wallet conectada.";
-                    SendError.classList.remove("hidden");
-                    return;
+        // UI View Update
+        async function showWalletView(publicKey) {
+            document.getElementById('walletLoginSection').classList.add('hidden');
+            document.getElementById('walletStatusSection').classList.remove('hidden');
+            document.getElementById('transferSection').classList.remove('hidden');
+
+            document.getElementById('walletAddress').textContent = publicKey;
+
+            updateBalance(publicKey);
+        }
+
+        async function updateBalance(publicKey) {
+            try {
+                const account = await server.loadAccount(publicKey);
+                const balance = account.balances.find(b => b.asset_type === 'native');
+                const val = balance ? parseFloat(balance.balance).toFixed(2) : '0.00';
+                document.getElementById('walletBalance').textContent = `${val} XLM`;
+            } catch (e) {
+                console.warn(e);
+                document.getElementById('walletBalance').textContent = 'Error / 0 XLM';
+                if (e.response && e.response.status === 404) {
+                    showStatus('Cuenta no activa en Testnet. Envía fondos o usa friendbot.', 'warning');
                 }
+            }
+        }
 
-                const dest = DestinationInput.value.trim();
-                const amount = AmountInput.value.trim();
+        // Send Logic
+        document.getElementById('sendBtn').addEventListener('click', async () => {
+            if (!currentPublicKey) return;
+            const dest = document.getElementById('destAddress').value.trim();
+            const amount = document.getElementById('amountXLM').value.trim();
 
-                if (!StellarSdk.StrKey.isValidEd25519PublicKey(dest)) {
-                    SendError.textContent = "Cuenta destino inválida.";
-                    SendError.classList.remove("hidden");
-                    return;
-                }
-                if (Number(amount) <= 0) {
-                    SendError.textContent = "Cantidad inválida.";
-                    SendError.classList.remove("hidden");
-                    return;
-                }
+            if (!dest || !amount) {
+                showStatus('Completa los campos', 'error');
+                return;
+            }
 
-                try {
-                    const acc = await server.loadAccount(publicKey);
-                    const fee = await server.fetchBaseFee();
+            try {
+                showStatus('Procesando transacción...', 'info');
 
-                    const tx = new StellarSdk.TransactionBuilder(acc, {
-                        fee,
-                        networkPassphrase: networkPassphrase
-                    })
+                const sourceAccount = await server.loadAccount(currentPublicKey);
+                const fee = await server.fetchBaseFee();
+
+                const tx = new StellarSdk.TransactionBuilder(sourceAccount, {
+                    fee: fee.toString(),
+                    networkPassphrase: StellarSdk.Networks.TESTNET
+                })
                     .addOperation(StellarSdk.Operation.payment({
                         destination: dest,
                         asset: StellarSdk.Asset.native(),
@@ -500,41 +271,48 @@
                     .setTimeout(30)
                     .build();
 
-                    // Firmar transacción según el método de conexión
-                    if (usingFreighter && isFreighterAvailable()) {
-                        // Firmar con Freighter
-                        const signedXdr = await window.freighterApi.signTransaction(tx.toXDR(), {
-                            network: networkPassphrase,
-                            accountToSign: publicKey
-                        });
-                        const txFromXdr = StellarSdk.TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
-                        const res = await server.submitTransaction(txFromXdr);
-                        
-                        SendSuccess.textContent = "✓ Transacción exitosa! Hash: " + res.hash;
-                        SendSuccess.classList.remove("hidden");
-                    } else if (keypair) {
-                        // Firmar con clave secreta (solo para desarrollo)
-                        tx.sign(keypair);
-                        const res = await server.submitTransaction(tx);
-                        
-                        SendSuccess.textContent = "✓ Transacción exitosa! Hash: " + res.hash;
-                        SendSuccess.classList.remove("hidden");
-                    } else {
-                        throw new Error("No se puede firmar la transacción");
-                    }
-
-                    DestinationInput.value = "";
-                    AmountInput.value = "";
-                    loadAccountBalance(publicKey);
-                } catch (e) {
-                    console.error('Error en transacción:', e);
-                    SendError.textContent = "Error: " + (e.message || "No se pudo completar la transacción");
-                    SendError.classList.remove("hidden");
+                let result;
+                if (usingFreighter) {
+                    const signedXdr = await window.freighterApi.signTransaction(tx.toXDR(), {
+                        networkPassphrase: StellarSdk.Networks.TESTNET,
+                        accountToSign: currentPublicKey
+                    });
+                    const signedTx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, StellarSdk.Networks.TESTNET);
+                    result = await server.submitTransaction(signedTx);
+                } else {
+                    const pair = StellarSdk.Keypair.fromSecret(currentSecretKey);
+                    tx.sign(pair);
+                    result = await server.submitTransaction(tx);
                 }
-            });
 
-        })();
+                showStatus(`Enviado! Hash: ${result.hash.substring(0, 10)}...`, 'success');
+                updateBalance(currentPublicKey);
+                document.getElementById('destAddress').value = '';
+                document.getElementById('amountXLM').value = '';
+
+            } catch (e) {
+                console.error(e);
+                showStatus('Error en transacción: ' + (e.detail || e.message), 'error');
+            }
+        });
+
+        function showStatus(msg, type) {
+            const el = document.getElementById('statusMessage');
+            if (!msg) {
+                el.classList.add('hidden');
+                return;
+            }
+            el.textContent = msg;
+            el.classList.remove('hidden');
+            el.className = 'mt-6 p-4 rounded-xl text-center font-bold ';
+
+            if (type === 'error') el.classList.add('bg-red-900', 'bg-opacity-50', 'text-red-300');
+            else if (type === 'success') el.classList.add('bg-green-900', 'bg-opacity-50', 'text-green-300');
+            else if (type === 'warning') el.classList.add('bg-yellow-900', 'bg-opacity-50', 'text-yellow-300');
+            else el.classList.add('bg-blue-900', 'bg-opacity-50', 'text-blue-300');
+        }
+
     </script>
-
 </body>
+
 </html>
