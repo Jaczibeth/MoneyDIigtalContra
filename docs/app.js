@@ -10,7 +10,7 @@ const SOROBAN_RPC_URL = 'https://rpc-testnet.stellar.org';
 
 // Variables globales para Freighter
 let connectedWallet = null;
-let publicKey = null; 
+let publicKey = null;
 // Passphrase oficial de la Testnet pública
 let networkPassphrase = StellarSdk.Networks.TESTNET;
 
@@ -37,7 +37,7 @@ async function connectFreighterWallet() {
   try {
     // Verificar si ya tiene permisos
     const isAllowed = await window.freighterApi.isAllowed();
-    
+
     if (!isAllowed) {
       // Solicitar permisos
       await window.freighterApi.setAllowed();
@@ -50,7 +50,7 @@ async function connectFreighterWallet() {
     console.log('Wallet conectada:', publicKey);
     updateWalletStatus(true);
     return true;
-    
+
   } catch (error) {
     console.error('Error conectando con Freighter:', error);
     result.textContent = `❌ Error conectando wallet: ${error.message}`;
@@ -62,14 +62,14 @@ async function connectFreighterWallet() {
 function updateWalletStatus(connected) {
   const walletBtn = document.getElementById('connectWalletBtn');
   const walletStatus = document.getElementById('walletStatus');
-  
+
   if (connected && connectedWallet) {
     if (walletBtn) {
       walletBtn.textContent = '✓ Wallet Conectada';
       walletBtn.classList.add('bg-green-500', 'text-white');
       walletBtn.disabled = true;
     }
-    
+
     if (walletStatus) {
       walletStatus.textContent = `Conectado: ${publicKey.substring(0, 10)}...${publicKey.substring(publicKey.length - 10)}`;
       walletStatus.classList.remove('hidden');
@@ -88,7 +88,7 @@ async function signTransactionWithFreighter(transaction) {
       network: networkPassphrase,
       accountToSign: publicKey,
     });
-    
+
     return signedTransaction;
   } catch (error) {
     console.error('Error firmando transacción:', error);
@@ -108,7 +108,7 @@ async function ejecutarAccion(accion, params = {}) {
   try {
     // Crear servidor de Stellar
     const server = new StellarSdk.Server(RPC_URL);
-    
+
     // Obtener cuenta: si no existe, ofrecer financiarla (friendbot) en Testnet
     let account;
     try {
@@ -136,7 +136,7 @@ async function ejecutarAccion(accion, params = {}) {
         throw err;
       }
     }
-    
+
     // Construir transacción
     const transaction = new StellarSdk.TransactionBuilder(account, {
       fee: StellarSdk.BASE_FEE,
@@ -145,7 +145,7 @@ async function ejecutarAccion(accion, params = {}) {
 
     // Preparar argumentos según la acción
     let args = [];
-    switch(accion) {
+    switch (accion) {
       case 'register_wallet':
         args = [
           toScVal(params.wallet_address || publicKey),
@@ -187,7 +187,7 @@ async function ejecutarAccion(accion, params = {}) {
       ),
       source: publicKey,
     });
-    
+
     transaction.addOperation(contractOperation);
     const builtTransaction = transaction.setTimeout(30).build();
 
@@ -197,13 +197,13 @@ async function ejecutarAccion(accion, params = {}) {
     // Convertir XDR firmado a Transaction y enviar a Horizon
     const transactionFromXDR = StellarSdk.TransactionBuilder.fromXDR(signedXdr, networkPassphrase);
     const response = await server.submitTransaction(transactionFromXDR);
-    
+
     // Mostrar resultado
     result.textContent = `✓ Transacción exitosa!\nHash: ${response.hash}\nAcción: ${accion}\nWallet: ${publicKey}`;
 
   } catch (error) {
     console.error('Error ejecutando acción:', error);
-    
+
     // Manejo de errores específicos
     if (error.message.includes('User declined access')) {
       result.textContent = '❌ Usuario canceló la transacción en Freighter';
@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (form) {
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      
+
       // Conectar wallet si no está conectada
       if (!connectedWallet) {
         const connected = await connectFreighterWallet();
@@ -240,10 +240,10 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
       }
-      
+
       // Ejecutar registro de wallet
-      const name = nameEl?.value?.trim() || '';
-      const email = emailEl?.value?.trim() || '';
+      const name = (nameEl && nameEl.value) ? nameEl.value.trim() : '';
+      const email = (emailEl && emailEl.value) ? emailEl.value.trim() : '';
       ejecutarAccion('register_wallet', {
         wallet_address: publicKey,
         nombre: name,

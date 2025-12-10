@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Mis Actividades - Money Digital | GROUP JAD</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
     <style>
         :root {
             --bg-dark: #0b0f19;
@@ -44,7 +47,8 @@
             text-decoration: none;
         }
 
-        nav a:hover, nav a.active {
+        nav a:hover,
+        nav a.active {
             background: rgba(0, 255, 255, 0.1);
             color: var(--neon-cyan);
             box-shadow: 0 0 10px var(--neon-cyan);
@@ -71,11 +75,30 @@
             font-weight: 600;
         }
 
-        .status-pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
-        .status-submitted { background: rgba(33, 150, 243, 0.2); color: #2196f3; }
-        .status-approved { background: rgba(76, 175, 80, 0.2); color: #4caf50; }
-        .status-rejected { background: rgba(244, 67, 54, 0.2); color: #f44336; }
-        .status-needs_correction { background: rgba(255, 152, 0, 0.2); color: #ff9800; }
+        .status-pending {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+
+        .status-submitted {
+            background: rgba(33, 150, 243, 0.2);
+            color: #2196f3;
+        }
+
+        .status-approved {
+            background: rgba(76, 175, 80, 0.2);
+            color: #4caf50;
+        }
+
+        .status-rejected {
+            background: rgba(244, 67, 54, 0.2);
+            color: #f44336;
+        }
+
+        .status-needs_correction {
+            background: rgba(255, 152, 0, 0.2);
+            color: #ff9800;
+        }
 
         .btn {
             padding: 10px 20px;
@@ -97,9 +120,11 @@
         }
     </style>
 </head>
+
 <body>
     <header class="flex justify-between items-center">
-        <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+        <h1 class="text-2xl font-bold"
+            style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
             Money Digital - GROUP JAD
         </h1>
         <nav class="flex gap-6">
@@ -113,7 +138,8 @@
 
     <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
         <div class="text-center mb-10">
-            <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+            <h2 class="text-4xl font-bold mb-4"
+                style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
                 Mis Actividades
             </h2>
             <p class="text-gray-400">Sube evidencia de tus actividades y recibe tokens cuando sean aprobadas</p>
@@ -124,9 +150,12 @@
             <div class="flex gap-4 items-center flex-wrap">
                 <span class="text-gray-400">Filtrar por estado:</span>
                 <button id="filterAll" class="btn btn-primary">Todas</button>
-                <button id="filterPending" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Pendientes</button>
-                <button id="filterSubmitted" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Enviadas</button>
-                <button id="filterApproved" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Aprobadas</button>
+                <button id="filterPending" class="btn"
+                    style="background: rgba(255,255,255,0.1); color: white;">Pendientes</button>
+                <button id="filterSubmitted" class="btn"
+                    style="background: rgba(255,255,255,0.1); color: white;">Enviadas</button>
+                <button id="filterApproved" class="btn"
+                    style="background: rgba(255,255,255,0.1); color: white;">Aprobadas</button>
             </div>
         </div>
 
@@ -143,24 +172,29 @@
         <div class="card max-w-2xl w-full mx-4">
             <h3 class="text-2xl font-bold mb-4" id="modalActivityTitle">Subir Evidencia</h3>
             <div id="modalActivityDescription" class="text-gray-400 mb-4"></div>
-            
+
             <form id="uploadForm">
                 <input type="hidden" id="modalActivityId" />
-                
+
                 <div class="mb-4">
                     <label class="block text-gray-400 mb-2">Selecciona archivo (PDF, Imagen, Video)</label>
-                    <input type="file" id="evidenceFile" accept=".pdf,.jpg,.jpeg,.png,.gif,.mp4,.webm" class="w-full p-3 rounded-lg" style="background: rgba(255,255,255,0.1); border: 1px solid var(--border-dark);" required />
+                    <input type="file" id="evidenceFile" accept=".pdf,.jpg,.jpeg,.png,.gif,.mp4,.webm"
+                        class="w-full p-3 rounded-lg"
+                        style="background: rgba(255,255,255,0.1); border: 1px solid var(--border-dark);" required />
                     <p class="text-xs text-gray-500 mt-1">Máximo 10MB. Formatos: PDF, JPG, PNG, GIF, MP4</p>
                 </div>
 
                 <div class="mb-4">
                     <label class="block text-gray-400 mb-2">Comentarios adicionales (opcional)</label>
-                    <textarea id="evidenceComments" rows="3" class="w-full p-3 rounded-lg" style="background: rgba(255,255,255,0.1); border: 1px solid var(--border-dark); color: white;" placeholder="Agrega cualquier comentario sobre tu evidencia..."></textarea>
+                    <textarea id="evidenceComments" rows="3" class="w-full p-3 rounded-lg"
+                        style="background: rgba(255,255,255,0.1); border: 1px solid var(--border-dark); color: white;"
+                        placeholder="Agrega cualquier comentario sobre tu evidencia..."></textarea>
                 </div>
 
                 <div class="flex gap-4">
                     <button type="submit" class="btn btn-primary flex-1">Subir y Enviar</button>
-                    <button type="button" id="cancelUpload" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Cancelar</button>
+                    <button type="button" id="cancelUpload" class="btn"
+                        style="background: rgba(255,255,255,0.1); color: white;">Cancelar</button>
                 </div>
             </form>
         </div>
@@ -173,15 +207,20 @@
     <script src="js/stellar-integration.js"></script>
     <script>
         // Verificación de sesión
-        (function() {
-            const currentUserStr = localStorage.getItem('currentUser');
+        (function () {
+            const currentUserStr = sessionStorage.getItem('currentUser');
             if (!currentUserStr) {
-                alert('Por favor, inicia sesión para acceder a esta página.');
-                window.location.href = 'index.html';
-                return;
+                // Fallback check to localStorage just in case, but prefer session
+                const localUser = localStorage.getItem('currentUser');
+                if (!localUser) {
+                    alert('Por favor, inicia sesión para acceder a esta página.');
+                    window.location.href = 'index.html';
+                    return;
+                }
+                sessionStorage.setItem('currentUser', localUser);
             }
-            
-            const currentUser = JSON.parse(currentUserStr);
+
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
             if (currentUser.role === 'docente') {
                 window.location.href = 'gestion-actividades.html';
                 return;
@@ -197,13 +236,13 @@
                 return;
             }
 
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
             const username = currentUser.username;
             const activities = activitiesSystem.getActivities().filter(a => a.status === 'active');
             const submissions = activitiesSystem.getSubmissionsByStudent(username);
 
             const container = document.getElementById('activitiesList');
-            
+
             if (activities.length === 0) {
                 container.innerHTML = `
                     <div class="card text-center py-12">
@@ -218,7 +257,7 @@
                 const submission = submissions.find(s => s.activityId === activity.id);
                 const status = submission ? submission.status : 'pending';
                 const canSubmit = !submission || submission.status === 'rejected' || submission.status === 'needs_correction';
-                
+
                 let statusText = 'Pendiente';
                 let statusClass = 'status-pending';
                 if (status === 'submitted' || status === 'pending') {
@@ -287,12 +326,12 @@
             cards.forEach(card => {
                 const status = card.getAttribute('data-status');
                 let show = false;
-                
+
                 if (currentFilter === 'all') show = true;
                 else if (currentFilter === 'pending' && status === 'pending') show = true;
                 else if (currentFilter === 'submitted' && (status === 'submitted' || status === 'pending')) show = true;
                 else if (currentFilter === 'approved' && status === 'approved') show = true;
-                
+
                 card.style.display = show ? 'block' : 'none';
             });
         }
@@ -316,11 +355,11 @@
 
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser'));
             const fileInput = document.getElementById('evidenceFile');
             const comments = document.getElementById('evidenceComments').value;
-            
+
             if (!fileInput.files[0]) {
                 alert('Por favor, selecciona un archivo');
                 return;
@@ -379,7 +418,7 @@
                 alert('Archivo no encontrado');
                 return;
             }
-            
+
             if (fileData.type.startsWith('image/') || fileData.type === 'application/pdf') {
                 window.open(fileData.data, '_blank');
             } else {
@@ -398,5 +437,5 @@
         loadActivities();
     </script>
 </body>
-</html>
 
+</html>

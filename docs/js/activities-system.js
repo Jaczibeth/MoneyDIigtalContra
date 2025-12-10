@@ -402,3 +402,4 @@ class ActivitiesSystem {
 // Instancia global
 const activitiesSystem = new ActivitiesSystem();
 
+
