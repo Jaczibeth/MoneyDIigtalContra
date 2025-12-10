@@ -1,6 +1,7 @@
 <!-- MATERIAS - Dark Pro Modern Professional -->
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -180,7 +181,8 @@
             font-size: 14px;
         }
 
-        nav a:hover, nav a.active {
+        nav a:hover,
+        nav a.active {
             background: rgba(0, 229, 255, 0.1);
             color: var(--primary);
         }
@@ -196,6 +198,7 @@
         }
     </style>
 </head>
+
 <body>
 
     <header>
@@ -244,8 +247,11 @@
     </div>
 
     <script>
+        // Cargar materias al iniciar
+        document.addEventListener('DOMContentLoaded', loadMaterias);
+
         // Verificación de sesión
-        (function() {
+        (function () {
             const currentUserStr = localStorage.getItem('currentUser');
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
@@ -276,7 +282,43 @@
             `;
 
             tabla.appendChild(fila);
+            saveMaterias(); // Guardar cambios
             limpiarCampos();
+        }
+
+        function saveMaterias() {
+            let tabla = document.getElementById("tablaMaterias").querySelector("tbody");
+            let filas = tabla.querySelectorAll("tr");
+            let materias = [];
+
+            filas.forEach(fila => {
+                let materia = {
+                    nombre: fila.children[0].innerText,
+                    descripcion: fila.children[1].innerText
+                };
+                materias.push(materia);
+            });
+
+            localStorage.setItem("materias", JSON.stringify(materias));
+        }
+
+        function loadMaterias() {
+            let materias = JSON.parse(localStorage.getItem("materias")) || [];
+            let tabla = document.getElementById("tablaMaterias").querySelector("tbody");
+            tabla.innerHTML = ""; // Limpiar tabla antes de cargar
+
+            materias.forEach(m => {
+                let fila = document.createElement("tr");
+                fila.innerHTML = `
+                    <td>${m.nombre}</td>
+                    <td>${m.descripcion}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="editarFila(this)">Editar</button>
+                        <button class="btn btn-danger" onclick="eliminarFila(this)">Eliminar</button>
+                    </td>
+                `;
+                tabla.appendChild(fila);
+            });
         }
 
         function limpiarCampos() {
@@ -286,6 +328,7 @@
 
         function eliminarFila(btn) {
             btn.parentNode.parentNode.remove();
+            saveMaterias(); // Guardar cambios tras eliminar
         }
 
         function editarFila(btn) {
@@ -293,7 +336,9 @@
             document.getElementById("materia").value = fila.children[0].innerText;
             document.getElementById("descripcion").value = fila.children[1].innerText;
             fila.remove();
+            saveMaterias(); // Actualizar storage (al removerlas temporalmente para edición)
         }
     </script>
 </body>
+
 </html>
