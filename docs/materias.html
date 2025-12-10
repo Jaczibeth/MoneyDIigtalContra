@@ -252,12 +252,36 @@
 
         // Verificación de sesión
         (function () {
-            const currentUserStr = localStorage.getItem('currentUser');
+            const currentUserStr = sessionStorage.getItem('currentUser');
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
                 return;
             }
+
+            const currentUser = JSON.parse(currentUserStr);
+            // Si es estudiante, ocultar controles de edición
+            if (currentUser.role !== 'docente') {
+                const inputs = document.querySelectorAll('.form-row input');
+                inputs.forEach(i => i.disabled = true);
+                const btns = document.querySelectorAll('.btn-primary, .btn-danger');
+                btns.forEach(b => b.style.display = 'none');
+                // Pero queremos ver la tabla, asi que solo ocultamos los botones de arriba
+                // y la columna de acciones
+                document.getElementById('materia').parentNode.style.display = 'none';
+                document.getElementById('descripcion').parentNode.style.display = 'none';
+                // Ocultar botones de agregar
+                const addBtns = document.querySelectorAll('.container > .btn');
+                addBtns.forEach(b => b.style.display = 'none');
+
+                // Ocultar columna acciones
+                const style = document.createElement('style');
+                style.innerHTML = `
+                    th:nth-child(3), td:nth-child(3) { display: none; }
+                 `;
+                document.head.appendChild(style);
+            }
+
         })();
 
         function agregarMateria() {

@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gestión de Actividades - Money Digital | GROUP JAD</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
     <style>
         :root {
             --bg-dark: #0b0f19;
@@ -44,7 +47,8 @@
             text-decoration: none;
         }
 
-        nav a:hover, nav a.active {
+        nav a:hover,
+        nav a.active {
             background: rgba(0, 255, 255, 0.1);
             color: var(--neon-cyan);
             box-shadow: 0 0 10px var(--neon-cyan);
@@ -78,7 +82,9 @@
             box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
         }
 
-        input, textarea, select {
+        input,
+        textarea,
+        select {
             width: 100%;
             padding: 12px;
             border-radius: 10px;
@@ -88,16 +94,20 @@
             font-family: inherit;
         }
 
-        input:focus, textarea:focus, select:focus {
+        input:focus,
+        textarea:focus,
+        select:focus {
             outline: none;
             border-color: var(--neon-cyan);
             box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
         }
     </style>
 </head>
+
 <body>
     <header class="flex justify-between items-center">
-        <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+        <h1 class="text-2xl font-bold"
+            style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
             Money Digital - GROUP JAD
         </h1>
         <nav class="flex gap-6">
@@ -111,7 +121,8 @@
 
     <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
         <div class="text-center mb-10">
-            <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+            <h2 class="text-4xl font-bold mb-4"
+                style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
                 Gestión de Actividades
             </h2>
             <p class="text-gray-400">Crea actividades para tus estudiantes y asigna tokens por completarlas</p>
@@ -134,7 +145,8 @@
 
                 <div class="mb-6">
                     <label class="block text-gray-400 mb-2">Descripción *</label>
-                    <textarea id="activityDescription" rows="4" required placeholder="Describe la actividad, qué deben hacer los estudiantes, criterios de evaluación..."></textarea>
+                    <textarea id="activityDescription" rows="4" required
+                        placeholder="Describe la actividad, qué deben hacer los estudiantes, criterios de evaluación..."></textarea>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -150,12 +162,14 @@
 
                 <div class="mb-6">
                     <label class="block text-gray-400 mb-2">Instrucciones o Material (opcional)</label>
-                    <textarea id="activityInstructions" rows="3" placeholder="Agrega instrucciones adicionales, enlaces, o material de apoyo..."></textarea>
+                    <textarea id="activityInstructions" rows="3"
+                        placeholder="Agrega instrucciones adicionales, enlaces, o material de apoyo..."></textarea>
                 </div>
 
                 <div class="flex gap-4">
                     <button type="submit" class="btn btn-primary">Crear Actividad</button>
-                    <button type="reset" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Limpiar</button>
+                    <button type="reset" class="btn"
+                        style="background: rgba(255,255,255,0.1); color: white;">Limpiar</button>
                 </div>
             </form>
         </div>
@@ -172,14 +186,14 @@
     <script src="js/activities-system.js"></script>
     <script>
         // Verificación de sesión
-        (function() {
-            const currentUserStr = localStorage.getItem('currentUser');
+        (function () {
+            const currentUserStr = sessionStorage.getItem('currentUser');
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
                 return;
             }
-            
+
             const currentUser = JSON.parse(currentUserStr);
             if (currentUser.role !== 'docente') {
                 alert('Esta página es solo para docentes.');
@@ -194,28 +208,30 @@
                 return;
             }
 
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-            const activities = activitiesSystem.getActivities()
-                .filter(a => a.createdBy === currentUser.username)
-                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        }
 
-            const container = document.getElementById('activitiesList');
-            
-            if (activities.length === 0) {
-                container.innerHTML = `
+        const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+        const activities = activitiesSystem.getActivities()
+            .filter(a => a.createdBy === currentUser.username)
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        const container = document.getElementById('activitiesList');
+
+        if (activities.length === 0) {
+            container.innerHTML = `
                     <p class="text-gray-400 text-center py-8">No has creado actividades aún. Usa el formulario de arriba para crear una.</p>
                 `;
-                return;
-            }
+            return;
+        }
 
-            container.innerHTML = activities.map(activity => {
-                const submissions = activitiesSystem.getSubmissionsByActivity(activity.id);
-                const pendingCount = submissions.filter(s => s.status === 'pending').length;
-                const approvedCount = submissions.filter(s => s.status === 'approved').length;
-                const deadline = new Date(activity.deadline);
-                const isActive = activity.status === 'active';
+        container.innerHTML = activities.map(activity => {
+            const submissions = activitiesSystem.getSubmissionsByActivity(activity.id);
+            const pendingCount = submissions.filter(s => s.status === 'pending').length;
+            const approvedCount = submissions.filter(s => s.status === 'approved').length;
+            const deadline = new Date(activity.deadline);
+            const isActive = activity.status === 'active';
 
-                return `
+            return `
                     <div class="p-4 rounded-lg" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-dark);">
                         <div class="flex justify-between items-start mb-3">
                             <div class="flex-1">
@@ -246,13 +262,13 @@
                         </div>
                     </div>
                 `;
-            }).join('');
+        }).join('');
         }
 
         document.getElementById('createActivityForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
             const activityData = {
                 title: document.getElementById('activityTitle').value.trim(),
                 description: document.getElementById('activityDescription').value.trim(),
@@ -292,7 +308,7 @@
 
             // Scroll al formulario
             document.getElementById('createActivityForm').scrollIntoView({ behavior: 'smooth' });
-            
+
             // Cambiar el botón a "Actualizar"
             const submitBtn = document.querySelector('#createActivityForm button[type="submit"]');
             submitBtn.textContent = 'Actualizar Actividad';
@@ -329,5 +345,5 @@
         loadActivities();
     </script>
 </body>
-</html>
 
+</html>

@@ -5,7 +5,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
     <title>Actividades Extracurriculares - Money Digital</title>
     <style>
         :root {
@@ -56,8 +58,17 @@
         }
 
         @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); opacity: 0.3; }
-            50% { transform: translateY(-20px) rotate(180deg); opacity: 0.8; }
+
+            0%,
+            100% {
+                transform: translateY(0px) rotate(0deg);
+                opacity: 0.3;
+            }
+
+            50% {
+                transform: translateY(-20px) rotate(180deg);
+                opacity: 0.8;
+            }
         }
 
         header {
@@ -378,8 +389,15 @@
         }
 
         @keyframes cardFloat {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-8px); }
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-8px);
+            }
         }
 
         .loading {
@@ -393,7 +411,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         @media (max-width: 1200px) {
@@ -444,7 +464,7 @@
 
 <body>
     <div class="bg-particles"></div>
-    
+
     <header>
         <h1>Money Digital - GROUP JAD</h1>
         <nav>
@@ -459,18 +479,20 @@
     <section class="search-section">
         <div class="search-container">
             <h2 class="search-title">🎯 Actividades Extracurriculares Disponibles</h2>
-            <p class="search-subtitle">Participa en actividades, compite de forma sana y gana recompensas digitales para tu formación académica</p>
-            <input type="text" class="search-input" placeholder="Buscar por título, tecnología o tema..." id="search-input" />
+            <p class="search-subtitle">Participa en actividades, compite de forma sana y gana recompensas digitales para
+                tu formación académica</p>
+            <input type="text" class="search-input" placeholder="Buscar por título, tecnología o tema..."
+                id="search-input" />
         </div>
     </section>
-    
+
     <main id="courses-container"></main>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
     <script>
         // Verificación de sesión
-        (function() {
-            const currentUserStr = localStorage.getItem('currentUser');
+        (function () {
+            const currentUserStr = sessionStorage.getItem('currentUser');
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
@@ -478,82 +500,83 @@
             }
         })();
 
-        const courses = [
-            { 
-                id: 1, 
-                title: "Hackathon de Programación", 
-                description: "Participa en nuestro hackathon de programación. Desarrolla soluciones innovadoras, compite con otros estudiantes y gana recompensas digitales. ¡Demuestra tus habilidades técnicas!", 
-                image: "https://i.pinimg.com/736x/d0/32/34/d03234bfa8029236fbd88916fab35831.jpg", 
+        // Importante: No re-declaramos const courses para permitir extensibilidad
+        let courses = [
+            {
+                id: 1,
+                title: "Hackathon de Programación",
+                description: "Participa en nuestro hackathon de programación. Desarrolla soluciones innovadoras, compite con otros estudiantes y gana recompensas digitales. ¡Demuestra tus habilidades técnicas!",
+                image: "https://i.pinimg.com/736x/d0/32/34/d03234bfa8029236fbd88916fab35831.jpg",
                 rating: 4.5,
                 category: "Tecnología",
                 price: 0,
                 rewards: "50 tokens + Certificado"
             },
-            { 
-                id: 2, 
-                title: "Club de Robótica", 
-                description: "Únete al club de robótica y aprende a construir robots. Participa en competencias internas y gana tokens por cada proyecto completado. ¡Desarrolla habilidades STEM!", 
-                image: "https://i.pinimg.com/736x/9b/4e/e0/9b4ee057076232fb57c48cf80947f8a7.jpg", 
+            {
+                id: 2,
+                title: "Club de Robótica",
+                description: "Únete al club de robótica y aprende a construir robots. Participa en competencias internas y gana tokens por cada proyecto completado. ¡Desarrolla habilidades STEM!",
+                image: "https://i.pinimg.com/736x/9b/4e/e0/9b4ee057076232fb57c48cf80947f8a7.jpg",
                 rating: 5.0,
                 category: "Robótica",
                 price: 0,
                 rewards: "30 tokens/sesión"
             },
-            { 
-                id: 3, 
-                title: "Olimpiada de Matemáticas", 
-                description: "Demuestra tus habilidades matemáticas en nuestra olimpiada. Compite de forma sana, resuelve problemas desafiantes y obtén recompensas según tu desempeño.", 
-                image: "https://i.pinimg.com/736x/2d/d8/03/2dd8031b5e88f0104d083e4ed6233bc0.jpg", 
+            {
+                id: 3,
+                title: "Olimpiada de Matemáticas",
+                description: "Demuestra tus habilidades matemáticas en nuestra olimpiada. Compite de forma sana, resuelve problemas desafiantes y obtén recompensas según tu desempeño.",
+                image: "https://i.pinimg.com/736x/2d/d8/03/2dd8031b5e88f0104d083e4ed6233bc0.jpg",
                 rating: 4.2,
                 category: "Académico",
                 price: 0,
                 rewards: "20-100 tokens según posición"
             },
-            { 
-                id: 4, 
-                title: "Taller de Emprendimiento", 
-                description: "Aprende a crear y desarrollar ideas de negocio. Presenta tu proyecto y gana tokens por innovación. Ideal para desarrollar habilidades empresariales.", 
-                image: "https://i.pinimg.com/736x/5b/10/93/5b1093e848ffd5b7c018c57fe300da8d.jpg", 
+            {
+                id: 4,
+                title: "Taller de Emprendimiento",
+                description: "Aprende a crear y desarrollar ideas de negocio. Presenta tu proyecto y gana tokens por innovación. Ideal para desarrollar habilidades empresariales.",
+                image: "https://i.pinimg.com/736x/5b/10/93/5b1093e848ffd5b7c018c57fe300da8d.jpg",
                 rating: 4.8,
                 category: "Emprendimiento",
                 price: 0,
                 rewards: "40 tokens + Mentoring"
             },
-            { 
-                id: 5, 
-                title: "Concurso de Diseño Gráfico", 
-                description: "Muestra tu creatividad en nuestro concurso de diseño. Crea piezas visuales innovadoras, compite y gana recompensas digitales por tu talento artístico.", 
-                image: "https://images.unsplash.com/photo-1542831371-d531d36971e6?auto=format&fit=crop&w=600&q=80", 
+            {
+                id: 5,
+                title: "Concurso de Diseño Gráfico",
+                description: "Muestra tu creatividad en nuestro concurso de diseño. Crea piezas visuales innovadoras, compite y gana recompensas digitales por tu talento artístico.",
+                image: "https://images.unsplash.com/photo-1542831371-d531d36971e6?auto=format&fit=crop&w=600&q=80",
                 rating: 4.6,
                 category: "Arte y Diseño",
                 price: 0,
                 rewards: "35 tokens + Exposición"
             },
-            { 
-                id: 6, 
-                title: "Voluntariado Comunitario", 
-                description: "Participa en actividades de voluntariado y servicio comunitario. Contribuye a causas sociales y gana tokens por horas de servicio. ¡Haz la diferencia!", 
-                image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=80", 
+            {
+                id: 6,
+                title: "Voluntariado Comunitario",
+                description: "Participa en actividades de voluntariado y servicio comunitario. Contribuye a causas sociales y gana tokens por horas de servicio. ¡Haz la diferencia!",
+                image: "https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=600&q=80",
                 rating: 5.0,
                 category: "Servicio Social",
                 price: 0,
                 rewards: "15 tokens/hora"
             },
-            { 
-                id: 7, 
-                title: "Liga Deportiva Interescolar", 
-                description: "Participa en competencias deportivas. Fútbol, básquetbol, voleibol y más. Compite de forma sana, desarrolla habilidades físicas y gana tokens por participación.", 
-                image: "https://images.unsplash.com/photo-1517433456452-f9633a875f6f?auto=format&fit=crop&w=600&q=80", 
+            {
+                id: 7,
+                title: "Liga Deportiva Interescolar",
+                description: "Participa en competencias deportivas. Fútbol, básquetbol, voleibol y más. Compite de forma sana, desarrolla habilidades físicas y gana tokens por participación.",
+                image: "https://images.unsplash.com/photo-1517433456452-f9633a875f6f?auto=format&fit=crop&w=600&q=80",
                 rating: 4.7,
                 category: "Deportes",
                 price: 0,
                 rewards: "25 tokens/partido"
             },
-            { 
-                id: 8, 
-                title: "Club de Debate y Oratoria", 
-                description: "Desarrolla habilidades de comunicación y argumentación. Participa en debates, mejora tu expresión oral y gana tokens por cada participación destacada.", 
-                image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=600&q=80", 
+            {
+                id: 8,
+                title: "Club de Debate y Oratoria",
+                description: "Desarrolla habilidades de comunicación y argumentación. Participa en debates, mejora tu expresión oral y gana tokens por cada participación destacada.",
+                image: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=600&q=80",
                 rating: 4.9,
                 category: "Comunicación",
                 price: 0,
@@ -738,9 +761,9 @@
                                 fee: baseFee.toString(),
                                 networkPassphrase: networkPassphrase
                             })
-                            .addOperation(op)
-                            .setTimeout(180)
-                            .build();
+                                .addOperation(op)
+                                .setTimeout(180)
+                                .build();
                             console.log('✓ Transacción construida (lista para firmar con Freighter)');
 
                             // Firmar con Freighter (se pasa la passphrase detectada si Freighter la requiere)
@@ -870,9 +893,9 @@
         function init() {
             createParticles();
             renderCourses(courses);
-            
+
             document.getElementById("search-input").addEventListener("input", filterCourses);
-            
+
             document.addEventListener('scroll', () => {
                 const scrolled = window.pageYOffset;
                 const parallax = document.querySelector('.bg-particles');
@@ -894,6 +917,50 @@
         }
 
         document.addEventListener('DOMContentLoaded', init);
+        // Cargar actividades dinámicas desde ActivitiesSystem
+        function loadDynamicActivities() {
+            if (typeof activitiesSystem === 'undefined') {
+                return; // Se cargará cuando el script esté listo
+            }
+
+            // Obtener actividades "activas" del sistema
+            const dynamicActivities = activitiesSystem.getActivities().filter(a => a.status === 'active');
+
+            // Convertir al formato de cursos.html
+            const newCourses = dynamicActivities.map(activity => ({
+                id: activity.id, // Usar ID string
+                title: activity.title,
+                description: activity.description,
+                image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80", // Imagen genérica por defecto
+                rating: 5.0, // Rating por defecto
+                category: activity.subject || "General",
+                price: activity.tokens || 0,
+                rewards: `${activity.tokens} tokens`,
+                dynamic: true // Flag para identificar
+            }));
+
+            // Unir con los estáticos (evitando duplicados si ya existen por ID)
+            newCourses.forEach(nc => {
+                if (!courses.find(c => c.id == nc.id)) {
+                    courses.push(nc);
+                }
+            });
+
+            renderCourses(courses);
+        }
+
+        // Script Loader
+        (function loadScripts() {
+            const s = document.createElement('script');
+            s.src = 'js/activities-system.js';
+            s.onload = () => {
+                loadDynamicActivities();
+            };
+            document.body.appendChild(s);
+        })();
+
+        // Inicializar con estáticos mientra carga
+        renderCourses(courses);
     </script>
 </body>
 

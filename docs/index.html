@@ -293,7 +293,7 @@
       const user = users.find(u => (u.username === userVal || u.email === userVal) && u.passwordHash === hashed);
 
       if (user) {
-        localStorage.setItem('currentUser', JSON.stringify(user));
+        sessionStorage.setItem('currentUser', JSON.stringify(user));
         // If wallet was connected manually during this session, associate it? 
         // For now, respect the flow.
         showToast(`Bienvenido ${user.username}`, 'success');
