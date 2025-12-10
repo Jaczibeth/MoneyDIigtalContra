@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Progreso de Estudiantes - Money Digital | GROUP JAD</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
     <style>
         :root {
             --bg-dark: #0b0f19;
@@ -44,7 +47,8 @@
             text-decoration: none;
         }
 
-        nav a:hover, nav a.active {
+        nav a:hover,
+        nav a.active {
             background: rgba(0, 255, 255, 0.1);
             color: var(--neon-cyan);
             box-shadow: 0 0 10px var(--neon-cyan);
@@ -60,9 +64,11 @@
         }
     </style>
 </head>
+
 <body>
     <header class="flex justify-between items-center">
-        <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+        <h1 class="text-2xl font-bold"
+            style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
             Money Digital - GROUP JAD
         </h1>
         <nav class="flex gap-6">
@@ -75,7 +81,8 @@
 
     <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
         <div class="text-center mb-10">
-            <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+            <h2 class="text-4xl font-bold mb-4"
+                style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
                 Progreso de Estudiantes
             </h2>
             <p class="text-gray-400">Ve el progreso y rendimiento de tus estudiantes</p>
@@ -91,14 +98,14 @@
     <script src="js/activities-system.js"></script>
     <script>
         // Verificación de sesión
-        (function() {
-            const currentUserStr = localStorage.getItem('currentUser');
+        (function () {
+            const currentUserStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
                 return;
             }
-            
+
             const currentUser = JSON.parse(currentUserStr);
             if (currentUser.role !== 'docente') {
                 alert('Esta página es solo para docentes.');
@@ -113,10 +120,10 @@
                 return;
             }
 
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser'));
             const activities = activitiesSystem.getActivities().filter(a => a.createdBy === currentUser.username);
             const allSubmissions = activitiesSystem.getSubmissions();
-            
+
             // Obtener estudiantes únicos que han enviado actividades
             const studentUsernames = new Set();
             allSubmissions.forEach(s => {
@@ -127,7 +134,7 @@
             });
 
             const container = document.getElementById('studentsList');
-            
+
             if (studentUsernames.size === 0) {
                 container.innerHTML = `
                     <div class="card text-center py-12">
@@ -195,5 +202,5 @@
         loadStudents();
     </script>
 </body>
-</html>
 
+</html>

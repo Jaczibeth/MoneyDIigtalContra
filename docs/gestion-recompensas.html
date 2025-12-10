@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Gestión de Recompensas - Money Digital | GROUP JAD</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
     <style>
         :root {
             --bg-dark: #0b0f19;
@@ -44,7 +47,8 @@
             text-decoration: none;
         }
 
-        nav a:hover, nav a.active {
+        nav a:hover,
+        nav a.active {
             background: rgba(0, 255, 255, 0.1);
             color: var(--neon-cyan);
             box-shadow: 0 0 10px var(--neon-cyan);
@@ -73,7 +77,8 @@
             color: white;
         }
 
-        input, textarea {
+        input,
+        textarea {
             width: 100%;
             padding: 12px;
             border-radius: 10px;
@@ -83,16 +88,19 @@
             font-family: inherit;
         }
 
-        input:focus, textarea:focus {
+        input:focus,
+        textarea:focus {
             outline: none;
             border-color: var(--neon-cyan);
             box-shadow: 0 0 10px rgba(0, 255, 255, 0.3);
         }
     </style>
 </head>
+
 <body>
     <header class="flex justify-between items-center">
-        <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+        <h1 class="text-2xl font-bold"
+            style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
             Money Digital - GROUP JAD
         </h1>
         <nav class="flex gap-6">
@@ -105,7 +113,8 @@
 
     <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
         <div class="text-center mb-10">
-            <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+            <h2 class="text-4xl font-bold mb-4"
+                style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
                 Gestión de Recompensas
             </h2>
             <p class="text-gray-400">Crea recompensas que los estudiantes pueden canjear con sus tokens</p>
@@ -128,7 +137,8 @@
 
                 <div class="mb-6">
                     <label class="block text-gray-400 mb-2">Descripción *</label>
-                    <textarea id="rewardDescription" rows="3" required placeholder="Describe la recompensa..."></textarea>
+                    <textarea id="rewardDescription" rows="3" required
+                        placeholder="Describe la recompensa..."></textarea>
                 </div>
 
                 <div class="mb-6">
@@ -138,7 +148,8 @@
 
                 <div class="flex gap-4">
                     <button type="submit" class="btn btn-primary">Crear Recompensa</button>
-                    <button type="reset" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Limpiar</button>
+                    <button type="reset" class="btn"
+                        style="background: rgba(255,255,255,0.1); color: white;">Limpiar</button>
                 </div>
             </form>
         </div>
@@ -155,14 +166,14 @@
     <script src="js/activities-system.js"></script>
     <script>
         // Verificación de sesión
-        (function() {
-            const currentUserStr = localStorage.getItem('currentUser');
+        (function () {
+            const currentUserStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
                 return;
             }
-            
+
             const currentUser = JSON.parse(currentUserStr);
             if (currentUser.role !== 'docente') {
                 alert('Esta página es solo para docentes.');
@@ -181,7 +192,7 @@
             const redemptions = activitiesSystem.getRedemptions();
 
             const container = document.getElementById('rewardsList');
-            
+
             if (rewards.length === 0) {
                 container.innerHTML = `
                     <p class="text-gray-400 text-center py-8">No hay recompensas creadas. Usa el formulario de arriba para crear una.</p>
@@ -226,7 +237,7 @@
 
         document.getElementById('createRewardForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            
+
             const rewardData = {
                 name: document.getElementById('rewardName').value.trim(),
                 description: document.getElementById('rewardDescription').value.trim(),
@@ -257,7 +268,7 @@
 
         function deleteReward(id) {
             if (!confirm('¿Estás seguro de eliminar esta recompensa?')) return;
-            
+
             const rewards = activitiesSystem.getRewards();
             const filtered = rewards.filter(r => r.id !== id);
             localStorage.setItem('rewards', JSON.stringify(filtered));
@@ -274,5 +285,5 @@
         loadRewards();
     </script>
 </body>
-</html>
 
+</html>
