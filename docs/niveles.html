@@ -4,277 +4,234 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mi Progreso - Money Digital | GROUP JAD</title>
+    <!-- Tailwind -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Fonts -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <title>Mi Progreso - Money Digital | GROUP JAD</title>
-    <style>
-        /* Estilos personalizados aquí */
-        :root {
-            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            --glass-bg: rgba(255, 255, 255, 0.15);
-            --glass-border: rgba(255, 255, 255, 0.2);
-            --text-primary: #2d3748;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Inter', sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-            min-height: 100vh;
-            color: var(--text-primary);
-            overflow-x: hidden;
-        }
-
-        header {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--glass-border);
-            padding: 20px 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-        }
-
-        header h1 {
-            font-family: 'Poppins', sans-serif;
-            font-weight: 600;
-            font-size: 1.8rem;
-            color: white;
-        }
-
-        nav {
-            display: flex;
-            gap: 30px;
-        }
-
-        nav a {
-            color: rgba(255, 255, 255, 0.9);
-            text-decoration: none;
-            font-weight: 500;
-            padding: 8px 16px;
-            border-radius: 20px;
-            transition: all 0.3s ease;
-        }
-
-        /* Main Container */
-        main {
-            max-width: 1400px;
-            margin: 20px auto 60px;
-            padding: 0 30px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-            gap: 30px;
-        }
-
-        .level-card {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px);
-            border-radius: 24px;
-            border: 1px solid var(--glass-border);
-            padding: 20px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .level-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-        }
-
-        .level-title {
-            font-family: 'Poppins', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 600;
-            color: white;
-            margin-bottom: 10px;
-        }
-
-        .level-description {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 1rem;
-            margin-bottom: 20px;
-        }
-
-        .level-button {
-            background: var(--primary-gradient);
-            border: none;
-            border-radius: 16px;
-            padding: 10px 20px;
-            font-size: 1rem;
-            color: white;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .level-button:hover {
-            background: rgba(255, 255, 255, 0.2);
-        }
-    </style>
+    <!-- Global Styles -->
+    <link href="css/main.css" rel="stylesheet">
 </head>
 
 <body>
+
     <header>
         <h1>Money Digital - GROUP JAD</h1>
         <nav>
             <a href="Inicio.html">🏠 Inicio</a>
             <a href="cursos.html">🎯 Actividades</a>
-            <a href="materias.html">📖 Materias</a>
-            <a href="niveles.html" class="active">📊 Mi Progreso</a>
-            <a href="Wallet.html">💎 Wallet</a>
-            <a href="cetificado.html">🏆 Certificados</a>
+            <a href="niveles.html" class="active">📊 Niveles</a>
+            <a href="materias.html">� Materias</a>
+            <a href="certificado.html">🏆 Certificados</a>
             <a href="Usuarios.html">👥 Comunidad</a>
+            <a href="Wallet.html">💎 Wallet</a>
         </nav>
     </header>
 
-    <main id="levels-container">
-        <div class="level-card" style="grid-column: 1 / -1; text-align: left; padding: 30px;">
-            <h2 class="level-title" style="text-align: center; margin-bottom: 20px;">📊 Mi Progreso Académico</h2>
-            <div id="progressStats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;">
-                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 16px; text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; color: #00e5ff;" id="activitiesCompleted">0</div>
-                    <div style="color: rgba(255,255,255,0.8);">Actividades Completadas</div>
+    <main class="main-container">
+
+        <!-- Stats Summary -->
+        <div class="glass-card mb-8">
+            <h2 class="card-title text-center mb-6">📊 Mi Progreso Académico</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="p-6 rounded-xl bg-gray-800 bg-opacity-50 text-center border border-gray-700">
+                    <div class="text-4xl font-bold text-neon-cyan mb-2" id="activitiesCompleted">0</div>
+                    <div class="text-gray-400 text-sm">Actividades Completadas</div>
                 </div>
-                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 16px; text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; color: #00e5ff;" id="tokensEarned">0</div>
-                    <div style="color: rgba(255,255,255,0.8);">Tokens Ganados</div>
+                <div class="p-6 rounded-xl bg-gray-800 bg-opacity-50 text-center border border-gray-700">
+                    <div class="text-4xl font-bold text-neon-purple mb-2" id="tokensEarned">0</div>
+                    <div class="text-gray-400 text-sm">Tokens Ganados</div>
                 </div>
-                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 16px; text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; color: #00e5ff;" id="certificatesEarned">0</div>
-                    <div style="color: rgba(255,255,255,0.8);">Certificados Obtenidos</div>
+                <div class="p-6 rounded-xl bg-gray-800 bg-opacity-50 text-center border border-gray-700">
+                    <div class="text-4xl font-bold text-yellow-400 mb-2" id="certificatesEarned">0</div>
+                    <div class="text-gray-400 text-sm">Certificados Obtenidos</div>
                 </div>
-                <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 16px; text-align: center;">
-                    <div style="font-size: 2rem; font-weight: bold; color: #00e5ff;" id="currentLevel">Principiante</div>
-                    <div style="color: rgba(255,255,255,0.8);">Nivel Actual</div>
+                <div class="p-6 rounded-xl bg-gray-800 bg-opacity-50 text-center border border-gray-700">
+                    <div class="text-2xl font-bold text-green-400 mb-2" id="currentLevel">Principiante</div>
+                    <div class="text-gray-400 text-sm">Nivel Actual</div>
                 </div>
             </div>
-            <h3 style="color: white; margin-bottom: 15px; font-size: 1.2rem;">Actividades Recientes</h3>
-            <div id="recentActivities" style="color: rgba(255,255,255,0.8);">
-                <p>No hay actividades registradas aún. ¡Participa en actividades para ver tu progreso!</p>
+
+            <div class="mt-8 border-t border-gray-700 pt-6">
+                <h3 class="text-xl font-bold mb-4">Actividades Recientes Aprobadas</h3>
+                <div id="recentActivities" class="space-y-2">
+                    <p class="text-gray-500 italic">No hay actividades recientes.</p>
+                </div>
             </div>
         </div>
 
-        <div class="level-card">
-            <h2 class="level-title">🎯 Nivel Principiante</h2>
-            <p class="level-description">Comienza tu camino participando en actividades extracurriculares.</p>
-            <div style="margin: 15px 0;">
-                <div style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
-                    <div id="beginnerProgress" style="background: linear-gradient(90deg, #00e5ff, #00bcd4); height: 100%; width: 0%; transition: width 0.5s;"></div>
+        <!-- Levels -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <!-- Principiante -->
+            <div class="glass-card relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-4 opacity-10 text-6xl">🌱</div>
+                <h3 class="card-title text-xl mb-2">Nivel Principiante</h3>
+                <p class="card-description mb-4">Comienza tu camino participando en actividades extracurriculares.</p>
+
+                <div class="bg-gray-700 h-2 rounded-full mb-2 overflow-hidden">
+                    <div id="beginnerProgress"
+                        class="h-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all duration-1000"
+                        style="width: 0%"></div>
                 </div>
-                <p style="font-size: 0.9rem; margin-top: 5px; color: rgba(255,255,255,0.7);">0% completado</p>
+                <p class="text-xs text-right text-gray-400 mb-4" id="beginnerText">0% completado</p>
+                <a href="cursos.html" class="card-action text-center block">Ver Actividades</a>
             </div>
-            <a href="cursos.html" class="level-button" style="text-decoration: none; display: inline-block;">Ver Actividades</a>
+
+            <!-- Intermedio -->
+            <div class="glass-card relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-4 opacity-10 text-6xl">⭐</div>
+                <h3 class="card-title text-xl mb-2">Nivel Intermedio</h3>
+                <p class="card-description mb-4">Has participado en varias actividades y ganado recompensas.</p>
+
+                <div class="bg-gray-700 h-2 rounded-full mb-2 overflow-hidden">
+                    <div id="intermediateProgress"
+                        class="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-1000"
+                        style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-right text-gray-400 mb-4" id="intermediateText">0% completado</p>
+                <a href="cursos.html" class="card-action text-center block">Continuar Progreso</a>
+            </div>
+
+            <!-- Avanzado -->
+            <div class="glass-card relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-4 opacity-10 text-6xl">🏆</div>
+                <h3 class="card-title text-xl mb-2">Nivel Avanzado</h3>
+                <p class="card-description mb-4">Eres un participante activo con múltiples logros y certificados.</p>
+
+                <div class="bg-gray-700 h-2 rounded-full mb-2 overflow-hidden">
+                    <div id="advancedProgress"
+                        class="h-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-1000"
+                        style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-right text-gray-400 mb-4" id="advancedText">0% completado</p>
+                <a href="certificado.html" class="card-action text-center block">Ver Mis Logros</a>
+            </div>
+
+            <!-- Experto -->
+            <div class="glass-card relative overflow-hidden group">
+                <div class="absolute top-0 right-0 p-4 opacity-10 text-6xl">👑</div>
+                <h3 class="card-title text-xl mb-2">Nivel Experto</h3>
+                <p class="card-description mb-4">El nivel más alto. Has demostrado excelencia en múltiples áreas.</p>
+
+                <div class="bg-gray-700 h-2 rounded-full mb-2 overflow-hidden">
+                    <div id="expertProgress"
+                        class="h-full bg-gradient-to-r from-pink-500 to-yellow-500 transition-all duration-1000"
+                        style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-right text-gray-400 mb-4" id="expertText">0% completado</p>
+                <a href="Usuarios.html" class="card-action text-center block">Liderar Comunidad</a>
+            </div>
+
         </div>
 
-        <div class="level-card">
-            <h2 class="level-title">⭐ Nivel Intermedio</h2>
-            <p class="level-description">Has participado en varias actividades y ganado recompensas.</p>
-            <div style="margin: 15px 0;">
-                <div style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
-                    <div id="intermediateProgress" style="background: linear-gradient(90deg, #00e5ff, #00bcd4); height: 100%; width: 0%; transition: width 0.5s;"></div>
-                </div>
-                <p style="font-size: 0.9rem; margin-top: 5px; color: rgba(255,255,255,0.7);">0% completado</p>
-            </div>
-            <a href="cursos.html" class="level-button" style="text-decoration: none; display: inline-block;">Ver Actividades</a>
-        </div>
-
-        <div class="level-card">
-            <h2 class="level-title">🏆 Nivel Avanzado</h2>
-            <p class="level-description">Eres un participante activo con múltiples logros y certificados.</p>
-            <div style="margin: 15px 0;">
-                <div style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
-                    <div id="advancedProgress" style="background: linear-gradient(90deg, #00e5ff, #00bcd4); height: 100%; width: 0%; transition: width 0.5s;"></div>
-                </div>
-                <p style="font-size: 0.9rem; margin-top: 5px; color: rgba(255,255,255,0.7);">0% completado</p>
-            </div>
-            <a href="cetificado.html" class="level-button" style="text-decoration: none; display: inline-block;">Ver Certificados</a>
-        </div>
-
-        <div class="level-card">
-            <h2 class="level-title">👑 Nivel Experto</h2>
-            <p class="level-description">El nivel más alto. Has demostrado excelencia en múltiples áreas.</p>
-            <div style="margin: 15px 0;">
-                <div style="background: rgba(255,255,255,0.1); height: 8px; border-radius: 4px; overflow: hidden;">
-                    <div id="expertProgress" style="background: linear-gradient(90deg, #00e5ff, #00bcd4); height: 100%; width: 0%; transition: width 0.5s;"></div>
-                </div>
-                <p style="font-size: 0.9rem; margin-top: 5px; color: rgba(255,255,255,0.7);">0% completado</p>
-            </div>
-            <a href="Usuarios.html" class="level-button" style="text-decoration: none; display: inline-block;">Ver Comunidad</a>
-        </div>
     </main>
 
+    <footer>
+        © 2025 Money Digital - GROUP JAD — Dinero Inteligente, Futuro Brillante
+    </footer>
+
+    <!-- Scripts -->
+    <script src="js/activities-system.js"></script>
     <script>
-        // Verificación de sesión
-        (function() {
-            const currentUserStr = localStorage.getItem('currentUser');
-            if (!currentUserStr) {
+        (function () {
+            // Verificar sesión
+            const userStr = sessionStorage.getItem('currentUser');
+            if (!userStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
                 return;
             }
+            const currentUser = JSON.parse(userStr);
+            loadUserProgress(currentUser.username);
         })();
 
-        // Cargar progreso del usuario desde localStorage
-        function loadUserProgress() {
-            const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
-            const username = currentUser.username || 'Usuario';
-            
-            // Obtener actividades completadas (simulado - en producción vendría del backend)
-            const completedActivities = JSON.parse(localStorage.getItem(`activities_${username}`) || '[]');
-            const tokens = parseInt(localStorage.getItem(`tokens_${username}`) || '0');
-            const certificates = JSON.parse(localStorage.getItem(`certificates_${username}`) || '[]');
-            
-            // Actualizar estadísticas
-            document.getElementById('activitiesCompleted').textContent = completedActivities.length;
-            document.getElementById('tokensEarned').textContent = tokens;
-            document.getElementById('certificatesEarned').textContent = certificates.length;
-            
-            // Calcular nivel
-            let level = 'Principiante';
-            let levelProgress = 0;
-            if (completedActivities.length >= 20) {
-                level = 'Experto';
-                levelProgress = 100;
-            } else if (completedActivities.length >= 10) {
-                level = 'Avanzado';
-                levelProgress = 75;
-            } else if (completedActivities.length >= 5) {
-                level = 'Intermedio';
-                levelProgress = 50;
-            } else {
-                levelProgress = (completedActivities.length / 5) * 50;
+        function loadUserProgress(username) {
+            if (typeof activitiesSystem === 'undefined') {
+                setTimeout(() => loadUserProgress(username), 100);
+                return;
             }
-            
+
+            // Usar el sistema centralizado para obtener estadísticas reales
+            const stats = activitiesSystem.getStudentStats(username);
+            const submissions = activitiesSystem.getSubmissionsByStudent(username);
+            const approved = submissions.filter(s => s.status === 'approved');
+
+            // Actualizar DOM
+            document.getElementById('activitiesCompleted').textContent = stats.activitiesCompleted;
+            document.getElementById('tokensEarned').textContent = stats.tokensEarned;
+            document.getElementById('certificatesEarned').textContent = stats.activitiesCompleted; // 1 certificado por actividad aprobada
+
+            // Calcular Nivel (Lógica simple: 5 actividades por nivel)
+            const count = stats.activitiesCompleted;
+            let level = 'Principiante';
+            let progress = 0; // 0 to 100 global progress roughly
+
+            // Definición de niveles
+            // 0-5: Principiante
+            // 5-10: Intermedio
+            // 10-20: Avanzado
+            // 20+: Experto
+
+            if (count >= 20) {
+                level = 'Experto';
+                progress = 100;
+            } else if (count >= 10) {
+                level = 'Avanzado';
+                progress = 50 + ((count - 10) / 10 * 25); // 50-75%
+            } else if (count >= 5) {
+                level = 'Intermedio';
+                progress = 25 + ((count - 5) / 5 * 25); // 25-50%
+            } else {
+                level = 'Principiante';
+                progress = (count / 5) * 25; // 0-25%
+            }
+
             document.getElementById('currentLevel').textContent = level;
-            
-            // Actualizar barras de progreso
-            document.getElementById('beginnerProgress').style.width = Math.min(levelProgress, 25) + '%';
-            document.getElementById('intermediateProgress').style.width = Math.max(0, Math.min(levelProgress - 25, 25)) + '%';
-            document.getElementById('advancedProgress').style.width = Math.max(0, Math.min(levelProgress - 50, 25)) + '%';
-            document.getElementById('expertProgress').style.width = Math.max(0, levelProgress - 75) + '%';
-            
-            // Mostrar actividades recientes
+
+            // Actualizar barras individuales
+            // Principiante (0-5 activades = 0-100% de esta barra)
+            const p1 = Math.min(count, 5) / 5 * 100;
+            document.getElementById('beginnerProgress').style.width = `${p1}%`;
+            document.getElementById('beginnerText').textContent = `${Math.round(p1)}% completado`;
+
+            // Intermedio (5-10 actividades)
+            const p2 = count > 5 ? Math.min(count - 5, 5) / 5 * 100 : 0;
+            document.getElementById('intermediateProgress').style.width = `${p2}%`;
+            document.getElementById('intermediateText').textContent = `${Math.round(p2)}% completado`;
+
+            // Avanzado (10-20 actividades)
+            const p3 = count > 10 ? Math.min(count - 10, 10) / 10 * 100 : 0;
+            document.getElementById('advancedProgress').style.width = `${p3}%`;
+            document.getElementById('advancedText').textContent = `${Math.round(p3)}% completado`;
+
+            // Experto (20+ actividades)
+            const p4 = count > 20 ? Math.min(count - 20, 30) / 30 * 100 : 0; // Cap at some point
+            document.getElementById('expertProgress').style.width = `${p4}%`;
+            document.getElementById('expertText').textContent = `${Math.round(p4)}% completado`;
+
+            // Actividades Recientes
             const recentContainer = document.getElementById('recentActivities');
-            if (completedActivities.length > 0) {
-                recentContainer.innerHTML = completedActivities.slice(-5).reverse().map(activity => 
-                    `<div style="padding: 10px; margin: 5px 0; background: rgba(255,255,255,0.05); border-radius: 8px;">
-                        ✓ ${activity.name || activity} - ${activity.date || 'Reciente'}
-                    </div>`
-                ).join('');
+            if (approved.length > 0) {
+                // Ordenar por fecha de revisión
+                const sorted = approved.sort((a, b) => new Date(b.reviewedAt) - new Date(a.reviewedAt)).slice(0, 5);
+
+                recentContainer.innerHTML = sorted.map(sub => {
+                    const activity = activitiesSystem.getActivityById(sub.activityId);
+                    const title = activity ? activity.title : 'Actividad';
+                    const date = new Date(sub.reviewedAt).toLocaleDateString();
+                    return `
+                        <div class="flex items-center justify-between p-3 rounded-lg bg-white bg-opacity-5">
+                            <span class="text-green-400 font-bold">✓ Completada</span>
+                            <span class="text-white mx-2 flex-1 truncate">${title}</span>
+                            <span class="text-gray-500 text-xs">${date}</span>
+                        </div>
+                    `;
+                }).join('');
             }
         }
-        
-        // Cargar al iniciar
-        loadUserProgress();
     </script>
 </body>
 
