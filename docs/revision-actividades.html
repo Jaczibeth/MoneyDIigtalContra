@@ -328,20 +328,48 @@
 
             if (submission.evidence) {
                 const fileData = fileUploadSystem.getFile(submission.evidence.fileId);
-                if (fileData) {
+                if (fileData && fileData.data) {
                     if (fileData.type.startsWith('image/')) {
                         document.getElementById('modalEvidencePreview').innerHTML = `
-                            <img src="${fileData.data}" alt="Evidencia" style="max-width: 100%; border-radius: 8px;" />
+                            <img src="${fileData.data}" alt="Evidencia" style="max-width: 100%; border-radius: 8px; border: 1px solid #333;" onerror="this.src=''; this.innerHTML='Error al cargar imagen';" />
+                        `;
+                    } else if (fileData.type === 'application/pdf') {
+                        document.getElementById('modalEvidencePreview').innerHTML = `
+                            <div class="bg-gray-800 p-4 rounded-lg text-center">
+                                <p class="text-4xl mb-2">📄</p>
+                                <p class="text-white font-bold mb-1">Documento PDF</p>
+                                <p class="text-gray-400 text-sm mb-3">${fileData.name}</p>
+                                <button onclick="window.open('${fileData.data}')" class="text-neon-cyan hover:underline text-sm">Abrir en nueva pestaña</button>
+                            </div>
                         `;
                     } else {
                         document.getElementById('modalEvidencePreview').innerHTML = `
-                            <p class="text-gray-400">📄 ${fileData.name} (${(fileData.size / 1024).toFixed(2)} KB)</p>
+                            <div class="bg-gray-800 p-4 rounded-lg flex items-center gap-3">
+                                <span class="text-2xl">📁</span>
+                                <div>
+                                    <p class="text-white font-medium">${fileData.name}</p>
+                                    <p class="text-gray-400 text-xs">${(fileData.size / 1024).toFixed(2)} KB</p>
+                                </div>
+                            </div>
                         `;
                     }
-                    document.getElementById('downloadEvidenceBtn').onclick = () => {
+
+                    const downloadBtn = document.getElementById('downloadEvidenceBtn');
+                    downloadBtn.onclick = () => {
                         fileUploadSystem.downloadFile(submission.evidence.fileId, fileData.name);
                     };
+                    downloadBtn.classList.remove('hidden');
+                } else {
+                    document.getElementById('modalEvidencePreview').innerHTML = `
+                        <p class="text-red-400 p-3 bg-red-900 bg-opacity-20 rounded-lg">
+                            ⚠️ El archivo de evidencia no se encuentra disponible o ha sido eliminado.
+                        </p>
+                    `;
+                    document.getElementById('downloadEvidenceBtn').classList.add('hidden');
                 }
+            } else {
+                document.getElementById('modalEvidencePreview').innerHTML = '<p class="text-gray-500 italic">Sin evidencia adjunta</p>';
+                document.getElementById('downloadEvidenceBtn').classList.add('hidden');
             }
 
             document.getElementById('modalStudentComments').textContent = submission.evidence?.comments || 'Sin comentarios';
