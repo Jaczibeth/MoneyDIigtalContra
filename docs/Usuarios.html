@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <title>Comunidad - Money Digital | GROUP JAD</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+
   <style>
     :root {
       --bg-dark: #0b0f19;
@@ -44,7 +47,8 @@
       text-decoration: none;
     }
 
-    nav a:hover, nav a.active {
+    nav a:hover,
+    nav a.active {
       background: rgba(0, 255, 255, 0.1);
       color: var(--neon-cyan);
       box-shadow: 0 0 10px var(--neon-cyan);
@@ -109,9 +113,11 @@
     }
   </style>
 </head>
+
 <body>
   <header class="flex justify-between items-center">
-    <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+    <h1 class="text-2xl font-bold"
+      style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
       Money Digital - GROUP JAD
     </h1>
     <nav class="flex gap-6">
@@ -120,14 +126,15 @@
       <a href="materias.html">📖 Materias</a>
       <a href="niveles.html">📊 Mi Progreso</a>
       <a href="Wallet.html">💎 Wallet</a>
-      <a href="cetificado.html">🏆 Certificados</a>
+      <a href="certificado.html">🏆 Certificados</a>
       <a href="Usuarios.html" class="active">👥 Comunidad</a>
     </nav>
   </header>
 
   <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
     <div class="text-center mb-10">
-      <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+      <h2 class="text-4xl font-bold mb-4"
+        style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
         Nuestra Comunidad
       </h2>
       <p class="text-gray-400">Conoce a estudiantes y docentes que participan en actividades extracurriculares</p>
@@ -154,8 +161,10 @@
       <div class="flex gap-4 items-center">
         <span class="text-gray-400">Filtrar por:</span>
         <button id="filterAll" class="px-4 py-2 rounded-lg bg-blue-600 text-white">Todos</button>
-        <button id="filterEstudiantes" class="px-4 py-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600">Estudiantes</button>
-        <button id="filterDocentes" class="px-4 py-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600">Docentes</button>
+        <button id="filterEstudiantes"
+          class="px-4 py-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600">Estudiantes</button>
+        <button id="filterDocentes"
+          class="px-4 py-2 rounded-lg bg-gray-700 text-white hover:bg-gray-600">Docentes</button>
       </div>
     </div>
 
@@ -170,7 +179,7 @@
 
   <script>
     // Verificación de sesión
-    (function() {
+    (function () {
       const currentUserStr = localStorage.getItem('currentUser');
       if (!currentUserStr) {
         alert('Por favor, inicia sesión para acceder a esta página.');
@@ -205,7 +214,7 @@
     function renderUsers(filter = 'all') {
       const container = document.getElementById('usersList');
       const users = loadUsers();
-      
+
       // Filtrar usuarios
       let filteredUsers = users;
       if (filter === 'estudiante') {
@@ -223,7 +232,7 @@
         const role = u.role || 'estudiante';
         const roleText = role === 'docente' ? '👨‍🏫 Docente' : '🎓 Estudiante';
         const roleClass = role === 'docente' ? 'role-docente' : 'role-estudiante';
-        
+
         return `
           <div class="user-card">
             <div class="user-avatar">${getInitials(u.username)}</div>
@@ -285,4 +294,5 @@
     renderUsers();
   </script>
 </body>
+
 </html>

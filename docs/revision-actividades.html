@@ -418,13 +418,24 @@
 
         function viewEvidence(fileId) {
             const fileData = fileUploadSystem.getFile(fileId);
-            if (!fileData) {
-                alert('Archivo no encontrado');
+            if (!fileData || !fileData.data) {
+                alert('Archivo no encontrado o datos corruptos');
                 return;
             }
 
+            // Para imágenes y PDFs, intentar abrir en nueva ventana
             if (fileData.type.startsWith('image/') || fileData.type === 'application/pdf') {
-                window.open(fileData.data, '_blank');
+                const win = window.open();
+                if (win) {
+                    if (fileData.type.startsWith('image/')) {
+                        win.document.write(`<img src="${fileData.data}" style="max-width:100%">`);
+                    } else {
+                        // PDF
+                        win.document.write(`<iframe src="${fileData.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
+                    }
+                } else {
+                    alert('Por favor permite las ventanas emergentes para ver el archivo');
+                }
             } else {
                 fileUploadSystem.downloadFile(fileId, fileData.name);
             }
