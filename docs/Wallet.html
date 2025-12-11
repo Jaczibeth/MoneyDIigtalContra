@@ -16,9 +16,6 @@
 
     <!-- Stellar & Freighter -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
-    <script src="https://unpkg.com/@stellar/freighter-api@1.5.0/dist/index.min.js"></script>
-    <!-- Older version might be more stable for simple cdn usage, or stick to what they had -->
-    <!-- The user had https://unpkg.com/@stellar/freighter-api@4.1.0/dist/freighter-api.min.js which maps to window.freighterApi -->
     <script src="https://unpkg.com/@stellar/freighter-api@4.1.0/dist/freighter-api.min.js"></script>
 </head>
 
@@ -49,8 +46,11 @@
                 <div class="card-icon mx-auto mb-4" style="background: var(--gradient-cyan-purple);">💎</div>
                 <h3 class="text-2xl font-bold text-neon-cyan mb-2" id="walletBalance">0 XLM</h3>
                 <p class="text-gray-400 break-all mb-4 px-4" id="walletAddress"></p>
+
+                <!-- Keys UI will be injected here -->
+
                 <button id="disconnectBtn"
-                    class="px-4 py-2 border border-red-500 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition">Desconectar
+                    class="mt-6 px-4 py-2 border border-red-500 text-red-400 rounded-lg hover:bg-red-500 hover:text-white transition">Desconectar
                     Wallet</button>
             </div>
 
@@ -146,7 +146,7 @@
             // Prioridad: 1. Datos de sesión (Registro fresco), 2. LocalStorage especifico, 3. Datos de usuario guardados
             if (currentUser.stellarPublic) {
                 currentPublicKey = currentUser.stellarPublic;
-                // Intentar obtener secreto del objeto usuario (si existe por registro reciente)
+                // Intentar obtener secreto del objeto usuario (si existe por registro reciente o desencriptación)
                 if (currentUser.stellarSecret) {
                     currentSecretKey = currentUser.stellarSecret;
                 } else if (savedSecret) {
@@ -161,10 +161,109 @@
         })();
 
         async function connectFreighter(silent = false) {
-            // ... lógica freighter existente ...
+            // Check if installed with Retry loop
+            let isInstalled = false;
+
+            for (let i = 0; i < 5; i++) {
+                if (window.freighterApi && typeof window.freighterApi.isConnected === 'function') {
+                    if (await window.freighterApi.isConnected()) {
+                        isInstalled = true;
+                        break;
+                    }
+                }
+                await new Promise(r => setTimeout(r, 200));
+            }
+
+            if (!isInstalled) {
+                // Fallback check
+                if (window.freighterApi) isInstalled = true;
+            }
+
+            if (!isInstalled) {
+                if (!silent) showStatus('Freighter no detectado. Si ya tienes la extensión, recarga la página e intenta de nuevo.', 'error');
+                return;
+            }
+
+            try {
+                if (!silent) showStatus('Conectando con Freighter...', 'info');
+
+                const isAllowed = await window.freighterApi.setAllowed();
+                if (!isAllowed) throw new Error('Permiso denegado por el usuario');
+
+                const userInfo = await window.freighterApi.getUserInfo();
+                const publicKey = userInfo.publicKey;
+
+                if (!publicKey) throw new Error('No se obtuvo clave pública');
+
+                usingFreighter = true;
+                currentPublicKey = publicKey;
+
+                // Persistir
+                const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+                const username = currentUser.username || 'unknown';
+                localStorage.setItem(`wallet_public_${username}`, publicKey);
+                localStorage.setItem(`wallet_freighter_${username}`, 'true');
+                localStorage.removeItem(`wallet_secret_${username}`);
+
+                showWalletView(publicKey);
+                if (!silent) showStatus('Conectado exitosamente con Freighter', 'success');
+            } catch (e) {
+                console.error(e);
+                if (!silent) showStatus('Error conectando: ' + e.message, 'error');
+            }
         }
 
-        // Mostrar Vista Principal
+        // Conectar Manual
+        document.getElementById('manualConnectBtn').addEventListener('click', () => {
+            const secret = document.getElementById('secretKeyInput').value.trim();
+            if (!secret.startsWith('S') || secret.length !== 56) {
+                showStatus('Clave secreta inválida (Debe empezar con S y tener 56 caracteres)', 'error');
+                return;
+            }
+
+            try {
+                const pair = StellarSdk.Keypair.fromSecret(secret);
+                currentPublicKey = pair.publicKey();
+                currentSecretKey = secret;
+                usingFreighter = false;
+
+                // Persistir
+                const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+                const username = currentUser.username || 'unknown';
+                localStorage.setItem(`wallet_public_${username}`, currentPublicKey);
+                localStorage.setItem(`wallet_secret_${username}`, currentSecretKey);
+                localStorage.setItem(`wallet_freighter_${username}`, 'false');
+
+                showWalletView(currentPublicKey);
+                showStatus('Wallet conectada manualmente', 'success');
+            } catch (e) {
+                showStatus('Error de clave: ' + e.message, 'error');
+            }
+        });
+
+        // Desconectar
+        document.getElementById('disconnectBtn').addEventListener('click', () => {
+            currentPublicKey = null;
+            currentSecretKey = null;
+            usingFreighter = false;
+
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+            const username = currentUser.username || 'unknown';
+            localStorage.removeItem(`wallet_public_${username}`);
+            localStorage.removeItem(`wallet_secret_${username}`);
+            localStorage.removeItem(`wallet_freighter_${username}`);
+
+            document.getElementById('walletLoginSection').classList.remove('hidden');
+            document.getElementById('walletStatusSection').classList.add('hidden');
+            document.getElementById('transferSection').classList.add('hidden');
+            document.getElementById('walletAddress').textContent = '';
+            showStatus('', '');
+
+            // Recargar para limpiar estado
+            window.location.reload();
+        });
+
+        // Mostrar Vista Principal / Render Keys
         async function showWalletView(publicKey) {
             document.getElementById('walletLoginSection').classList.add('hidden');
             document.getElementById('walletStatusSection').classList.remove('hidden');
@@ -172,27 +271,21 @@
 
             document.getElementById('walletAddress').textContent = publicKey;
 
-            // Mostrar sección de llaves
-            renderKeysSection(publicKey, currentSecretKey);
+            // Render Keys Section inside status section (insert before disconnect button)
+            const statusSection = document.getElementById('walletStatusSection');
+            // Remove old keys section if exists to prevent duplicates
+            const oldKeys = document.getElementById('keysContainer');
+            if (oldKeys) oldKeys.remove();
 
-            updateBalance(publicKey);
-            loadStellarHistory(publicKey);
-        }
-
-        function renderKeysSection(pubKey, privKey) {
-            const container = document.getElementById('walletStatusSection');
-            container.innerHTML = `
-                <div class="card-icon mx-auto mb-4" style="background: var(--gradient-cyan-purple);">💎</div>
-                <h3 class="text-2xl font-bold text-neon-cyan mb-2" id="walletBalance">Cargando...</h3>
-                
-                <div class="mt-6 bg-black bg-opacity-40 p-6 rounded-xl border border-gray-700 text-left relative overflow-hidden">
+            const keysHtml = `
+                <div id="keysContainer" class="mt-6 mb-6 bg-black bg-opacity-40 p-6 rounded-xl border border-gray-700 text-left relative overflow-hidden max-w-lg mx-auto">
                     <h4 class="text-lg font-bold mb-4 flex items-center gap-2">🔑 Mis Llaves de Acceso</h4>
                     
                     <div class="mb-4">
                         <label class="text-xs text-gray-500 uppercase font-bold tracking-wider">Llave Pública (Dirección)</label>
                         <div class="flex items-center gap-2 mt-1">
-                            <code class="bg-black bg-opacity-50 p-3 rounded-lg flex-1 text-sm text-cyan-400 break-all border border-gray-800">${pubKey}</code>
-                            <button onclick="navigator.clipboard.writeText('${pubKey}')" class="p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition" title="Copiar">📋</button>
+                            <code class="bg-black bg-opacity-50 p-3 rounded-lg flex-1 text-sm text-cyan-400 break-all border border-gray-800">${publicKey}</code>
+                            <button onclick="navigator.clipboard.writeText('${publicKey}')" class="p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition" title="Copiar">📋</button>
                         </div>
                         <p class="text-xs text-gray-500 mt-1">Comparte esta llave para recibir pagos.</p>
                     </div>
@@ -201,36 +294,109 @@
                         <label class="text-xs text-gray-500 uppercase font-bold tracking-wider text-red-400">🚨 Llave Privada (Secreta)</label>
                         <div class="flex items-center gap-2 mt-1">
                             <code id="secretKeyDisplay" class="bg-black bg-opacity-50 p-3 rounded-lg flex-1 text-sm text-red-300 break-all border border-gray-800 transition-all filter blur-sm select-none">
-                                ${privKey || 'No disponible en este dispositivo (Importa tu cuenta)'}
+                                ${currentSecretKey || 'No disponible (Solo lectura / Freighter)'}
                             </code>
                             <button id="toggleSecretBtn" onclick="toggleSecret()" class="p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition" title="Revelar">👁️</button>
                         </div>
-                        <p class="text-xs text-gray-500 mt-1">Nunca compartas esta llave con nadie. Te da acceso total a tus fondos.</p>
+                        <p class="text-xs text-gray-500 mt-1">Nunca compartas esta llave con nadie. Da acceso total a tus fondos.</p>
                     </div>
                 </div>
             `;
+
+            // Insert after address, before disconnect button
+            const addressP = document.getElementById('walletAddress');
+            addressP.insertAdjacentHTML('afterend', keysHtml);
+
+            updateBalance(publicKey);
+            loadStellarHistory(publicKey);
         }
 
         window.toggleSecret = function () {
             const display = document.getElementById('secretKeyDisplay');
+            if (display.innerText.includes('No disponible')) {
+                alert('No se tiene la clave secreta en esta sesión (quizás usas Freighter o no se importó).');
+                return;
+            }
+
             if (display.classList.contains('blur-sm')) {
-                // Revelar
-                if (!currentSecretKey) {
-                    alert('La llave privada no está guardada en este dispositivo. Debes importarla manualmente si la necesitas.');
-                    return;
-                }
                 display.classList.remove('blur-sm', 'select-none');
                 display.classList.add('bg-red-900', 'bg-opacity-20');
             } else {
-                // Ocultar
                 display.classList.add('blur-sm', 'select-none');
                 display.classList.remove('bg-red-900', 'bg-opacity-20');
             }
         };
 
-        // ... (resto de funciones como updateBalance y sendBtn se mantienen igual) ...
+        async function updateBalance(publicKey) {
+            try {
+                const account = await server.loadAccount(publicKey);
+                const balance = account.balances.find(b => b.asset_type === 'native');
+                const val = balance ? parseFloat(balance.balance).toFixed(2) : '0.00';
+                document.getElementById('walletBalance').textContent = `${val} XLM`;
+            } catch (e) {
+                console.warn(e);
+                document.getElementById('walletBalance').textContent = 'Error / 0 XLM';
+                if (e.response && e.response.status === 404) {
+                    showStatus('Cuenta no activa en Testnet. Envía fondos o usa friendbot.', 'warning');
+                }
+            }
+        }
 
-        // Lógica de Historial Mejorada
+        // Send Logic
+        document.getElementById('sendBtn').addEventListener('click', async () => {
+            // Basic validation
+            const dest = document.getElementById('destAddress').value.trim();
+            const amount = document.getElementById('amountXLM').value.trim();
+
+            if (!dest || !amount) {
+                showStatus('Completa los campos', 'error');
+                return;
+            }
+
+            try {
+                showStatus('Procesando transacción...', 'info');
+
+                const sourceAccount = await server.loadAccount(currentPublicKey);
+                const fee = await server.fetchBaseFee();
+
+                const tx = new StellarSdk.TransactionBuilder(sourceAccount, {
+                    fee: fee.toString(),
+                    networkPassphrase: StellarSdk.Networks.TESTNET
+                })
+                    .addOperation(StellarSdk.Operation.payment({
+                        destination: dest,
+                        asset: StellarSdk.Asset.native(),
+                        amount: amount
+                    }))
+                    .setTimeout(30)
+                    .build();
+
+                let result;
+                if (usingFreighter) {
+                    const signedXdr = await window.freighterApi.signTransaction(tx.toXDR(), {
+                        networkPassphrase: StellarSdk.Networks.TESTNET,
+                        accountToSign: currentPublicKey
+                    });
+                    const signedTx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, StellarSdk.Networks.TESTNET);
+                    result = await server.submitTransaction(signedTx);
+                } else {
+                    const pair = StellarSdk.Keypair.fromSecret(currentSecretKey);
+                    tx.sign(pair);
+                    result = await server.submitTransaction(tx);
+                }
+
+                showStatus(`Enviado! Hash: ${result.hash.substring(0, 10)}...`, 'success');
+                updateBalance(currentPublicKey);
+                loadStellarHistory(currentPublicKey); // Reload history
+                document.getElementById('destAddress').value = '';
+                document.getElementById('amountXLM').value = '';
+
+            } catch (e) {
+                console.error(e);
+                showStatus('Error en transacción: ' + (e.detail || e.message), 'error');
+            }
+        });
+
         async function loadStellarHistory(publicKey) {
             const historySection = document.getElementById('historySection');
             const tbody = document.getElementById('txHistoryBody');
@@ -310,76 +476,6 @@
                 loading.textContent = 'No hay historial disponible (Cuenta nueva o error)';
             }
         }
-
-
-        async function updateBalance(publicKey) {
-            try {
-                const account = await server.loadAccount(publicKey);
-                const balance = account.balances.find(b => b.asset_type === 'native');
-                const val = balance ? parseFloat(balance.balance).toFixed(2) : '0.00';
-                document.getElementById('walletBalance').textContent = `${val} XLM`;
-            } catch (e) {
-                console.warn(e);
-                document.getElementById('walletBalance').textContent = 'Error / 0 XLM';
-                if (e.response && e.response.status === 404) {
-                    showStatus('Cuenta no activa en Testnet. Envía fondos o usa friendbot.', 'warning');
-                }
-            }
-        }
-
-        // Send Logic
-        document.getElementById('sendBtn').addEventListener('click', async () => {
-            if (!currentPublicKey) return;
-            const dest = document.getElementById('destAddress').value.trim();
-            const amount = document.getElementById('amountXLM').value.trim();
-
-            if (!dest || !amount) {
-                showStatus('Completa los campos', 'error');
-                return;
-            }
-
-            try {
-                showStatus('Procesando transacción...', 'info');
-
-                const sourceAccount = await server.loadAccount(currentPublicKey);
-                const fee = await server.fetchBaseFee();
-
-                const tx = new StellarSdk.TransactionBuilder(sourceAccount, {
-                    fee: fee.toString(),
-                    networkPassphrase: StellarSdk.Networks.TESTNET
-                })
-                    .addOperation(StellarSdk.Operation.payment({
-                        destination: dest,
-                        asset: StellarSdk.Asset.native(),
-                        amount: amount
-                    }))
-                    .setTimeout(30)
-                    .build();
-
-                let result;
-                if (usingFreighter) {
-                    const signedXdr = await window.freighterApi.signTransaction(tx.toXDR(), {
-                        networkPassphrase: StellarSdk.Networks.TESTNET,
-                        accountToSign: currentPublicKey
-                    });
-                    const signedTx = StellarSdk.TransactionBuilder.fromXDR(signedXdr, StellarSdk.Networks.TESTNET);
-                    result = await server.submitTransaction(signedTx);
-                } else {
-                    const pair = StellarSdk.Keypair.fromSecret(currentSecretKey);
-                    tx.sign(pair);
-                    result = await server.submitTransaction(tx);
-                }
-
-                showStatus(`Enviado! Hash: ${result.hash.substring(0, 10)}...`, 'success');
-                updateBalance(currentPublicKey);
-                document.getElementById('destAddress').value = '';
-                document.getElementById('amountXLM').value = '';
-
-            } catch (e) {
-                console.error(e);
-                showStatus('Error en transacción: ' + (e.detail || e.message), 'error');
-            }
-        });
 
         function showStatus(msg, type) {
             const el = document.getElementById('statusMessage');
