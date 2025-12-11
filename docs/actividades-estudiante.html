@@ -412,14 +412,14 @@
             });
         });
 
-        function viewEvidence(fileId) {
-            const fileData = fileUploadSystem.getFile(fileId);
+        async function viewEvidence(fileId) {
+            const fileData = await fileUploadSystem.getFile(fileId);
             if (!fileData) {
                 alert('Archivo no encontrado');
                 return;
             }
 
-            // Para imágenes y PDFs, intentar abrir en nueva ventana con visor
+            // Para imágenes y PDFs, intentar abrir en nueva ventana con visor mejorado
             if (fileData.type.startsWith('image/') || fileData.type === 'application/pdf') {
                 const win = window.open();
                 if (win) {

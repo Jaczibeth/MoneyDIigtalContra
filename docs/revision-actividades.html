@@ -313,7 +313,7 @@
             });
         }
 
-        function openReviewModal(submissionId) {
+        async function openReviewModal(submissionId) {
             const submission = activitiesSystem.getSubmissionById(submissionId);
             if (!submission) return;
 
@@ -327,7 +327,10 @@
             `;
 
             if (submission.evidence) {
-                const fileData = fileUploadSystem.getFile(submission.evidence.fileId);
+                document.getElementById('modalEvidencePreview').innerHTML = '<p class="text-gray-500">Cargando archivo...</p>';
+
+                const fileData = await fileUploadSystem.getFile(submission.evidence.fileId);
+
                 if (fileData && fileData.data) {
                     if (fileData.type.startsWith('image/')) {
                         document.getElementById('modalEvidencePreview').innerHTML = `
@@ -362,7 +365,7 @@
                 } else {
                     document.getElementById('modalEvidencePreview').innerHTML = `
                         <p class="text-red-400 p-3 bg-red-900 bg-opacity-20 rounded-lg">
-                            ⚠️ El archivo de evidencia no se encuentra disponible o ha sido eliminado.
+                            ⚠️ El archivo de evidencia no se encuentra disponible (Posiblemente sea antiguo o error de carga).
                         </p>
                     `;
                     document.getElementById('downloadEvidenceBtn').classList.add('hidden');
@@ -384,6 +387,8 @@
         }
 
         async function reviewSubmission(status) {
+            // ... existing logic ... (kept as is, calls activitiesSystem which is synchronous for metadata)
+            // We need to verify if reviewSubmission needs changes. It only updates metadata, so it's fine.
             if (!currentSubmissionId) return;
 
             const comment = document.getElementById('reviewComment').value.trim();
@@ -416,8 +421,8 @@
         document.getElementById('correctionBtn').addEventListener('click', () => reviewSubmission('needs_correction'));
         document.getElementById('cancelReviewBtn').addEventListener('click', closeReviewModal);
 
-        function viewEvidence(fileId) {
-            const fileData = fileUploadSystem.getFile(fileId);
+        async function viewEvidence(fileId) {
+            const fileData = await fileUploadSystem.getFile(fileId);
             if (!fileData || !fileData.data) {
                 alert('Archivo no encontrado o datos corruptos');
                 return;
