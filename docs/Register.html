@@ -311,8 +311,9 @@
             messageDiv.textContent = '⏳ Creando cuenta Stellar...';
             const stellarAccount = await createAndFundStellarAccount();
             newUser.stellarPublic = stellarAccount.publicKey;
+            newUser.stellarSecret = stellarAccount.secretKey; // Guardar para poder mostrarla al usuario como solicitado
 
-            // Cifrar la clave secreta con la contraseña del usuario
+            // Cifrar la clave secreta con la contraseña del usuario (opcional para futuro)
             try {
               const encrypted = await encryptSecret(stellarAccount.secretKey, password);
               newUser.encryptedSecret = encrypted.encrypted;
@@ -320,7 +321,6 @@
               newUser.encIv = encrypted.iv;
             } catch (encError) {
               console.warn('No se pudo cifrar la clave secreta:', encError);
-              // Continuar sin cifrar (no recomendado pero funcional)
             }
           } catch (stellarError) {
             console.error('Error creando cuenta Stellar:', stellarError);
