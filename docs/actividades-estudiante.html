@@ -414,44 +414,29 @@
 
         async function viewEvidence(fileId) {
             const fileData = await fileUploadSystem.getFile(fileId);
-            if (!fileData) {
+            if (!fileData || !fileData.data) {
                 alert('Archivo no encontrado');
                 return;
             }
 
-            // Para imágenes y PDFs, intentar abrir en nueva ventana con visor mejorado
-            if (fileData.type.startsWith('image/') || fileData.type === 'application/pdf') {
-                const win = window.open();
-                if (win) {
-                    if (fileData.type.startsWith('image/')) {
-                        win.document.write(`<div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#0b0f19;"><img src="${fileData.data}" style="max-width:100%;max-height:90vh;border-radius:8px;box-shadow:0 0 20px rgba(0,0,0,0.5);"></div>`);
-                        win.document.title = "Ver Evidencia - Imagen";
-                    } else {
-                        // PDF
-                        win.document.write(`<iframe src="${fileData.data}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                        win.document.title = "Ver Evidencia - PDF";
-                    }
-                    win.document.body.style.margin = "0";
-                    win.document.body.style.background = "#0b0f19";
-                } else {
+            // Convert Base64/DataURI to Blob for clean opening
+            // This avoids "about:blank" issues with large data URIs
+            try {
+                const response = await fetch(fileData.data);
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+
+                // Open Blob URL
+                const win = window.open(objectUrl, '_blank');
+                if (!win) {
                     alert('Por favor permite las ventanas emergentes para ver el archivo');
+                } else {
+                    // Optional: Revoke URL after a delay to free memory, but giving time for the tab to load
+                    setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
                 }
-            } else if (fileData.type.startsWith('video/')) {
-                const win = window.open();
-                if (win) {
-                    win.document.write(`
-                        <div style="display:flex;justify-content:center;align-items:center;height:100vh;background:#0b0f19;margin:0;">
-                            <video controls autoplay style="max-width:100%;max-height:90vh;box-shadow:0 0 20px rgba(0,0,0,0.5);">
-                                <source src="${fileData.data}" type="${fileData.type}">
-                                Tu navegador no soporta el elemento de video.
-                            </video>
-                        </div>
-                    `);
-                    win.document.title = "Ver Evidencia - Video";
-                    win.document.body.style.margin = "0";
-                }
-            } else {
-                alert('Este tipo de archivo debe descargarse para visualizarse');
+            } catch (e) {
+                console.error("Error creating blob:", e);
+                // Fallback for very old browsers or weird errors: download it
                 fileUploadSystem.downloadFile(fileId, fileData.name);
             }
         }
