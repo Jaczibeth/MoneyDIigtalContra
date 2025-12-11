@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Money Digital | Acceso Premium</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="css/fintech-premium.css" rel="stylesheet">
+  <!-- Stellar SDK -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
+</head>
+
+<body>
+
+  <div class="main-container">
+
+    <!-- Left Column: Branding / Marketing -->
+    <div class="hero-section">
+      <div class="brand-logo">
+        <div class="brand-icon">M</div>
+        Money Digital
+      </div>
+      <h1 class="hero-title">Gestión Financiera Educativa Integral</h1>
+      <p class="hero-description">
+        Acceda a la plataforma institucional para administrar actividades, seguimiento académico y activos digitales de
+        manera segura.
+      </p>
+    </div>
+
+    <!-- Right Column: Login Card -->
+    <div class="login-card">
+      <div class="card-header">
+        <h2>Bienvenido</h2>
+        <p style="color: var(--text-secondary); margin-top: 5px;">Ingresa tus credenciales para continuar</p>
+      </div>
+
+      <!-- Wallet Status Indication (Top of card if connected) -->
+      <div id="walletStatus" class="web3-status" style="display: none; margin-bottom: 1.5rem;">
+        <span style="display:block; font-weight:bold; margin-bottom:4px">● Wallet Conectada</span>
+        <span id="walletAddress"></span>
+      </div>
+
+      <form id="loginForm">
+        <div class="input-group">
+          <label for="username" class="input-label">Usuario o Email</label>
+          <input id="username" type="text" placeholder="nombre@ejemplo.com" class="input-field" required
+            autocomplete="username" />
+        </div>
+
+        <div class="input-group">
+          <label for="loginPassword" class="input-label">Contraseña</label>
+          <input id="loginPassword" type="password" placeholder="••••••••" class="input-field" />
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Llave de Seguridad (Imagen) <span
+              style="font-size: 0.8em; opacity: 0.7;">(Opcional)</span></label>
+          <div id="imageUpload" class="file-drop-area">
+            <svg class="file-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path>
+            </svg>
+            <span class="upload-text" style="color: var(--text-secondary); font-size: 0.9rem;">Arrastra tu imagen o
+              <strong>haz clic</strong></span>
+            <input type="file" accept="image/*" class="hidden" />
+          </div>
+        </div>
+
+        <button type="submit" id="loginBtn" class="btn btn-primary" style="margin-top: 1rem;">
+          Iniciar Sesión &rarr;
+        </button>
+      </form>
+
+      <!-- Advanced / Web3 Section -->
+      <div class="web3-toggle">
+        <button type="button" class="btn btn-secondary"
+          onclick="document.getElementById('web3Content').classList.toggle('hidden')">
+          Op. Avanzadas / Web3 Wallet
+        </button>
+
+        <div id="web3Content" class="web3-details hidden">
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+            <button id="crearCuenta" type="button" class="btn btn-secondary"
+              style="font-size: 0.8rem; padding: 0.5rem;">
+              + Nueva Wallet
+            </button>
+            <button id="usarCuentaExistente" type="button" class="btn btn-secondary"
+              style="font-size: 0.8rem; padding: 0.5rem;">
+              Importar Existente
+            </button>
+          </div>
+
+          <div class="input-group">
+            <input type="text" id="claveSecretaManual" class="input-field"
+              style="font-family: monospace; font-size: 0.8rem;" placeholder="Clave Secreta (S...)" />
+          </div>
+
+          <!-- Hidden inputs/outputs for logic -->
+          <input type="hidden" id="clavePublicaManual" />
+          <div id="stellarAccountInfo" class="web3-status" style="display:none;"></div>
+        </div>
+      </div>
+
+      <!-- Footer Link -->
+      <div style="text-align: center; margin-top: 1.5rem;">
+        <a href="Register.html" style="color: var(--text-secondary); font-size: 0.9rem; text-decoration: none;">¿No
+          tienes cuenta? <span style="color: #6366f1;">Regístrate</span></a>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="result"
+    style="position: fixed; bottom: 20px; right: 20px; padding: 1rem 1.5rem; border-radius: 12px; background: white; color: black; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transform: translateY(100px); opacity: 0; transition: all 0.5s ease; width: 300px; z-index: 100;">
+  </div>
+
+  <script>
+    // --- UTILITIES ---
+    function showToast(message, type = 'info') {
+      const el = document.getElementById('result');
+      el.textContent = message;
+      el.style.transform = 'translateY(0)';
+      el.style.opacity = '1';
+
+      if (type === 'error') {
+        el.style.borderLeft = '4px solid #ef4444';
+      } else {
+        el.style.borderLeft = '4px solid #10b981';
+      }
+
+      setTimeout(() => {
+        el.style.transform = 'translateY(100px)';
+        el.style.opacity = '0';
+      }, 4000);
+    }
+
+    // --- STELLAR CONSTANTS & LOGIC ---
+    const CONTRACT_ID = 'CDS3VGIAZFIZUG3GL6LWAXLOXWCRIIBDPPRS4225LLLEHPGTFDNF4PQK';
+    // Logic from previous file preserved
+    (function cleanTestUsersImmediate() {
+      try {
+        const raw = localStorage.getItem('users');
+        if (!raw) return;
+        const users = JSON.parse(raw);
+        if (!Array.isArray(users)) return;
+        const filtered = users.filter(u => u && u.username && !u.username.includes('monserrat'));
+        if (filtered.length !== users.length) {
+          localStorage.setItem('users', JSON.stringify(filtered));
+          try { localStorage.removeItem('stellarPublic'); } catch (e) { }
+        }
+      } catch (e) { }
+    })();
+
+    // DOM Elements
+    const imageUploadDiv = document.getElementById('imageUpload');
+    const fileInput = imageUploadDiv.querySelector('input[type="file"]');
+    const walletStatus = document.getElementById('walletStatus');
+    const walletAddress = document.getElementById('walletAddress');
+    const stellarAccountInfo = document.getElementById('stellarAccountInfo');
+    const claveSecretaManualInput = document.getElementById('claveSecretaManual');
+
+    // Global State
+    let connectedWallet = null;
+    let ultimaClavePublica = null;
+    let ultimaClaveSecreta = null;
+
+    // --- EVENT LISTENERS ---
+
+    // 1. Crear Cuenta
+    document.getElementById('crearCuenta').addEventListener('click', async () => {
+      stellarAccountInfo.style.display = 'block';
+      stellarAccountInfo.textContent = "⏳ Conectando con Stellar Testnet...";
+
+      const StellarSdk = window.StellarSdk;
+      if (!StellarSdk) return;
+
+      // Freighter check
+      if (typeof window.freighterApi !== 'undefined') {
+        if (confirm('¿Usar Freighter Wallet? (Recomendado)')) {
+          try {
+            await window.freighterApi.connect();
+            const key = await window.freighterApi.getPublicKey();
+            setWalletState(key, true);
+            stellarAccountInfo.textContent = "✓ Freighter Conectado";
+            return;
+          } catch (e) { console.error(e); }
+        }
+      }
+
+      // Local Gen
+      const pair = StellarSdk.Keypair.random();
+      const secret = pair.secret();
+      const pub = pair.publicKey();
+
+      try {
+        await fetch(`https://friendbot.stellar.org?addr=${encodeURIComponent(pub)}`);
+        setWalletState(pub, false, secret);
+
+        stellarAccountInfo.textContent = `✓ Cuenta Creada.\nPK: ${pub.substring(0, 8)}...`;
+        claveSecretaManualInput.value = secret;
+
+      } catch (e) {
+        stellarAccountInfo.textContent = "Error: " + e.message;
+      }
+    });
+
+    // 2. Usar Existente
+    document.getElementById('usarCuentaExistente').addEventListener('click', () => {
+      const secret = claveSecretaManualInput.value.trim();
+      if (!secret.startsWith('S')) {
+        showToast('Clave secreta inválida (Debe empezar con S)', 'error');
+        return;
+      }
+      try {
+        const StellarSdk = window.StellarSdk;
+        const pair = StellarSdk.Keypair.fromSecret(secret);
+        setWalletState(pair.publicKey(), false, secret);
+        showToast('Wallet importada correctamente', 'success');
+      } catch (e) {
+        showToast('Error al importar wallet', 'error');
+      }
+    });
+
+    // Helper State
+    function setWalletState(pubKey, isFreighter, secret = null) {
+      connectedWallet = pubKey;
+      ultimaClavePublica = pubKey;
+      if (secret) ultimaClaveSecreta = secret;
+
+      walletStatus.style.display = 'block';
+      walletAddress.textContent = pubKey;
+
+      if (secret) {
+        try { localStorage.setItem('stellarSecret', secret); } catch (e) { }
+      }
+      try { localStorage.setItem('stellarPublic', pubKey); } catch (e) { }
+    }
+
+    // 3. Image Upload UI
+    imageUploadDiv.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => updateFileUI(e.target.files[0]));
+
+    imageUploadDiv.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      imageUploadDiv.classList.add('drag-over');
+    });
+    imageUploadDiv.addEventListener('dragleave', () => imageUploadDiv.classList.remove('drag-over'));
+    imageUploadDiv.addEventListener('drop', (e) => {
+      e.preventDefault();
+      imageUploadDiv.classList.remove('drag-over');
+      if (e.dataTransfer.files[0]) {
+        fileInput.files = e.dataTransfer.files;
+        updateFileUI(e.dataTransfer.files[0]);
+      }
+    });
+
+    function updateFileUI(file) {
+      if (!file) return;
+      imageUploadDiv.querySelector('.upload-text').innerHTML = `<strong>✓ ${file.name}</strong>`;
+      imageUploadDiv.style.borderColor = '#10b981';
+      imageUploadDiv.style.background = 'rgba(16, 185, 129, 0.1)';
+    }
+
+    // 4. Crypto Helpers
+    function buf2hex(buffer) {
+      return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
+    }
+    async function hashPassword(password) {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(password);
+      const hash = await crypto.subtle.digest('SHA-256', data);
+      return buf2hex(hash);
+    }
+    // ... Decrypt logic omitted for brevity but assumed functional if needed for secret recovery ... 
+    // Simplified for robustness in this view: we primarily check hash for login.
+
+    function loadUsers() {
+      try { return JSON.parse(localStorage.getItem('users') || '[]'); } catch (e) { return []; }
+    }
+
+    // 5. Submit Login
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const userVal = document.getElementById('username').value.trim();
+      const passVal = document.getElementById('loginPassword').value;
+
+      if (!passVal) { showToast('Falta contraseña', 'error'); return; }
+
+      const users = loadUsers();
+      const hashed = await hashPassword(passVal);
+      const user = users.find(u => (u.username === userVal || u.email === userVal) && u.passwordHash === hashed);
+
+      if (user) {
+        // Intentar descifrar la clave secreta si existe
+        if (user.encryptedSecret && user.encSalt && user.encIv) {
+          try {
+            showToast('Desencriptando wallet...', 'info');
+            const decryptedSecret = await decryptSecret(user.encryptedSecret, passVal, user.encSalt, user.encIv);
+            user.stellarSecret = decryptedSecret;
+          } catch (decError) {
+            console.warn('Error descifrando wallet:', decError);
+            // No bloqueamos el login, pero no tendrá la wallet cargada automáticamente
+          }
+        }
+
+        sessionStorage.setItem('currentUser', JSON.stringify(user));
+        // If wallet was connected manually during this session, associate it? 
+        // For now, respect the flow.
+        showToast(`Bienvenido ${user.username}`, 'success');
+        setTimeout(() => window.location.href = "Inicio.html", 1000);
+      } else {
+        showToast('Credenciales incorrectas', 'error');
+      }
+    });
+
+    // --- DECRYPTION HELPERS ---
+    async function decryptSecret(encryptedHex, password, saltHex, ivHex) {
+      const encData = hex2buf(encryptedHex);
+      const salt = hex2buf(saltHex);
+      const iv = hex2buf(ivHex);
+
+      const key = await deriveKey(password, salt);
+      const decrypted = await window.crypto.subtle.decrypt(
+        { name: "AES-GCM", iv: iv },
+        key,
+        encData
+      );
+
+      return new TextDecoder().decode(decrypted);
+    }
+
+    function hex2buf(hexString) {
+      return new Uint8Array(hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+    }
+
+    async function deriveKey(password, salt) {
+      const enc = new TextEncoder();
+      const keyMaterial = await window.crypto.subtle.importKey(
+        "raw",
+        enc.encode(password),
+        { name: "PBKDF2" },
+        false,
+        ["deriveKey"]
+      );
+
+      return window.crypto.subtle.deriveKey(
+        {
+          name: "PBKDF2",
+          salt: salt,
+          iterations: 100000,
+          hash: "SHA-256"
+        },
+        keyMaterial,
+        { name: "AES-GCM", length: 256 },
+        true,
+        ["encrypt", "decrypt"]
+      );
+    }
+
+    // Init
+    window.onload = () => {
+      const savedPub = localStorage.getItem('stellarPublic');
+      if (savedPub) {
+        setWalletState(savedPub, false);
+      }
+    };
+  </script>
+</body>
+
+</html>

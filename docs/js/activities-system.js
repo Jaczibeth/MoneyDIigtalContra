@@ -23,7 +23,7 @@ class ActivitiesSystem {
     }
 
     // ========== ACTIVIDADES ==========
-    
+
     createActivity(activityData) {
         const activities = this.getActivities();
         const newActivity = {
@@ -119,7 +119,7 @@ class ActivitiesSystem {
         if (index !== -1) {
             const submission = submissions[index];
             const activity = this.getActivityById(submission.activityId);
-            
+
             submissions[index] = {
                 ...submission,
                 ...reviewData,
@@ -130,7 +130,7 @@ class ActivitiesSystem {
             if (reviewData.status === 'approved' && activity) {
                 const tokensToAward = activity.tokens || 0;
                 submissions[index].tokensAwarded = tokensToAward;
-                
+
                 // Actualizar tokens del estudiante (async)
                 try {
                     await this.awardTokens(submission.studentUsername, tokensToAward, activity.id);
@@ -152,7 +152,7 @@ class ActivitiesSystem {
     async awardTokens(username, amount, activityId) {
         const userTokens = this.getUserTokens(username);
         const newBalance = userTokens.balance + amount;
-        
+
         const transaction = {
             id: Date.now().toString(),
             username: username,
@@ -168,7 +168,7 @@ class ActivitiesSystem {
         try {
             const users = this.loadUsers();
             const user = users.find(u => u.username === username);
-            
+
             // Verificar que el estudiante tenga wallet conectada
             if (user && user.stellarPublic) {
                 // Cargar Stellar SDK si no está cargado
@@ -199,9 +199,9 @@ class ActivitiesSystem {
                 if (typeof stellarIntegration !== 'undefined' && typeof StellarSdk !== 'undefined') {
                     try {
                         // Obtener la wallet del usuario actual (docente que aprueba) o usar una wallet del sistema
-                        const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                        const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
                         const senderPublicKey = currentUser.stellarPublic || null;
-                        
+
                         if (senderPublicKey) {
                             const xlmAmount = stellarIntegration.tokensToXLM(amount);
                             const result = await stellarIntegration.transferTokens(
@@ -242,14 +242,14 @@ class ActivitiesSystem {
 
         userTokens.balance = newBalance;
         userTokens.transactions.push(transaction);
-        
+
         localStorage.setItem(`tokens_${username}`, JSON.stringify(userTokens));
-        
+
         // También guardar en el historial global
         const allTransactions = this.getAllTokenTransactions();
         allTransactions.push(transaction);
         localStorage.setItem('token_transactions', JSON.stringify(allTransactions));
-        
+
         return userTokens;
     }
 
@@ -267,8 +267,8 @@ class ActivitiesSystem {
             if (stored) {
                 return JSON.parse(stored);
             }
-        } catch (e) {}
-        
+        } catch (e) { }
+
         return {
             balance: 0,
             transactions: []
@@ -360,7 +360,7 @@ class ActivitiesSystem {
         const submissions = this.getSubmissionsByStudent(username);
         const userTokens = this.getUserTokens(username);
         const activities = this.getActivities();
-        
+
         return {
             totalActivities: activities.length,
             pendingSubmissions: submissions.filter(s => s.status === 'pending').length,
@@ -401,4 +401,5 @@ class ActivitiesSystem {
 
 // Instancia global
 const activitiesSystem = new ActivitiesSystem();
+
 

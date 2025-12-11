@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Revisar Evidencias - Money Digital | GROUP JAD</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
+
     <style>
         :root {
             --bg-dark: #0b0f19;
@@ -44,7 +47,8 @@
             text-decoration: none;
         }
 
-        nav a:hover, nav a.active {
+        nav a:hover,
+        nav a.active {
             background: rgba(0, 255, 255, 0.1);
             color: var(--neon-cyan);
             box-shadow: 0 0 10px var(--neon-cyan);
@@ -100,9 +104,11 @@
         }
     </style>
 </head>
+
 <body>
     <header class="flex justify-between items-center">
-        <h1 class="text-2xl font-bold" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+        <h1 class="text-2xl font-bold"
+            style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
             Money Digital - GROUP JAD
         </h1>
         <nav class="flex gap-6">
@@ -115,7 +121,8 @@
 
     <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
         <div class="text-center mb-10">
-            <h2 class="text-4xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+            <h2 class="text-4xl font-bold mb-4"
+                style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
                 Revisión de Evidencias
             </h2>
             <p class="text-gray-400">Revisa las evidencias enviadas por los estudiantes y otorga tokens al aprobar</p>
@@ -126,9 +133,12 @@
             <div class="flex gap-4 items-center flex-wrap">
                 <span class="text-gray-400">Filtrar por estado:</span>
                 <button id="filterAll" class="btn btn-primary">Todas</button>
-                <button id="filterPending" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Pendientes</button>
-                <button id="filterApproved" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Aprobadas</button>
-                <button id="filterRejected" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Rechazadas</button>
+                <button id="filterPending" class="btn"
+                    style="background: rgba(255,255,255,0.1); color: white;">Pendientes</button>
+                <button id="filterApproved" class="btn"
+                    style="background: rgba(255,255,255,0.1); color: white;">Aprobadas</button>
+                <button id="filterRejected" class="btn"
+                    style="background: rgba(255,255,255,0.1); color: white;">Rechazadas</button>
             </div>
         </div>
 
@@ -145,7 +155,7 @@
         <div class="card max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <h3 class="text-2xl font-bold mb-4" id="modalStudentName">Revisar Evidencia</h3>
             <div id="modalActivityInfo" class="text-gray-400 mb-4"></div>
-            
+
             <div class="mb-4">
                 <label class="block text-gray-400 mb-2">Evidencia enviada:</label>
                 <div id="modalEvidencePreview" class="mb-4"></div>
@@ -156,37 +166,40 @@
 
             <div class="mb-4">
                 <label class="block text-gray-400 mb-2">Comentarios del estudiante:</label>
-                <p id="modalStudentComments" class="text-gray-300 p-3 rounded-lg" style="background: rgba(255,255,255,0.05);"></p>
+                <p id="modalStudentComments" class="text-gray-300 p-3 rounded-lg"
+                    style="background: rgba(255,255,255,0.05);"></p>
             </div>
 
             <div class="mb-4">
                 <label class="block text-gray-400 mb-2">Tu comentario de revisión:</label>
-                <textarea id="reviewComment" rows="4" placeholder="Escribe tus comentarios, retroalimentación o razones de aprobación/rechazo..."></textarea>
+                <textarea id="reviewComment" rows="4"
+                    placeholder="Escribe tus comentarios, retroalimentación o razones de aprobación/rechazo..."></textarea>
             </div>
 
             <div class="flex gap-4">
                 <button id="approveBtn" class="btn btn-approve flex-1">✓ Aprobar (Otorgar Tokens)</button>
                 <button id="rejectBtn" class="btn btn-reject flex-1">✗ Rechazar</button>
                 <button id="correctionBtn" class="btn btn-correction flex-1">⚠ Necesita Corrección</button>
-                <button id="cancelReviewBtn" class="btn" style="background: rgba(255,255,255,0.1); color: white;">Cancelar</button>
+                <button id="cancelReviewBtn" class="btn"
+                    style="background: rgba(255,255,255,0.1); color: white;">Cancelar</button>
             </div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
-    <script src="js/activities-system.js"></script>
-    <script src="js/file-upload.js"></script>
-    <script src="js/stellar-integration.js"></script>
+    <script src="js/activities-system.js?v=3"></script>
+    <script src="js/file-upload.js?v=3"></script>
+    <script src="js/stellar-integration.js?v=3"></script>
     <script>
         // Verificación de sesión
-        (function() {
-            const currentUserStr = localStorage.getItem('currentUser');
+        (function () {
+            const currentUserStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
-                window.location.href = 'Index.html';
+                window.location.href = 'index.html';
                 return;
             }
-            
+
             const currentUser = JSON.parse(currentUserStr);
             if (currentUser.role !== 'docente') {
                 alert('Esta página es solo para docentes.');
@@ -204,10 +217,10 @@
                 return;
             }
 
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser'));
             const activities = activitiesSystem.getActivities().filter(a => a.createdBy === currentUser.username);
             const allSubmissions = activitiesSystem.getSubmissions();
-            
+
             // Filtrar submissions de actividades del docente
             const submissions = allSubmissions.filter(s => {
                 const activity = activitiesSystem.getActivityById(s.activityId);
@@ -220,7 +233,7 @@
             });
 
             const container = document.getElementById('submissionsList');
-            
+
             if (submissions.length === 0) {
                 container.innerHTML = `
                     <div class="card text-center py-12">
@@ -290,17 +303,17 @@
             cards.forEach(card => {
                 const status = card.getAttribute('data-status');
                 let show = false;
-                
+
                 if (currentFilter === 'all') show = true;
                 else if (currentFilter === 'pending' && status === 'pending') show = true;
                 else if (currentFilter === 'approved' && status === 'approved') show = true;
                 else if (currentFilter === 'rejected' && status === 'rejected') show = true;
-                
+
                 card.style.display = show ? 'block' : 'none';
             });
         }
 
-        function openReviewModal(submissionId) {
+        async function openReviewModal(submissionId) {
             const submission = activitiesSystem.getSubmissionById(submissionId);
             if (!submission) return;
 
@@ -312,23 +325,54 @@
                 <p><strong>Actividad:</strong> ${escapeHtml(activity.title)}</p>
                 <p><strong>Tokens a otorgar:</strong> ${activity.tokens || 0}</p>
             `;
-            
+
             if (submission.evidence) {
-                const fileData = fileUploadSystem.getFile(submission.evidence.fileId);
-                if (fileData) {
+                document.getElementById('modalEvidencePreview').innerHTML = '<p class="text-gray-500">Cargando archivo...</p>';
+
+                const fileData = await fileUploadSystem.getFile(submission.evidence.fileId);
+
+                if (fileData && fileData.data) {
                     if (fileData.type.startsWith('image/')) {
                         document.getElementById('modalEvidencePreview').innerHTML = `
-                            <img src="${fileData.data}" alt="Evidencia" style="max-width: 100%; border-radius: 8px;" />
+                            <img src="${fileData.data}" alt="Evidencia" style="max-width: 100%; border-radius: 8px; border: 1px solid #333;" onerror="this.src=''; this.innerHTML='Error al cargar imagen';" />
+                        `;
+                    } else if (fileData.type === 'application/pdf') {
+                        document.getElementById('modalEvidencePreview').innerHTML = `
+                            <div class="bg-gray-800 p-4 rounded-lg text-center">
+                                <p class="text-4xl mb-2">📄</p>
+                                <p class="text-white font-bold mb-1">Documento PDF</p>
+                                <p class="text-gray-400 text-sm mb-3">${fileData.name}</p>
+                                <button onclick="window.open('${fileData.data}')" class="text-neon-cyan hover:underline text-sm">Abrir en nueva pestaña</button>
+                            </div>
                         `;
                     } else {
                         document.getElementById('modalEvidencePreview').innerHTML = `
-                            <p class="text-gray-400">📄 ${fileData.name} (${(fileData.size / 1024).toFixed(2)} KB)</p>
+                            <div class="bg-gray-800 p-4 rounded-lg flex items-center gap-3">
+                                <span class="text-2xl">📁</span>
+                                <div>
+                                    <p class="text-white font-medium">${fileData.name}</p>
+                                    <p class="text-gray-400 text-xs">${(fileData.size / 1024).toFixed(2)} KB</p>
+                                </div>
+                            </div>
                         `;
                     }
-                    document.getElementById('downloadEvidenceBtn').onclick = () => {
+
+                    const downloadBtn = document.getElementById('downloadEvidenceBtn');
+                    downloadBtn.onclick = () => {
                         fileUploadSystem.downloadFile(submission.evidence.fileId, fileData.name);
                     };
+                    downloadBtn.classList.remove('hidden');
+                } else {
+                    document.getElementById('modalEvidencePreview').innerHTML = `
+                        <p class="text-red-400 p-3 bg-red-900 bg-opacity-20 rounded-lg">
+                            ⚠️ El archivo de evidencia no se encuentra disponible (Posiblemente sea antiguo o error de carga).
+                        </p>
+                    `;
+                    document.getElementById('downloadEvidenceBtn').classList.add('hidden');
                 }
+            } else {
+                document.getElementById('modalEvidencePreview').innerHTML = '<p class="text-gray-500 italic">Sin evidencia adjunta</p>';
+                document.getElementById('downloadEvidenceBtn').classList.add('hidden');
             }
 
             document.getElementById('modalStudentComments').textContent = submission.evidence?.comments || 'Sin comentarios';
@@ -343,10 +387,12 @@
         }
 
         async function reviewSubmission(status) {
+            // ... existing logic ... (kept as is, calls activitiesSystem which is synchronous for metadata)
+            // We need to verify if reviewSubmission needs changes. It only updates metadata, so it's fine.
             if (!currentSubmissionId) return;
 
             const comment = document.getElementById('reviewComment').value.trim();
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser'));
 
             try {
                 await activitiesSystem.reviewSubmission(currentSubmissionId, {
@@ -375,16 +421,28 @@
         document.getElementById('correctionBtn').addEventListener('click', () => reviewSubmission('needs_correction'));
         document.getElementById('cancelReviewBtn').addEventListener('click', closeReviewModal);
 
-        function viewEvidence(fileId) {
-            const fileData = fileUploadSystem.getFile(fileId);
-            if (!fileData) {
-                alert('Archivo no encontrado');
+        async function viewEvidence(fileId) {
+            const fileData = await fileUploadSystem.getFile(fileId);
+            if (!fileData || !fileData.data) {
+                alert('Archivo no encontrado o datos corruptos');
                 return;
             }
-            
-            if (fileData.type.startsWith('image/') || fileData.type === 'application/pdf') {
-                window.open(fileData.data, '_blank');
-            } else {
+
+            // Convert Base64/DataURI to Blob for clean opening
+            try {
+                const response = await fetch(fileData.data);
+                const blob = await response.blob();
+                const objectUrl = URL.createObjectURL(blob);
+
+                // Open Blob URL
+                const win = window.open(objectUrl, '_blank');
+                if (!win) {
+                    alert('Por favor permite las ventanas emergentes para ver el archivo');
+                } else {
+                    setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+                }
+            } catch (e) {
+                console.error("Error creating blob:", e);
                 fileUploadSystem.downloadFile(fileId, fileData.name);
             }
         }
@@ -414,5 +472,5 @@
         loadSubmissions();
     </script>
 </body>
-</html>
 
+</html>

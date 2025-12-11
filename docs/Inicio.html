@@ -9,7 +9,9 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
     <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet">
 
     <title>Money Digital - Actividades Extracurriculares y Recompensas</title>
 
@@ -119,7 +121,10 @@
         .glass-card::before {
             content: "";
             position: absolute;
-            top: -2px; left: -2px; right: -2px; bottom: -2px;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
             border-radius: 20px;
             background: var(--gradient-cyan-purple);
             opacity: 0;
@@ -199,311 +204,338 @@
 
 <body>
 
-<header>
-    <h1>Money Digital - GROUP JAD</h1>
-    <nav>
-        <a href="Inicio.html">🏠 Inicio</a>
-        <a href="cursos.html">🎯 Actividades</a>
-        <a href="Wallet.html">💎 Wallet</a>
-        <a href="cetificado.html">🏆 Certificados</a>
-        <a href="Usuarios.html">👥 Usuarios</a>
-        <a href="#" id="logoutBtn" class="text-red-400 hover:text-red-300">🚪 Cerrar Sesión</a>
-    </nav>
-    <div id="userInfo" class="text-sm text-gray-400 mt-2"></div>
-</header>
+    <header>
+        <h1>Money Digital - GROUP JAD</h1>
+        <nav>
+            <a href="Inicio.html">🏠 Inicio</a>
+            <a href="cursos.html">🎯 Actividades</a>
+            <a href="Wallet.html">💎 Wallet</a>
+            <a href="certificado.html">🏆 Certificados</a>
+            <a href="Usuarios.html">👥 Usuarios</a>
+            <a href="#" id="logoutBtn" class="text-red-400 hover:text-red-300">🚪 Cerrar Sesión</a>
+        </nav>
+        <div id="userInfo" class="text-sm text-gray-400 mt-2"></div>
+    </header>
 
-<main class="max-w-6xl mx-auto mt-16 px-6">
+    <main class="max-w-6xl mx-auto mt-16 px-6">
 
-    <section class="welcome-section text-center mb-14">
-        <h2>DINERO INTELIGENTE, FUTURO BRILLANTE</h2>
-        <p id="welcomeMessage">Promueve tu participación en actividades extracurriculares y obtén recompensas digitales que apoyarán tu formación académica</p>
-    </section>
+        <section class="welcome-section text-center mb-14">
+            <h2>DINERO INTELIGENTE, FUTURO BRILLANTE</h2>
+            <p id="welcomeMessage">Promueve tu participación en actividades extracurriculares y obtén recompensas
+                digitales que apoyarán tu formación académica</p>
+        </section>
 
-    <!-- Dashboard del Estudiante -->
-    <div id="studentDashboard" class="hidden">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-            <div class="glass-card text-center">
-                <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="studentPendingActivities">0</div>
-                <div class="card-description">Actividades Pendientes</div>
-            </div>
-            <div class="glass-card text-center">
-                <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="studentSubmittedActivities">0</div>
-                <div class="card-description">Actividades Enviadas</div>
-            </div>
-            <div class="glass-card text-center">
-                <div class="text-4xl font-bold mb-2" style="color: var(--neon-purple);" id="studentTokensBalance">0</div>
-                <div class="card-description">Tokens Disponibles</div>
-            </div>
-            <div class="glass-card text-center">
-                <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="studentApprovedActivities">0</div>
-                <div class="card-description">Actividades Aprobadas</div>
-            </div>
-        </div>
-
-        <div class="glass-card mb-10">
-            <h3 class="card-title mb-4">📊 Tu Progreso</h3>
-            <div class="mb-4">
-                <div class="flex justify-between mb-2">
-                    <span>Progreso General</span>
-                    <span id="studentProgressPercent">0%</span>
+        <!-- Dashboard del Estudiante -->
+        <div id="studentDashboard" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+                <div class="glass-card text-center">
+                    <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="studentPendingActivities">
+                        0</div>
+                    <div class="card-description">Actividades Pendientes</div>
                 </div>
-                <div style="background: rgba(255,255,255,0.1); height: 20px; border-radius: 10px; overflow: hidden;">
-                    <div id="studentProgressBar" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); height: 100%; width: 0%; transition: width 0.5s;"></div>
+                <div class="glass-card text-center">
+                    <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);"
+                        id="studentSubmittedActivities">0</div>
+                    <div class="card-description">Actividades Enviadas</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-4xl font-bold mb-2" style="color: var(--neon-purple);" id="studentTokensBalance">0
+                    </div>
+                    <div class="card-description">Tokens Disponibles</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);"
+                        id="studentApprovedActivities">0</div>
+                    <div class="card-description">Actividades Aprobadas</div>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- Dashboard del Docente -->
-    <div id="teacherDashboard" class="hidden">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-            <div class="glass-card text-center">
-                <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="teacherActiveStudents">0</div>
-                <div class="card-description">Estudiantes Activos</div>
-            </div>
-            <div class="glass-card text-center">
-                <div class="text-4xl font-bold mb-2" style="color: var(--neon-purple);" id="teacherPendingReviews">0</div>
-                <div class="card-description">Pendientes de Revisar</div>
-            </div>
-            <div class="glass-card text-center">
-                <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="teacherTokensAwarded">0</div>
-                <div class="card-description">Tokens Otorgados</div>
-            </div>
-            <div class="glass-card text-center">
-                <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="teacherTotalActivities">0</div>
-                <div class="card-description">Actividades Creadas</div>
+            <div class="glass-card mb-10">
+                <h3 class="card-title mb-4">📊 Tu Progreso</h3>
+                <div class="mb-4">
+                    <div class="flex justify-between mb-2">
+                        <span>Progreso General</span>
+                        <span id="studentProgressPercent">0%</span>
+                    </div>
+                    <div
+                        style="background: rgba(255,255,255,0.1); height: 20px; border-radius: 10px; overflow: hidden;">
+                        <div id="studentProgressBar"
+                            style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); height: 100%; width: 0%; transition: width 0.5s;">
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="glass-card mb-10">
-            <div class="flex items-center mb-4">
-                <div class="card-icon">👨‍🏫</div>
-                <h3 class="card-title">Panel de Docente</h3>
+        <!-- Dashboard del Docente -->
+        <div id="teacherDashboard" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+                <div class="glass-card text-center">
+                    <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="teacherActiveStudents">0
+                    </div>
+                    <div class="card-description">Estudiantes Activos</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-4xl font-bold mb-2" style="color: var(--neon-purple);" id="teacherPendingReviews">0
+                    </div>
+                    <div class="card-description">Pendientes de Revisar</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="teacherTokensAwarded">0
+                    </div>
+                    <div class="card-description">Tokens Otorgados</div>
+                </div>
+                <div class="glass-card text-center">
+                    <div class="text-4xl font-bold mb-2" style="color: var(--neon-cyan);" id="teacherTotalActivities">0
+                    </div>
+                    <div class="card-description">Actividades Creadas</div>
+                </div>
             </div>
-            <p class="card-description mb-4">Gestiona actividades, revisa evidencias y otorga tokens a tus estudiantes.</p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <a href="gestion-actividades.html" class="card-action text-center">➕ Crear Actividad</a>
-                <a href="revision-actividades.html" class="card-action text-center">📝 Revisar Evidencias</a>
-                <a href="progreso-estudiantes.html" class="card-action text-center">📊 Ver Progreso</a>
+
+            <div class="glass-card mb-10">
+                <div class="flex items-center mb-4">
+                    <div class="card-icon">👨‍🏫</div>
+                    <h3 class="card-title">Panel de Docente</h3>
+                </div>
+                <p class="card-description mb-4">Gestiona actividades, revisa evidencias y otorga tokens a tus
+                    estudiantes.</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <a href="gestion-actividades.html" class="card-action text-center">➕ Crear Actividad</a>
+                    <a href="revision-actividades.html" class="card-action text-center">📝 Revisar Evidencias</a>
+                    <a href="progreso-estudiantes.html" class="card-action text-center">📊 Ver Progreso</a>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- ===========================
+        <!-- ===========================
          GRID — DASHBOARD CARDS
     ============================ -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
 
-        <!-- Actividades (Estudiante) -->
-        <div id="studentActivitiesCard" class="glass-card hidden">
-            <div class="flex items-center mb-4">
-                <div class="card-icon">🎯</div>
-                <h3 class="card-title">Mis Actividades</h3>
+            <!-- Actividades (Estudiante) -->
+            <div id="studentActivitiesCard" class="glass-card hidden">
+                <div class="flex items-center mb-4">
+                    <div class="card-icon">🎯</div>
+                    <h3 class="card-title">Mis Actividades</h3>
+                </div>
+                <p class="card-description">Ve tus actividades asignadas, sube evidencia y recibe tokens cuando sean
+                    aprobadas.</p>
+                <a href="actividades-estudiante.html" class="card-action">Ver Mis Actividades</a>
             </div>
-            <p class="card-description">Ve tus actividades asignadas, sube evidencia y recibe tokens cuando sean aprobadas.</p>
-            <a href="actividades-estudiante.html" class="card-action">Ver Mis Actividades</a>
-        </div>
 
-        <!-- Gestión de Actividades (Docente) -->
-        <div id="teacherActivitiesCard" class="glass-card hidden">
-            <div class="flex items-center mb-4">
-                <div class="card-icon">📝</div>
-                <h3 class="card-title">Gestión de Actividades</h3>
+            <!-- Gestión de Actividades (Docente) -->
+            <div id="teacherActivitiesCard" class="glass-card hidden">
+                <div class="flex items-center mb-4">
+                    <div class="card-icon">📝</div>
+                    <h3 class="card-title">Gestión de Actividades</h3>
+                </div>
+                <p class="card-description">Crea actividades, revisa evidencias y otorga tokens a tus estudiantes.</p>
+                <a href="gestion-actividades.html" class="card-action">Gestionar Actividades</a>
             </div>
-            <p class="card-description">Crea actividades, revisa evidencias y otorga tokens a tus estudiantes.</p>
-            <a href="gestion-actividades.html" class="card-action">Gestionar Actividades</a>
-        </div>
 
-        <!-- Recompensas (Estudiante) -->
-        <div id="studentRewardsCard" class="glass-card hidden">
-            <div class="flex items-center mb-4">
-                <div class="card-icon">🏆</div>
-                <h3 class="card-title">Canjear Recompensas</h3>
+            <!-- Recompensas (Estudiante) -->
+            <div id="studentRewardsCard" class="glass-card hidden">
+                <div class="flex items-center mb-4">
+                    <div class="card-icon">🏆</div>
+                    <h3 class="card-title">Canjear Recompensas</h3>
+                </div>
+                <p class="card-description">Usa tus tokens para canjear recompensas disponibles. Gana tokens completando
+                    actividades.</p>
+                <a href="recompensas.html" class="card-action">Ver Recompensas</a>
             </div>
-            <p class="card-description">Usa tus tokens para canjear recompensas disponibles. Gana tokens completando actividades.</p>
-            <a href="recompensas.html" class="card-action">Ver Recompensas</a>
-        </div>
 
-        <!-- Recompensas (Docente) -->
-        <div id="teacherRewardsCard" class="glass-card hidden">
-            <div class="flex items-center mb-4">
-                <div class="card-icon">🎁</div>
-                <h3 class="card-title">Administrar Recompensas</h3>
+            <!-- Recompensas (Docente) -->
+            <div id="teacherRewardsCard" class="glass-card hidden">
+                <div class="flex items-center mb-4">
+                    <div class="card-icon">🎁</div>
+                    <h3 class="card-title">Administrar Recompensas</h3>
+                </div>
+                <p class="card-description">Crea y gestiona recompensas que los estudiantes pueden canjear con sus
+                    tokens.</p>
+                <a href="gestion-recompensas.html" class="card-action">Gestionar Recompensas</a>
             </div>
-            <p class="card-description">Crea y gestiona recompensas que los estudiantes pueden canjear con sus tokens.</p>
-            <a href="gestion-recompensas.html" class="card-action">Gestionar Recompensas</a>
-        </div>
 
-        <div class="glass-card">
-            <div class="flex items-center mb-4">
-                <div class="card-icon">💎</div>
-                <h3 class="card-title">Wallet Digital</h3>
+            <div class="glass-card">
+                <div class="flex items-center mb-4">
+                    <div class="card-icon">💎</div>
+                    <h3 class="card-title">Wallet Digital</h3>
+                </div>
+                <p class="card-description">Gestiona tu wallet Stellar, consulta balances de tokens y realiza
+                    transacciones de forma segura en la blockchain.</p>
+                <a href="Wallet.html" class="card-action">Abrir Wallet</a>
             </div>
-            <p class="card-description">Gestiona tu wallet Stellar, consulta balances de tokens y realiza transacciones de forma segura en la blockchain.</p>
-            <a href="Wallet.html" class="card-action">Abrir Wallet</a>
-        </div>
 
-        <!-- Mi Historial (Estudiante) -->
-        <div id="studentHistoryCard" class="glass-card hidden">
-            <div class="flex items-center mb-4">
-                <div class="card-icon">📊</div>
-                <h3 class="card-title">Mi Historial</h3>
+            <!-- Mi Historial (Estudiante) -->
+            <div id="studentHistoryCard" class="glass-card hidden">
+                <div class="flex items-center mb-4">
+                    <div class="card-icon">📊</div>
+                    <h3 class="card-title">Mi Historial</h3>
+                </div>
+                <p class="card-description">Consulta todas tus actividades enviadas, aprobadas y los tokens que has
+                    ganado.</p>
+                <a href="historial-estudiante.html" class="card-action">Ver Mi Historial</a>
             </div>
-            <p class="card-description">Consulta todas tus actividades enviadas, aprobadas y los tokens que has ganado.</p>
-            <a href="historial-estudiante.html" class="card-action">Ver Mi Historial</a>
-        </div>
 
-        <!-- Historial General (Docente) -->
-        <div id="teacherHistoryCard" class="glass-card hidden">
-            <div class="flex items-center mb-4">
-                <div class="card-icon">📋</div>
-                <h3 class="card-title">Historial General</h3>
+            <!-- Historial General (Docente) -->
+            <div id="teacherHistoryCard" class="glass-card hidden">
+                <div class="flex items-center mb-4">
+                    <div class="card-icon">📋</div>
+                    <h3 class="card-title">Historial General</h3>
+                </div>
+                <p class="card-description">Ve todas las actividades aprobadas, tokens entregados y recompensas
+                    canjeadas.</p>
+                <a href="historial-docente.html" class="card-action">Ver Historial</a>
             </div>
-            <p class="card-description">Ve todas las actividades aprobadas, tokens entregados y recompensas canjeadas.</p>
-            <a href="historial-docente.html" class="card-action">Ver Historial</a>
-        </div>
 
-        <div class="glass-card">
-            <div class="flex items-center mb-4">
-                <div class="card-icon">🪙</div>
-                <h3 class="card-title">Tokens y Moneda</h3>
+            <div class="glass-card">
+                <div class="flex items-center mb-4">
+                    <div class="card-icon">🪙</div>
+                    <h3 class="card-title">Tokens y Moneda</h3>
+                </div>
+                <p class="card-description">Información sobre los tokens digitales, conversión de recompensas y
+                    operaciones disponibles en la plataforma.</p>
+                <a href="Moneda.html" class="card-action">Ver Moneda</a>
             </div>
-            <p class="card-description">Información sobre los tokens digitales, conversión de recompensas y operaciones disponibles en la plataforma.</p>
-            <a href="Moneda.html" class="card-action">Ver Moneda</a>
-        </div>
 
-        <div class="glass-card">
-            <div class="flex items-center mb-4">
-                <div class="card-icon">👥</div>
-                <h3 class="card-title">Comunidad</h3>
+            <div class="glass-card">
+                <div class="flex items-center mb-4">
+                    <div class="card-icon">👥</div>
+                    <h3 class="card-title">Comunidad</h3>
+                </div>
+                <p class="card-description">Conoce a otros estudiantes participantes, docentes y administradores de la
+                    plataforma educativa.</p>
+                <a href="Usuarios.html" class="card-action">Ver Comunidad</a>
             </div>
-            <p class="card-description">Conoce a otros estudiantes participantes, docentes y administradores de la plataforma educativa.</p>
-            <a href="Usuarios.html" class="card-action">Ver Comunidad</a>
+
         </div>
+    </main>
 
-    </div>
-</main>
+    <footer>
+        © 2025 Money Digital - GROUP JAD — Dinero Inteligente, Futuro Brillante<br>
+        Promoviendo la participación de jóvenes en actividades extracurriculares mediante recompensas digitales basadas
+        en blockchain Stellar.
+    </footer>
 
-<footer>
-    © 2025 Money Digital - GROUP JAD — Dinero Inteligente, Futuro Brillante<br>
-    Promoviendo la participación de jóvenes en actividades extracurriculares mediante recompensas digitales basadas en blockchain Stellar.
-</footer>
+    <script>
+        // Verificación de sesión y gestión de usuario
+        (function () {
+            // Verificar si hay sesión activa
+            const currentUserStr = sessionStorage.getItem('currentUser');
 
-<script>
-    // Verificación de sesión y gestión de usuario
-    (function() {
-        // Verificar si hay sesión activa
-        const currentUserStr = localStorage.getItem('currentUser');
-        
-        if (!currentUserStr) {
-            // No hay sesión, redirigir al login
-            alert('Por favor, inicia sesión para acceder a esta página.');
-            window.location.href = 'Index.html';
-            return;
-        }
-
-        let currentUser;
-        try {
-            currentUser = JSON.parse(currentUserStr);
-        } catch (e) {
-            console.error('Error parseando usuario:', e);
-            localStorage.removeItem('currentUser');
-            window.location.href = 'Index.html';
-            return;
-        }
-
-        // Mostrar información del usuario
-        const userInfo = document.getElementById('userInfo');
-        const welcomeMessage = document.getElementById('welcomeMessage');
-        const role = currentUser.role || 'estudiante';
-        const username = currentUser.username || 'Usuario';
-
-        if (userInfo) {
-            userInfo.textContent = `👤 ${username} | ${role === 'docente' ? '👨‍🏫 Docente' : '🎓 Estudiante'}`;
-        }
-
-        if (welcomeMessage) {
-            if (role === 'docente') {
-                welcomeMessage.textContent = `Bienvenido/a ${username}. Gestiona actividades, asigna recompensas y supervisa el progreso de los estudiantes.`;
-            } else {
-                welcomeMessage.textContent = `Bienvenido/a ${username}. Promueve tu participación en actividades extracurriculares y obtén recompensas digitales que apoyarán tu formación académica.`;
+            if (!currentUserStr) {
+                // No hay sesión, redirigir al login
+                alert('Por favor, inicia sesión para acceder a esta página.');
+                window.location.href = 'index.html';
+                return;
             }
-        }
 
-        // Cargar scripts del sistema de actividades
-        const script1 = document.createElement('script');
-        script1.src = 'js/activities-system.js';
-        document.head.appendChild(script1);
-
-        script1.onload = () => {
-            // Mostrar dashboard según el rol
-            if (role === 'docente') {
-                document.getElementById('studentDashboard').classList.add('hidden');
-                document.getElementById('teacherDashboard').classList.remove('hidden');
-                document.getElementById('studentActivitiesCard').classList.add('hidden');
-                document.getElementById('teacherActivitiesCard').classList.remove('hidden');
-                document.getElementById('studentRewardsCard').classList.add('hidden');
-                document.getElementById('teacherRewardsCard').classList.remove('hidden');
-                document.getElementById('studentHistoryCard').classList.add('hidden');
-                document.getElementById('teacherHistoryCard').classList.remove('hidden');
-                
-                // Cargar estadísticas del docente
-                loadTeacherStats();
-            } else {
-                document.getElementById('studentDashboard').classList.remove('hidden');
-                document.getElementById('teacherDashboard').classList.add('hidden');
-                document.getElementById('studentActivitiesCard').classList.remove('hidden');
-                document.getElementById('teacherActivitiesCard').classList.add('hidden');
-                document.getElementById('studentRewardsCard').classList.remove('hidden');
-                document.getElementById('teacherRewardsCard').classList.add('hidden');
-                document.getElementById('studentHistoryCard').classList.remove('hidden');
-                document.getElementById('teacherHistoryCard').classList.add('hidden');
-                
-                // Cargar estadísticas del estudiante
-                loadStudentStats();
+            let currentUser;
+            try {
+                currentUser = JSON.parse(currentUserStr);
+            } catch (e) {
+                console.error('Error parseando usuario:', e);
+                sessionStorage.removeItem('currentUser');
+                window.location.href = 'index.html';
+                return;
             }
-        };
 
-        function loadStudentStats() {
-            if (typeof activitiesSystem === 'undefined') return;
-            
-            const stats = activitiesSystem.getStudentStats(username);
-            document.getElementById('studentPendingActivities').textContent = stats.totalActivities - stats.submitted;
-            document.getElementById('studentSubmittedActivities').textContent = stats.submitted;
-            document.getElementById('studentTokensBalance').textContent = stats.tokensBalance;
-            document.getElementById('studentApprovedActivities').textContent = stats.approved;
-            
-            // Calcular progreso
-            const progress = stats.totalActivities > 0 
-                ? Math.round((stats.approved / stats.totalActivities) * 100) 
-                : 0;
-            document.getElementById('studentProgressPercent').textContent = progress + '%';
-            document.getElementById('studentProgressBar').style.width = progress + '%';
-        }
+            // Mostrar información del usuario
+            const userInfo = document.getElementById('userInfo');
+            const welcomeMessage = document.getElementById('welcomeMessage');
+            const role = currentUser.role || 'estudiante';
+            const username = currentUser.username || 'Usuario';
 
-        function loadTeacherStats() {
-            if (typeof activitiesSystem === 'undefined') return;
-            
-            const stats = activitiesSystem.getTeacherStats(username);
-            document.getElementById('teacherActiveStudents').textContent = stats.totalStudents;
-            document.getElementById('teacherPendingReviews').textContent = stats.pendingReviews;
-            document.getElementById('teacherTokensAwarded').textContent = stats.totalTokensAwarded;
-            document.getElementById('teacherTotalActivities').textContent = stats.totalActivities;
-        }
-
-        // Botón de cerrar sesión
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                    localStorage.removeItem('currentUser');
-                    window.location.href = 'Index.html';
+            if (userInfo) {
+                let infoText = `👤 ${username} | ${role === 'docente' ? '👨‍🏫 Docente' : '🎓 Estudiante'}`;
+                if (currentUser.stellarPublic) {
+                    infoText += ` | 🔑 ${currentUser.stellarPublic.substring(0, 4)}...${currentUser.stellarPublic.substring(52)}`;
                 }
-            });
-        }
-    })();
-</script>
+                userInfo.textContent = infoText;
+            }
+
+            if (welcomeMessage) {
+                if (role === 'docente') {
+                    welcomeMessage.textContent = `Bienvenido/a ${username}. Gestiona actividades, asigna recompensas y supervisa el progreso de los estudiantes.`;
+                } else {
+                    welcomeMessage.textContent = `Bienvenido/a ${username}. Promueve tu participación en actividades extracurriculares y obtén recompensas digitales que apoyarán tu formación académica.`;
+                }
+            }
+
+            // Cargar scripts del sistema de actividades
+            const script1 = document.createElement('script');
+            script1.src = 'js/activities-system.js';
+            document.head.appendChild(script1);
+
+            script1.onload = () => {
+                // Mostrar dashboard según el rol
+                if (role === 'docente') {
+                    document.getElementById('studentDashboard').classList.add('hidden');
+                    document.getElementById('teacherDashboard').classList.remove('hidden');
+                    document.getElementById('studentActivitiesCard').classList.add('hidden');
+                    document.getElementById('teacherActivitiesCard').classList.remove('hidden');
+                    document.getElementById('studentRewardsCard').classList.add('hidden');
+                    document.getElementById('teacherRewardsCard').classList.remove('hidden');
+                    document.getElementById('studentHistoryCard').classList.add('hidden');
+                    document.getElementById('teacherHistoryCard').classList.remove('hidden');
+
+                    // Cargar estadísticas del docente
+                    loadTeacherStats();
+                } else {
+                    document.getElementById('studentDashboard').classList.remove('hidden');
+                    document.getElementById('teacherDashboard').classList.add('hidden');
+                    document.getElementById('studentActivitiesCard').classList.remove('hidden');
+                    document.getElementById('teacherActivitiesCard').classList.add('hidden');
+                    document.getElementById('studentRewardsCard').classList.remove('hidden');
+                    document.getElementById('teacherRewardsCard').classList.add('hidden');
+                    document.getElementById('studentHistoryCard').classList.remove('hidden');
+                    document.getElementById('teacherHistoryCard').classList.add('hidden');
+
+                    // Cargar estadísticas del estudiante
+                    loadStudentStats();
+                }
+            };
+
+            function loadStudentStats() {
+                if (typeof activitiesSystem === 'undefined') return;
+
+                const stats = activitiesSystem.getStudentStats(username);
+                document.getElementById('studentPendingActivities').textContent = stats.totalActivities - stats.submitted;
+                document.getElementById('studentSubmittedActivities').textContent = stats.submitted;
+                document.getElementById('studentTokensBalance').textContent = stats.tokensBalance;
+                document.getElementById('studentApprovedActivities').textContent = stats.approved;
+
+                // Calcular progreso
+                const progress = stats.totalActivities > 0
+                    ? Math.round((stats.approved / stats.totalActivities) * 100)
+                    : 0;
+                document.getElementById('studentProgressPercent').textContent = progress + '%';
+                document.getElementById('studentProgressBar').style.width = progress + '%';
+            }
+
+            function loadTeacherStats() {
+                if (typeof activitiesSystem === 'undefined') return;
+
+                const stats = activitiesSystem.getTeacherStats(username);
+                document.getElementById('teacherActiveStudents').textContent = stats.totalStudents;
+                document.getElementById('teacherPendingReviews').textContent = stats.pendingReviews;
+                document.getElementById('teacherTokensAwarded').textContent = stats.totalTokensAwarded;
+                document.getElementById('teacherTotalActivities').textContent = stats.totalActivities;
+            }
+
+            // Botón de cerrar sesión
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                        sessionStorage.removeItem('currentUser');
+                        window.location.href = 'index.html';
+                    }
+                });
+            }
+        })();
+    </script>
 
 </body>
+
 </html>

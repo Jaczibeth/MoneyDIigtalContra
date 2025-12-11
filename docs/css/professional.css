@@ -1,0 +1,253 @@
+/* 
+ * Enterprise Light Theme
+ * Style: Clean, Corporate, Banking, Professional
+ * Colors: Navy, Slate, White, Gray
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+:root {
+    /* Corporate Palette */
+    --primary: #0f172a;
+    /* Slate 900 - Authority */
+    --primary-hover: #1e293b;
+    /* Slate 800 */
+
+    --brand-blue: #2563eb;
+    /* Trust Blue */
+
+    --bg-body: #f1f5f9;
+    /* Slate 100 - Clean background */
+    --bg-card: #ffffff;
+
+    --text-main: #1e293b;
+    /* Slate 800 */
+    --text-secondary: #64748b;
+    /* Slate 500 */
+
+    --border-color: #e2e8f0;
+    /* Slate 200 */
+
+    --success: #059669;
+    --error: #dc2626;
+
+    --shadow-card: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-hover: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem;
+}
+
+.main-container {
+    width: 100%;
+    max-width: 1100px;
+    display: grid;
+    grid-template-columns: 1fr 450px;
+    gap: 4rem;
+    align-items: center;
+}
+
+/* Branding Section */
+.hero-section {
+    padding-right: 2rem;
+}
+
+.brand-logo {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.hero-title {
+    font-size: 3rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--primary);
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+}
+
+.hero-description {
+    font-size: 1.125rem;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    max-width: 90%;
+}
+
+/* Login Card */
+.login-card {
+    background: var(--bg-card);
+    padding: 3rem;
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border-color);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.login-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-hover);
+}
+
+.card-header {
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.card-header h2 {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+/* Form Elements */
+.input-group {
+    margin-bottom: 1.5rem;
+}
+
+.input-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
+
+.input-field {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1rem;
+    color: var(--text-main);
+    background: #fff;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-field:focus {
+    outline: none;
+    border-color: var(--brand-blue);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.input-field::placeholder {
+    color: #cbd5e1;
+}
+
+/* Buttons */
+.btn {
+    width: 100%;
+    padding: 0.875rem;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    border: none;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.btn-primary {
+    background-color: var(--primary);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+    background-color: white;
+    color: var(--text-main);
+    border: 1px solid var(--border-color);
+    font-size: 0.875rem;
+    padding: 0.6rem;
+}
+
+.btn-secondary:hover {
+    background-color: var(--bg-body);
+    border-color: #cbd5e1;
+}
+
+/* File Upload */
+.file-drop-area {
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background-color 0.2s;
+    background: #f8fafc;
+}
+
+.file-drop-area:hover {
+    border-color: var(--brand-blue);
+    background-color: #eff6ff;
+}
+
+.upload-text {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    display: block;
+    margin-top: 0.5rem;
+}
+
+/* Utilities */
+.web3-toggle {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.hidden {
+    display: none;
+}
+
+.web3-status {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    padding: 0.75rem;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    margin-top: 1rem;
+    word-break: break-all;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+    .main-container {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+    }
+
+    .hero-section {
+        text-align: center;
+        padding-right: 0;
+    }
+
+    .hero-title {
+        font-size: 2.25rem;
+    }
+}
