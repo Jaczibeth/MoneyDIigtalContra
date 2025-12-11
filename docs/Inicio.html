@@ -446,7 +446,11 @@
             const username = currentUser.username || 'Usuario';
 
             if (userInfo) {
-                userInfo.textContent = `👤 ${username} | ${role === 'docente' ? '👨‍🏫 Docente' : '🎓 Estudiante'}`;
+                let infoText = `👤 ${username} | ${role === 'docente' ? '👨‍🏫 Docente' : '🎓 Estudiante'}`;
+                if (currentUser.stellarPublic) {
+                    infoText += ` | 🔑 ${currentUser.stellarPublic.substring(0, 4)}...${currentUser.stellarPublic.substring(52)}`;
+                }
+                userInfo.textContent = infoText;
             }
 
             if (welcomeMessage) {

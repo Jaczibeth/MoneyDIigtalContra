@@ -152,6 +152,13 @@
                     currentSecretKey = savedSecret;
                     showWalletView(savedPublic);
                 }
+            } else if (currentUser.stellarPublic) {
+                // Auto-conectar con la cuenta del usuario si no hay una manual guardada
+                currentPublicKey = currentUser.stellarPublic;
+                // Intentar recuperar secreto si está guardado (esto es riesgoso en prod pero consistente con este demo)
+                // Para este caso, solo mostramos la pública como "Solo Lectura" o "Conectada por Sesión"
+                showWalletView(currentPublicKey);
+                showStatus('Wallet conectada desde tu cuenta de usuario', 'info');
             }
         })();
 

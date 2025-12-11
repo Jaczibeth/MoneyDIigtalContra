@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <title>Registro - Money Digital | GROUP JAD</title>
@@ -30,6 +31,7 @@
       border: 1px solid #333;
       color: white;
     }
+
     .input-dark:focus {
       border-color: #6A5ACD;
       outline: none;
@@ -40,6 +42,7 @@
       background: linear-gradient(to right, #6A5ACD, #00E5FF);
       transition: 0.25s;
     }
+
     .btn-primary:hover {
       filter: brightness(1.2);
       transform: translateY(-2px);
@@ -51,11 +54,13 @@
 <body class="min-h-screen bg-black flex items-center justify-center p-4">
 
   <div class="max-w-md w-full p-8 rounded-xl glass shadow-xl text-white">
-    <h1 class="text-3xl font-bold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400">
+    <h1
+      class="text-3xl font-bold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400">
       Money Digital
     </h1>
     <p class="text-center text-gray-400 text-sm mb-6">Dinero Inteligente, Futuro Brillante</p>
-    <h2 class="text-2xl font-bold text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400">
+    <h2
+      class="text-2xl font-bold text-center mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400">
       Crear una Cuenta
     </h2>
 
@@ -68,17 +73,20 @@
 
       <div>
         <label class="text-gray-300 text-sm">Correo electrónico</label>
-        <input id="r_email" type="email" required class="w-full input-dark p-3 rounded-lg" placeholder="correo@ejemplo.com">
+        <input id="r_email" type="email" required class="w-full input-dark p-3 rounded-lg"
+          placeholder="correo@ejemplo.com">
       </div>
 
       <div>
         <label class="text-gray-300 text-sm">Contraseña</label>
-        <input id="r_password" type="password" required class="w-full input-dark p-3 rounded-lg" placeholder="Contraseña">
+        <input id="r_password" type="password" required class="w-full input-dark p-3 rounded-lg"
+          placeholder="Contraseña">
       </div>
 
       <div>
         <label class="text-gray-300 text-sm">Confirmar contraseña</label>
-        <input id="r_password2" type="password" required class="w-full input-dark p-3 rounded-lg" placeholder="Repite la contraseña">
+        <input id="r_password2" type="password" required class="w-full input-dark p-3 rounded-lg"
+          placeholder="Repite la contraseña">
       </div>
 
       <div>
@@ -90,13 +98,14 @@
         <p class="text-gray-500 text-xs mt-1">Selecciona si eres estudiante o docente</p>
       </div>
 
-      <!-- Sección opcional para crear cuenta Stellar -->
+      <!-- Sección para crear cuenta Stellar (Obligatoria) -->
       <div class="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700">
         <label class="flex items-center cursor-pointer">
-          <input type="checkbox" id="createStellarAccount" class="mr-2">
-          <span class="text-gray-300 text-sm">Crear cuenta Stellar automáticamente (opcional)</span>
+          <input type="checkbox" id="createStellarAccount" class="mr-2" checked disabled>
+          <span class="text-gray-300 text-sm">Crear cuenta Stellar automáticamente (Obligatorio)</span>
         </label>
-        <p class="text-gray-500 text-xs mt-2">Si marcas esta opción, se creará una cuenta Stellar Testnet y se financiará automáticamente.</p>
+        <p class="text-gray-500 text-xs mt-2">Se creará una cuenta Stellar Testnet y se financiará automáticamente para
+          que puedas usar la plataforma.</p>
       </div>
 
       <div class="flex justify-between items-center mt-4">
@@ -138,7 +147,7 @@
       try {
         const salt = crypto.getRandomValues(new Uint8Array(16));
         const iv = crypto.getRandomValues(new Uint8Array(12));
-        
+
         const enc = new TextEncoder();
         const keyMaterial = await crypto.subtle.importKey(
           'raw',
@@ -228,7 +237,7 @@
     }
 
     // Manejar el formulario de registro
-    document.getElementById('registerForm').addEventListener('submit', async function(e) {
+    document.getElementById('registerForm').addEventListener('submit', async function (e) {
       e.preventDefault();
 
       const messageDiv = document.getElementById('message');
@@ -240,7 +249,7 @@
       const email = document.getElementById('r_email').value.trim();
       const password = document.getElementById('r_password').value;
       const password2 = document.getElementById('r_password2').value;
-      const createStellar = document.getElementById('createStellarAccount').checked;
+      const createStellar = true; // Siempre obligatorio
 
       // Validaciones
       if (!username || username.length < 3) {
@@ -342,4 +351,5 @@
   </script>
 
 </body>
+
 </html>
