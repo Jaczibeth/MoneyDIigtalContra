@@ -1,7 +1,7 @@
 // Sistema de subida de archivos/evidencias
 class FileUploadSystem {
     constructor() {
-        this.maxFileSize = 10 * 1024 * 1024; // 10MB
+        this.maxFileSize = 25 * 1024 * 1024; // 25MB
         this.allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'video/mp4', 'video/webm'];
     }
 
@@ -13,7 +13,7 @@ class FileUploadSystem {
             }
 
             if (file.size > this.maxFileSize) {
-                reject(new Error('El archivo es demasiado grande. Máximo 10MB'));
+                reject(new Error('El archivo es demasiado grande. Máximo 25MB'));
                 return;
             }
 
