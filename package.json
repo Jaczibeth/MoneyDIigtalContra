@@ -8,7 +8,8 @@
     "serve": "npx http-server docs -p 8080 -o"
   },
   "dependencies": {
-    "@stellar/freighter-api": "^4.1.0"
+    "@stellar/freighter-api": "^4.1.0",
+    "opencode-ai": "^1.4.3"
   },
   "devDependencies": {
     "http-server": "^14.1.1"

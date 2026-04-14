@@ -1,6 +1,6 @@
 // Variables del contrato Money Digital
 
-const CONTRACT_ID = "CCZOW7YR35JLPO4WBVPNG5CNLK24QNWNQT2SNTMGSI2LU2FF7E5K3M7R";
+const CONTRACT_ID = "CDS3VGIAZFIZUG3GL6LWAXLOXWCRIIBDPPRS4225LLLEHPGTFDNF4PQK";
 
 // Usar endpoints y passphrase consistentes con Testnet público
 // Horizon público Testnet (para consultar cuentas y enviar transacciones)
