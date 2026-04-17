@@ -41,7 +41,7 @@ El proyecto integra un sistema educativo (Academy) con un ecosistema de tokens d
 - Integración con Stellar Network para transacciones de recompensas
 
 #### Frontend (Interfaz Web)
-- **Index.html**: Sistema de autenticación e inicio de sesión con Freighter Wallet
+- **index.html**: Sistema de autenticación e inicio de sesión con Freighter Wallet
 - **Inicio.html**: Panel principal con dashboard de actividades extracurriculares y recompensas
 - **cursos.html**: Catálogo de actividades extracurriculares disponibles (hackathons, clubes, competencias, etc.)
 - **Wallet.html**: Gestión de wallet Stellar, consulta de recompensas acumuladas y transferencias
@@ -237,7 +237,7 @@ Para la Validación #3 del proyecto:
 │       ├── Cargo.toml
 │       └── Makefile
 ├── docs
-│   ├── Index.html              # Autenticación
+│   ├── index.html              # Autenticación
 │   ├── Inicio.html             # Panel principal
 │   ├── Wallet.html             # Gestión de wallet
 │   ├── Moneda.html             # Información de moneda
@@ -300,7 +300,7 @@ make deploy
 
 ### 7.3 Uso
 
-1. Abrir `docs/Index.html` en un navegador con Freighter Wallet instalado
+1. Abrir `docs/index.html` en un navegador con Freighter Wallet instalado
 2. Conectar la wallet a Stellar Testnet
 3. Registrar usuarios, crear cursos y realizar transacciones
 

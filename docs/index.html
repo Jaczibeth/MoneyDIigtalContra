@@ -30,14 +30,12 @@
     <!-- Right Column: Login Card -->
     <div class="login-card">
       <div class="card-header">
-        <h2>Bienvenido</h2>
+        <h2>BIENVENIDO</h2>
         <p style="color: var(--text-secondary); margin-top: 5px;">Ingresa tus credenciales para continuar</p>
       </div>
 
-      <!-- Wallet Status Indication (Top of card if connected) -->
+      <!-- Wallet Status - Solo se muestra si hay sesión activa (no en login) -->
       <div id="walletStatus" class="web3-status" style="display: none; margin-bottom: 1.5rem;">
-        <span style="display:block; font-weight:bold; margin-bottom:4px">● Wallet Conectada</span>
-        <span id="walletAddress"></span>
       </div>
 
       <form id="loginForm">
@@ -157,7 +155,6 @@
     const imageUploadDiv = document.getElementById('imageUpload');
     const fileInput = imageUploadDiv.querySelector('input[type="file"]');
     const walletStatus = document.getElementById('walletStatus');
-    const walletAddress = document.getElementById('walletAddress');
     const stellarAccountInfo = document.getElementById('stellarAccountInfo');
     const claveSecretaManualInput = document.getElementById('claveSecretaManual');
 
@@ -229,8 +226,8 @@
       ultimaClavePublica = pubKey;
       if (secret) ultimaClaveSecreta = secret;
 
-      walletStatus.style.display = 'block';
-      walletAddress.textContent = pubKey;
+      // No mostrar wallet en login por seguridad - solo guardar en localStorage
+      walletStatus.style.display = 'none';
 
       if (secret) {
         try { localStorage.setItem('stellarSecret', secret); } catch (e) { }
@@ -359,12 +356,10 @@
       );
     }
 
-    // Init
+    // Init - No mostrar wallet en login por seguridad
     window.onload = () => {
-      const savedPub = localStorage.getItem('stellarPublic');
-      if (savedPub) {
-        setWalletState(savedPub, false);
-      }
+      // La wallet se mostrará solo después de hacer login exitosamente
+      // en la página Inicio.html, no aquí en el login
     };
   </script>
 </body>

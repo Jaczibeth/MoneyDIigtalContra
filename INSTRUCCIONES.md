@@ -47,12 +47,12 @@ http://localhost:8080
 O directamente a la página de inicio:
 
 ```
-http://localhost:8080/Index.html
+http://localhost:8080/index.html
 ```
 
 ## Estructura de Páginas
 
-- **Index.html** - Página de inicio de sesión
+- **index.html** - Página de inicio de sesión
 - **Register.html** - Registro de nuevos usuarios
 - **Inicio.html** - Panel principal de la aplicación
 - **Wallet.html** - Gestión de wallet Stellar
@@ -60,7 +60,7 @@ http://localhost:8080/Index.html
 - **cursos.html** - Catálogo de cursos
 - **materias.html** - Gestión de materias
 - **niveles.html** - Sistema de niveles
-- **cetificado.html** - Certificados digitales
+- **certificado.html** - Certificados digitales
 - **Usuarios.html** - Administración de usuarios
 
 ## Configuración de Freighter Wallet
