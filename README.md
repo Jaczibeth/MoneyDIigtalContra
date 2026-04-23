@@ -1,4 +1,50 @@
-# MONEY-DIGITAL
+# MONEY-DIGITAL - Contrato Inteligente Soroban
+
+## Contrato Inteligente Desplegado en Stellar Testnet
+
+- **Contract ID**: `5ccd7cf13f10884f27392d30fadb0d773d37d17713eabf8c8ebf11fc03036e63`
+- **Transaction Hash**: https://stellar.expert/explorer/testnet/tx/5ccd7cf13f10884f27392d30fadb0d773d37d17713eabf8c8ebf11fc03036e63
+- **Interfaz**: https://money-digital.surge.sh/index.html
+
+## Funcionalidades del Contrato
+
+### Púbicas:
+- `initialize(admin: Address)` - Inicializa el contrato con administrador
+- `get_admin() -> Address` - Retorna dirección del admin
+- `is_initialized() -> bool` - Verifica si está inicializado
+- `register_wallet(wallet, nombre, email) -> bool` - Registra wallet
+- `get_wallet_info(wallet) -> Option<Map>` - Obtiene info de wallet
+- `is_wallet_registered(wallet) -> bool` - Verifica registro
+- `get_balance(wallet) -> String` - Obtiene balance
+- `get_total_supply() -> String` - Obtiene supply total
+- `transfer(from, to, amount) -> bool` - Transfiere tokens
+- `mint(admin, wallet, amount) -> bool` - Crea tokens (solo admin)
+- `burn(admin, wallet, amount) -> bool` - Quema tokens (solo admin)
+- `get_transactions() -> Vec` - Obtiene historial
+- `get_transaction_count() -> u32` - Cantidad de transacciones
+
+### Controles de Seguridad:
+- Solo el admin puede ejecutar mint/burn
+- Validación de balances antes de transferencia
+- Validación de amounts positivos
+- Protección contra double-initialize
+
+## Pruebas Unitarias
+
+```bash
+cargo test -p money-digital
+```
+
+9 tests pasando:
+- test_initialize
+- test_register_wallet
+- test_get_balance
+- test_mint
+- test_transfer
+- test_burn
+- test_total_supply
+- test_transfer_insufficient_balance
+- test_mint_unauthorized
 
 ## Acuerdo de Compromiso del Equipo
 
