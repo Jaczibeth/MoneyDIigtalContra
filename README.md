@@ -2,9 +2,9 @@
 
 ## Contrato Inteligente Desplegado en Stellar Testnet
 
-- **Contract ID**: `5ccd7cf13f10884f27392d30fadb0d773d37d17713eabf8c8ebf11fc03036e63`
-- **Transaction Hash**: https://stellar.expert/explorer/testnet/tx/5ccd7cf13f10884f27392d30fadb0d773d37d17713eabf8c8ebf11fc03036e63
+- **Contract ID**: `CDS3VGIAZFIZUG3GL6LWAXLOXWCRIIBDPPRS4225LLLEHPGTFDNF4PQK`
 - **Interfaz**: https://money-digital.surge.sh/index.html
+- **Explorador de cuenta**: https://stellar.expert/explorer/testnet/account/GAIH3ULLFQ4DGSECF2AR555KZ4KNDGEKN4AFI4SU2M7B43MGK3QJZNSR
 
 ## Funcionalidades del Contrato
 
