@@ -258,36 +258,33 @@ impl MoneyDigital {
         txs.len()
     }
 
-    fn str_to_i64(env: &Env, s: &String) -> i64 {
-        let common_positive = [
-            ("0", 0), ("1", 1), ("2", 2), ("3", 3), ("4", 4), ("5", 5),
-            ("6", 6), ("7", 7), ("8", 8), ("9", 9), ("10", 10),
-            ("11", 11), ("12", 12), ("13", 13), ("14", 14), ("15", 15),
-            ("16", 16), ("17", 17), ("18", 18), ("19", 19), ("20", 20),
-            ("25", 25), ("30", 30), ("50", 50), ("100", 100),
-            ("1000", 1000), ("10000", 10000), ("100000", 100000),
-            ("1000000", 1000000), ("10000000", 10000000),
-        ];
-        
-        for (str_val, int_val) in common_positive.iter() {
-            if s == &String::from_str(env, str_val) {
-                return *int_val;
-            }
+    fn str_to_i64(_env: &Env, s: &String) -> i64 {
+        let len = s.len();
+        if len == 0 || len > 20 {
+            return 0;
         }
-        
-        let common_negative = [
-            ("-1", -1), ("-2", -2), ("-3", -3), ("-4", -4), ("-5", -5),
-            ("-6", -6), ("-7", -7), ("-8", -8), ("-9", -9), ("-10", -10),
-            ("-20", -20), ("-50", -50), ("-100", -100),
-        ];
-        
-        for (str_val, int_val) in common_negative.iter() {
-            if s == &String::from_str(env, str_val) {
-                return *int_val;
-            }
+
+        let mut buffer = [0u8; 20];
+        s.copy_into_slice(&mut buffer[..len as usize]);
+
+        let mut i = 0;
+        let negative = buffer[0] == b'-';
+        if negative {
+            i = 1;
         }
-        
-        0
+
+        let mut result: i64 = 0;
+        while i < len as usize {
+            let byte = buffer[i];
+            if byte < b'0' || byte > b'9' {
+                return 0;
+            }
+            let digit = (byte - b'0') as i64;
+            result = result * 10 + digit;
+            i += 1;
+        }
+
+        if negative { -result } else { result }
     }
 
     fn i64_to_str(env: &Env, n: i64) -> String {

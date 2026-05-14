@@ -419,11 +419,9 @@
     <script>
         // Verificación de sesión y gestión de usuario
         (function () {
-            // Verificar si hay sesión activa
-            const currentUserStr = sessionStorage.getItem('currentUser');
+            const currentUserStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
 
             if (!currentUserStr) {
-                // No hay sesión, redirigir al login
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
                 return;
@@ -435,6 +433,7 @@
             } catch (e) {
                 console.error('Error parseando usuario:', e);
                 sessionStorage.removeItem('currentUser');
+                localStorage.removeItem('currentUser');
                 window.location.href = 'index.html';
                 return;
             }
@@ -499,8 +498,8 @@
                 if (typeof activitiesSystem === 'undefined') return;
 
                 const stats = activitiesSystem.getStudentStats(username);
-                document.getElementById('studentPendingActivities').textContent = stats.totalActivities - stats.submitted;
-                document.getElementById('studentSubmittedActivities').textContent = stats.submitted;
+                document.getElementById('studentPendingActivities').textContent = stats.totalActivities - stats.approved;
+                document.getElementById('studentSubmittedActivities').textContent = stats.pendingReview + stats.needsCorrection;
                 document.getElementById('studentTokensBalance').textContent = stats.tokensBalance;
                 document.getElementById('studentApprovedActivities').textContent = stats.approved;
 
@@ -529,6 +528,7 @@
                     e.preventDefault();
                     if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
                         sessionStorage.removeItem('currentUser');
+                        localStorage.removeItem('currentUser');
                         window.location.href = 'index.html';
                     }
                 });

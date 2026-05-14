@@ -329,7 +329,14 @@
           }
         }
 
-        // Guardar usuario
+        // Guardar clave secreta en wallet storage persistente
+        if (stellarAccount && stellarAccount.secretKey) {
+          try {
+            localStorage.setItem('wallet_secret_' + username, stellarAccount.secretKey);
+            localStorage.setItem('wallet_public_' + username, stellarAccount.publicKey);
+          } catch (e) { /* ignore */ }
+        }
+
         users.push(newUser);
         if (saveUsers(users)) {
           messageDiv.textContent = '✅ Usuario registrado exitosamente! Redirigiendo...';

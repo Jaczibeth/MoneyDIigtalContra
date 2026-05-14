@@ -165,6 +165,14 @@ async function ejecutarAccion(accion, params = {}) {
         break;
       case 'mint':
         args = [
+          toScValAdmin(publicKey),
+          toScVal(params.wallet_address || publicKey),
+          toScVal(params.amount || '0')
+        ];
+        break;
+      case 'burn':
+        args = [
+          toScValAdmin(publicKey),
           toScVal(params.wallet_address || publicKey),
           toScVal(params.amount || '0')
         ];
@@ -268,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (deleteBtn) deleteBtn.onclick = () => {
     const amount = prompt('Cantidad a quemar (burn):');
     if (amount) {
-      ejecutarAccion('burn', { amount: amount });
+      ejecutarAccion('burn', { wallet_address: publicKey, amount: amount });
     }
   };
   if (getBtn) getBtn.onclick = () => ejecutarAccion('get_balance', { wallet_address: publicKey });
@@ -288,6 +296,11 @@ function toScVal(value, type = 'string') {
     default:
       return StellarSdk.xdr.ScVal.scvString(value);
   }
+}
+
+function toScValAdmin(publicKey) {
+  const keypair = StellarSdk.Keypair.fromPublicKey(publicKey);
+  return StellarSdk.xdr.ScVal.scvAddress(keypair.xdrAccountId());
 }
 
 // Función para crear operación de contrato Soroban

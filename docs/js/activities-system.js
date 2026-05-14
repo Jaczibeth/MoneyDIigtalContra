@@ -364,7 +364,8 @@ class ActivitiesSystem {
         return {
             totalActivities: activities.length,
             pendingSubmissions: submissions.filter(s => s.status === 'pending').length,
-            submitted: submissions.filter(s => s.status === 'pending' || s.status === 'needs_correction').length,
+            pendingReview: submissions.filter(s => s.status === 'pending').length,
+            needsCorrection: submissions.filter(s => s.status === 'needs_correction').length,
             approved: submissions.filter(s => s.status === 'approved').length,
             rejected: submissions.filter(s => s.status === 'rejected').length,
             tokensBalance: userTokens.balance,

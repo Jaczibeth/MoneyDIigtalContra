@@ -135,20 +135,18 @@
         let currentSecretKey = null;
         let usingFreighter = false;
 
-        // Init
         (function () {
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
             const username = currentUser.username || 'unknown';
             const savedPublic = localStorage.getItem(`wallet_public_${username}`);
             const savedSecret = localStorage.getItem(`wallet_secret_${username}`);
             const savedFreighter = localStorage.getItem(`wallet_freighter_${username}`);
 
-            // Prioridad: 1. Datos de sesión (Registro fresco), 2. LocalStorage especifico, 3. Datos de usuario guardados
             if (currentUser.stellarPublic) {
                 currentPublicKey = currentUser.stellarPublic;
-                // Intentar obtener secreto del objeto usuario (si existe por registro reciente o desencriptación)
                 if (currentUser.stellarSecret) {
                     currentSecretKey = currentUser.stellarSecret;
+                    localStorage.setItem(`wallet_secret_${username}`, currentUser.stellarSecret);
                 } else if (savedSecret) {
                     currentSecretKey = savedSecret;
                 }
@@ -156,6 +154,10 @@
             } else if (savedPublic) {
                 currentPublicKey = savedPublic;
                 currentSecretKey = savedSecret;
+                currentUser.stellarPublic = savedPublic;
+                currentUser.stellarSecret = savedSecret;
+                sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 showWalletView(savedPublic);
             }
         })();

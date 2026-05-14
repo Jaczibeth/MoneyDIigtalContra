@@ -107,9 +107,22 @@ class WalletManager {
                 const data = JSON.parse(stored);
                 this.publicKey = data.publicKey;
                 this.usingFreighter = data.usingFreighter || false;
-                // No cargamos secretKey desde storage por seguridad
-                return true;
             }
+
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser') || '{}');
+            const username = currentUser.username;
+            if (username) {
+                const savedSecret = localStorage.getItem('wallet_secret_' + username);
+                if (savedSecret && !this.secretKey) {
+                    this.secretKey = savedSecret;
+                }
+                const savedPublic = localStorage.getItem('wallet_public_' + username);
+                if (savedPublic && !this.publicKey) {
+                    this.publicKey = savedPublic;
+                }
+            }
+
+            return !!this.publicKey;
         } catch (e) {
             console.warn('Error cargando wallet desde storage:', e);
         }

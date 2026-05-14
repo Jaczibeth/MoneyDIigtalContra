@@ -206,21 +206,18 @@
     <script src="js/file-upload.js?v=3"></script>
     <script src="js/stellar-integration.js?v=3"></script>
     <script>
-        // Verificación de sesión
         (function () {
-            const currentUserStr = sessionStorage.getItem('currentUser');
+            const currentUserStr = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
             if (!currentUserStr) {
-                // Fallback check to localStorage just in case, but prefer session
-                const localUser = localStorage.getItem('currentUser');
-                if (!localUser) {
-                    alert('Por favor, inicia sesión para acceder a esta página.');
-                    window.location.href = 'index.html';
-                    return;
-                }
-                sessionStorage.setItem('currentUser', localUser);
+                alert('Por favor, inicia sesión para acceder a esta página.');
+                window.location.href = 'index.html';
+                return;
             }
 
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(currentUserStr);
+            sessionStorage.setItem('currentUser', currentUserStr);
+            localStorage.setItem('currentUser', currentUserStr);
+
             if (currentUser.role === 'docente') {
                 window.location.href = 'gestion-actividades.html';
                 return;
@@ -260,9 +257,9 @@
 
                 let statusText = 'Pendiente';
                 let statusClass = 'status-pending';
-                if (status === 'submitted' || status === 'pending') {
-                    statusText = 'Enviada';
-                    statusClass = 'status-submitted';
+                if (status === 'pending') {
+                    statusText = 'Pendiente';
+                    statusClass = 'status-pending';
                 } else if (status === 'approved') {
                     statusText = 'Aprobada';
                     statusClass = 'status-approved';
@@ -329,7 +326,7 @@
 
                 if (currentFilter === 'all') show = true;
                 else if (currentFilter === 'pending' && status === 'pending') show = true;
-                else if (currentFilter === 'submitted' && (status === 'submitted' || status === 'pending')) show = true;
+                else if (currentFilter === 'submitted' && (status === 'pending' || status === 'needs_correction')) show = true;
                 else if (currentFilter === 'approved' && status === 'approved') show = true;
 
                 card.style.display = show ? 'block' : 'none';

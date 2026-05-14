@@ -168,7 +168,7 @@
 
                 <div class="flex gap-4">
                     <button type="submit" class="btn btn-primary">Crear Actividad</button>
-                    <button type="reset" class="btn"
+                    <button type="reset" id="resetFormBtn" class="btn"
                         style="background: rgba(255,255,255,0.1); color: white;">Limpiar</button>
                 </div>
             </form>
@@ -285,9 +285,14 @@
                 return;
             }
 
-            activitiesSystem.createActivity(activityData);
-            alert('✓ Actividad creada exitosamente');
-            document.getElementById('createActivityForm').reset();
+            if (editingActivityId) {
+                activitiesSystem.updateActivity(editingActivityId, activityData);
+                alert('✓ Actividad actualizada exitosamente');
+            } else {
+                activitiesSystem.createActivity(activityData);
+                alert('✓ Actividad creada exitosamente');
+            }
+            resetEditState();
             loadActivities();
         });
 
@@ -296,40 +301,32 @@
             loadActivities();
         }
 
+        let editingActivityId = null;
+
         function editActivity(id) {
             const activity = activitiesSystem.getActivityById(id);
             if (!activity) return;
 
+            editingActivityId = id;
             document.getElementById('activityTitle').value = activity.title;
             document.getElementById('activityDescription').value = activity.description;
             document.getElementById('activityTokens').value = activity.tokens || 0;
-            document.getElementById('activityDeadline').value = activity.deadline.substring(0, 16);
+            if (activity.deadline) {
+                document.getElementById('activityDeadline').value = activity.deadline.substring(0, 16);
+            }
             document.getElementById('activitySubject').value = activity.subject || '';
             document.getElementById('activityInstructions').value = activity.instructions || '';
 
-            // Scroll al formulario
-            document.getElementById('createActivityForm').scrollIntoView({ behavior: 'smooth' });
-
-            // Cambiar el botón a "Actualizar"
             const submitBtn = document.querySelector('#createActivityForm button[type="submit"]');
             submitBtn.textContent = 'Actualizar Actividad';
-            submitBtn.onclick = (e) => {
-                e.preventDefault();
-                const updated = {
-                    title: document.getElementById('activityTitle').value.trim(),
-                    description: document.getElementById('activityDescription').value.trim(),
-                    tokens: parseInt(document.getElementById('activityTokens').value) || 0,
-                    deadline: document.getElementById('activityDeadline').value,
-                    subject: document.getElementById('activitySubject').value.trim() || null,
-                    instructions: document.getElementById('activityInstructions').value.trim() || null
-                };
-                activitiesSystem.updateActivity(id, updated);
-                alert('✓ Actividad actualizada');
-                document.getElementById('createActivityForm').reset();
-                submitBtn.textContent = 'Crear Actividad';
-                submitBtn.onclick = null;
-                loadActivities();
-            };
+            document.getElementById('createActivityForm').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetEditState() {
+            editingActivityId = null;
+            const submitBtn = document.querySelector('#createActivityForm button[type="submit"]');
+            submitBtn.textContent = 'Crear Actividad';
+            document.getElementById('createActivityForm').reset();
         }
 
         function viewSubmissions(activityId) {
@@ -342,7 +339,8 @@
             return div.innerHTML;
         }
 
-        // Cargar actividades al iniciar
+        document.getElementById('resetFormBtn').addEventListener('click', resetEditState);
+
         loadActivities();
     </script>
 </body>

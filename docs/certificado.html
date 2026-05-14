@@ -215,7 +215,27 @@
         }
 
         function printCert() {
-            window.print();
+            const certContent = document.getElementById('certContent').innerHTML;
+            const win = window.open('', '_blank');
+            win.document.write(`
+                <html><head><title>Certificado</title>
+                <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
+                <style>
+                    body { margin: 0; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
+                    @page { margin: 0; size: landscape; }
+                    .certificate-container { width: 800px; height: 600px; padding: 40px; background: #fff; color: #333; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+                    .cert-title { font-family: 'Poppins', sans-serif; font-size: 3rem; color: #1a1a1a; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 5px; }
+                    .cert-subtitle { font-size: 1.2rem; color: #666; margin-bottom: 10px; }
+                    .cert-name { font-family: 'Great Vibes', cursive; font-size: 4rem; color: #b400ff; margin: 20px 0; border-bottom: 2px solid #ddd; padding: 0 50px; min-width: 400px; }
+                    .cert-body { font-size: 1.1rem; max-width: 600px; margin-bottom: 40px; line-height: 1.6; color: #333; }
+                    .cert-footer { display: flex; justify-content: space-between; width: 100%; padding: 0 60px; margin-top: 40px; }
+                    .signature { border-top: 1px solid #333; padding-top: 10px; font-weight: bold; width: 200px; }
+                </style></head><body>
+                <div class="certificate-container">${certContent.innerHTML || certContent}</div>
+                </body></html>
+            `);
+            win.document.close();
+            setTimeout(() => { win.print(); }, 500);
         }
 
         // Close on click outside

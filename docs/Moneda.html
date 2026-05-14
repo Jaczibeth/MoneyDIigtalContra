@@ -313,7 +313,7 @@
       <a href="niveles.html">📊 Mi Progreso</a>
       <a href="Wallet.html">💎 Wallet</a>
       <a href="Moneda.html" class="active">🪙 Tokens</a>
-      <a href="cetificado.html">🏆 Certificados</a>
+      <a href="certificado.html">🏆 Certificados</a>
       <a href="Usuarios.html">👥 Comunidad</a>
     </nav>
   </header>
@@ -402,11 +402,10 @@
 
   </main>
 
-  <!-- Demo data + interactions -->
+  <script src="js/activities-system.js"></script>
   <script>
-    // Verificación de sesión
     (function() {
-      const currentUserStr = localStorage.getItem('currentUser');
+      const currentUserStr = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
       if (!currentUserStr) {
         alert('Por favor, inicia sesión para acceder a esta página.');
         window.location.href = 'index.html';
@@ -414,7 +413,9 @@
       }
     })();
 
-    // Create subtle floating particles
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
+    const username = currentUser.username || 'Usuario';
+
     function createParticles(count = 30) {
       const container = document.getElementById('particles');
       for (let i = 0; i < count; i++) {
@@ -433,50 +434,65 @@
       }
     }
 
-    // Demo balances
-    const balances = { XLM: 3542.12, BTC: 0.256, USD: 13456.23, USDT: 5000.50 };
-
-    // Demo transactions
-    const transactions = [
-      { type: "Sent", date: "2024-06-22 14:50", amount: -1.23, currency: "XLM", to: "GXYZ123...789ABC", icon: "fa-arrow-up-right" },
-      { type: "Received", date: "2024-06-21 19:20", amount: 0.75, currency: "BTC", from: "GBTC456...DEF789", icon: "fa-arrow-down-left" },
-      { type: "Swap", date: "2024-06-20 11:48", amount: -300, currency: "USD", details: "XLM → USD", icon: "fa-exchange-alt" },
-      { type: "Received", date: "2024-06-18 09:12", amount: 1500, currency: "USDT", from: "GUSDT789...JKL012", icon: "fa-arrow-down-left" },
-      { type: "Sent", date: "2024-06-15 22:06", amount: -0.015, currency: "BTC", to: "GBTC345...MNO678", icon: "fa-arrow-up-right" },
-    ];
-
-    // UTIL: format amount
-    function formatAmount(amount, currency) {
-      if (currency === 'USD' || currency === 'USDT') {
-        return (Math.abs(amount)).toLocaleString('en-US', { style: 'currency', currency: 'USD' }) + (amount < 0 ? '' : '');
-      }
-      const maxFrac = (currency === 'BTC') ? 6 : 6;
-      return Math.abs(amount).toLocaleString('en-US', { maximumFractionDigits: maxFrac }) + ' ' + currency;
-    }
-
-    // Update main balance element
     const mainBalanceEl = document.getElementById('mainBalance');
     const currencyChips = document.querySelectorAll('.currency-chip');
 
+    function formatAmount(amount, currency) {
+      return Math.abs(amount).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' ' + currency;
+    }
+
     function updateBalance(currency='XLM') {
-      if (balances[currency] !== undefined) {
-        mainBalanceEl.textContent = formatAmount(balances[currency], currency);
-      }
+      mainBalanceEl.textContent = formatAmount(getCurrentBalance(), currency);
       currencyChips.forEach(chip => {
         chip.classList.toggle('active', chip.dataset.currency === currency);
       });
     }
 
-    // Render transaction item (shared)
+    function getCurrentBalance() {
+      if (typeof activitiesSystem !== 'undefined') {
+        const userTokens = activitiesSystem.getUserTokens(username);
+        return userTokens.balance || 0;
+      }
+      return 0;
+    }
+
+    function getRealTransactions() {
+      const txs = [];
+      if (typeof activitiesSystem !== 'undefined') {
+        const userTokens = activitiesSystem.getUserTokens(username);
+        (userTokens.transactions || []).forEach(tx => {
+          txs.push({
+            type: tx.type === 'earned' ? 'Recibido' : tx.type === 'redeemed' ? 'Canjeado' : tx.type,
+            date: new Date(tx.timestamp).toLocaleString(),
+            amount: tx.type === 'earned' ? Math.abs(tx.amount) : -Math.abs(tx.amount),
+            description: tx.description,
+            icon: tx.type === 'earned' ? 'fa-arrow-down-left' : 'fa-arrow-up-right'
+          });
+        });
+        const redemptions = activitiesSystem.getRedemptions().filter(r => r.username === username);
+        redemptions.forEach(r => {
+          txs.push({
+            type: 'Canjeado',
+            date: new Date(r.timestamp).toLocaleString(),
+            amount: -r.cost,
+            description: r.rewardName,
+            icon: 'fa-gift'
+          });
+        });
+      }
+      if (txs.length === 0) {
+        txs.push({ type: 'Bienvenido', date: new Date().toLocaleString(), amount: 0, description: 'Completa actividades para ganar tokens', icon: 'fa-star' });
+      }
+      return txs.sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+
     function createTxElement(tx) {
       const wrap = document.createElement('div');
       wrap.className = 'tx-item';
-
       const icon = document.createElement('div');
       icon.className = 'tx-icon';
       icon.innerHTML = `<i class="fa-solid ${tx.icon}"></i>`;
       wrap.appendChild(icon);
-
       const meta = document.createElement('div');
       meta.className = 'tx-meta';
       const title = document.createElement('div');
@@ -484,20 +500,14 @@
       title.textContent = tx.type;
       const sub = document.createElement('div');
       sub.className = 'sub';
-      if (tx.type === 'Sent') sub.textContent = `To ${tx.to} • ${tx.date}`;
-      else if (tx.type === 'Received') sub.textContent = `From ${tx.from} • ${tx.date}`;
-      else if (tx.type === 'Swap') sub.textContent = `${tx.details} • ${tx.date}`;
-      else sub.textContent = tx.date;
+      sub.textContent = (tx.description || tx.date) + ' • ' + tx.date;
       meta.appendChild(title);
       meta.appendChild(sub);
       wrap.appendChild(meta);
-
       const amount = document.createElement('div');
       amount.className = 'tx-amount ' + (tx.amount < 0 ? 'negative' : 'positive');
-      const sign = tx.amount < 0 ? '-' : '+';
-      amount.textContent = (tx.amount < 0 ? '-' : '+') + ' ' + formatAmount(Math.abs(tx.amount), tx.currency);
+      amount.textContent = (tx.amount < 0 ? '- ' : '+ ') + formatAmount(Math.abs(tx.amount), 'tokens');
       wrap.appendChild(amount);
-
       return wrap;
     }
 
@@ -506,27 +516,36 @@
       const small = document.getElementById('transactionsListSmall');
       container.innerHTML = '';
       small.innerHTML = '';
-      transactions.forEach(tx=>{
+      const txs = getRealTransactions();
+      txs.forEach(tx => {
         container.appendChild(createTxElement(tx));
         small.appendChild(createTxElement(tx));
       });
     }
 
-    // Chart setup (balance over time)
     function initChart() {
       const ctx = document.getElementById('balanceChart').getContext('2d');
-      const labels = ['01 Jun','05 Jun','10 Jun','15 Jun','20 Jun','25 Jun','30 Jun'];
-      const dataPoints = [3200,3420,3505,3480,3600,3570,3542];
+      const balance = getCurrentBalance();
+      const dataPoints = [];
+      const labels = [];
+      const now = new Date();
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(now);
+        d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleDateString('es', { day: '2-digit', month: '2-digit' }));
+        dataPoints.push(i === 29 ? 0 : balance);
+      }
+      if (balance > 0) dataPoints[dataPoints.length - 1] = balance;
 
-      const chart = new Chart(ctx, {
+      new Chart(ctx, {
         type: 'line',
         data: {
           labels,
           datasets: [{
-            label: 'XLM',
+            label: 'Tokens',
             data: dataPoints,
             fill: true,
-            backgroundColor: 'linear-gradient(180deg, rgba(0,229,255,0.06), rgba(106,90,205,0.02))',
+            backgroundColor: 'rgba(0,229,255,0.06)',
             borderColor: '#00e5ff',
             borderWidth: 2.8,
             tension: 0.36,
@@ -536,17 +555,7 @@
         },
         options: {
           responsive:true,
-          plugins:{
-            legend: { display:false },
-            tooltip: {
-              backgroundColor:'#0b0b10',
-              titleColor:'#00e5ff',
-              bodyColor:'#eafcff',
-              displayColors:false,
-              borderColor:'#00e5ff',
-              borderWidth:1
-            }
-          },
+          plugins:{ legend: { display:false } },
           scales:{
             x:{ ticks:{ color:'#7fefff' }, grid:{ color:'rgba(0,229,255,0.04)' } },
             y:{ ticks:{ color:'#7fefff' }, grid:{ color:'rgba(0,229,255,0.04)' } }
@@ -555,7 +564,6 @@
       });
     }
 
-    // Copy address button
     document.addEventListener('click', (e)=>{
       if (e.target.closest('#copyAddr')) {
         const addr = document.getElementById('walletAddress').textContent.trim();
@@ -564,45 +572,34 @@
           setTimeout(()=> e.target.closest('button').innerHTML = '<i class="fa-regular fa-copy"></i> Copiar', 1500);
         }).catch(()=> alert('No se pudo copiar'));
       }
-      if (e.target.closest('#exportKey')) {
-        alert('Función exportar: implementar según tu flujo seguro (no guardar secret en localStorage sin cifrar).');
-      }
     });
 
-    // currency chip clicks
     document.querySelectorAll('.currency-chip').forEach(chip=>{
-      chip.addEventListener('click', (e)=>{
-        updateBalance(chip.dataset.currency);
-      });
+      chip.addEventListener('click', (e)=> updateBalance(chip.dataset.currency));
     });
 
-    // action card placeholders
     document.querySelectorAll('.action-card').forEach(card=>{
       card.addEventListener('click', ()=> {
-        // hook: aquí puedes abrir modal / redirigir
         const id = card.id;
         if (id === 'sendAction') alert('Abrir modal Enviar');
-        if (id === 'receiveAction') alert('Abrir modal Recibir');
-        if (id === 'swapAction') alert('Abrir modal Swap');
-        if (id === 'historyAction') {
+        else if (id === 'receiveAction') alert('Abrir modal Recibir');
+        else if (id === 'swapAction') alert('Abrir modal Swap');
+        else if (id === 'historyAction') {
           document.querySelector('#transactionsList').scrollIntoView({behavior:'smooth'});
         }
       });
     });
 
-    // init
     createParticles(28);
     updateBalance('XLM');
     renderTransactions();
     initChart();
 
-    // populate wallet address & QR (example)
-    (function setWalletDemo(){
-      const addr = 'GABCDEF1234567890XYZSTELLARWALLETADDRESS';
-      document.getElementById('walletAddress').textContent = addr;
-      document.getElementById('qrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data='+encodeURIComponent(addr);
+    (function setWalletAddress(){
+      const publicKey = currentUser.stellarPublic || localStorage.getItem('wallet_public_' + username) || 'Conecta tu wallet en Wallet.html';
+      document.getElementById('walletAddress').textContent = publicKey;
+      document.getElementById('qrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data='+encodeURIComponent(publicKey);
     })();
-
   </script>
 </body>
 </html>

@@ -303,8 +303,7 @@
         }
 
         sessionStorage.setItem('currentUser', JSON.stringify(user));
-        // If wallet was connected manually during this session, associate it? 
-        // For now, respect the flow.
+        localStorage.setItem('currentUser', JSON.stringify(user));
         showToast(`Bienvenido ${user.username}`, 'success');
         setTimeout(() => window.location.href = "Inicio.html", 1000);
       } else {

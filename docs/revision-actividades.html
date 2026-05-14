@@ -139,6 +139,8 @@
                     style="background: rgba(255,255,255,0.1); color: white;">Aprobadas</button>
                 <button id="filterRejected" class="btn"
                     style="background: rgba(255,255,255,0.1); color: white;">Rechazadas</button>
+                <button id="filterCorrection" class="btn"
+                    style="background: rgba(255,255,255,0.1); color: white;">Necesita Corrección</button>
             </div>
         </div>
 
@@ -308,6 +310,7 @@
                 else if (currentFilter === 'pending' && status === 'pending') show = true;
                 else if (currentFilter === 'approved' && status === 'approved') show = true;
                 else if (currentFilter === 'rejected' && status === 'rejected') show = true;
+                else if (currentFilter === 'correction' && status === 'needs_correction') show = true;
 
                 card.style.display = show ? 'block' : 'none';
             });
@@ -447,8 +450,7 @@
             }
         }
 
-        // Filtros
-        ['All', 'Pending', 'Approved', 'Rejected'].forEach(filter => {
+        ['All', 'Pending', 'Approved', 'Rejected', 'Correction'].forEach(filter => {
             const id = `filter${filter}`;
             document.getElementById(id).addEventListener('click', () => {
                 currentFilter = filter.toLowerCase();

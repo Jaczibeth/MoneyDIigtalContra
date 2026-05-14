@@ -93,7 +93,7 @@
 
         (function init() {
             // Verificar sesión
-            const userStr = sessionStorage.getItem('currentUser');
+            const userStr = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
             if (!userStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
@@ -141,6 +141,7 @@
             document.getElementById('logoutBtn').addEventListener('click', (e) => {
                 e.preventDefault();
                 sessionStorage.removeItem('currentUser');
+                localStorage.removeItem('currentUser');
                 window.location.href = 'index.html';
             });
 

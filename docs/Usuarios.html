@@ -180,7 +180,7 @@
   <script>
     // Verificación de sesión
     (function () {
-      const currentUserStr = localStorage.getItem('currentUser');
+      const currentUserStr = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
       if (!currentUserStr) {
         alert('Por favor, inicia sesión para acceder a esta página.');
         window.location.href = 'index.html';
