@@ -416,8 +416,8 @@
         en blockchain Stellar.
     </footer>
 
+    <script src="js/api-client.js"></script>
     <script>
-        // Verificación de sesión y gestión de usuario
         (function () {
             const currentUserStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
 
@@ -431,14 +431,12 @@
             try {
                 currentUser = JSON.parse(currentUserStr);
             } catch (e) {
-                console.error('Error parseando usuario:', e);
                 sessionStorage.removeItem('currentUser');
                 localStorage.removeItem('currentUser');
                 window.location.href = 'index.html';
                 return;
             }
 
-            // Mostrar información del usuario
             const userInfo = document.getElementById('userInfo');
             const welcomeMessage = document.getElementById('welcomeMessage');
             const role = currentUser.role || 'estudiante';
@@ -447,7 +445,7 @@
             if (userInfo) {
                 let infoText = `👤 ${username} | ${role === 'docente' ? '👨‍🏫 Docente' : '🎓 Estudiante'}`;
                 if (currentUser.stellarPublic) {
-                    infoText += ` | 🔑 ${currentUser.stellarPublic.substring(0, 4)}...${currentUser.stellarPublic.substring(52)}`;
+                    infoText += ` | 🔑 ${currentUser.stellarPublic.substring(0, 4)}...${currentUser.stellarPublic.substring(Math.max(currentUser.stellarPublic.length - 4, 52))}`;
                 }
                 userInfo.textContent = infoText;
             }
@@ -460,13 +458,12 @@
                 }
             }
 
-            // Cargar scripts del sistema de actividades
+            // Cargar scripts
             const script1 = document.createElement('script');
             script1.src = 'js/activities-system.js';
             document.head.appendChild(script1);
 
-            script1.onload = () => {
-                // Mostrar dashboard según el rol
+            script1.onload = async () => {
                 if (role === 'docente') {
                     document.getElementById('studentDashboard').classList.add('hidden');
                     document.getElementById('teacherDashboard').classList.remove('hidden');
@@ -476,9 +473,7 @@
                     document.getElementById('teacherRewardsCard').classList.remove('hidden');
                     document.getElementById('studentHistoryCard').classList.add('hidden');
                     document.getElementById('teacherHistoryCard').classList.remove('hidden');
-
-                    // Cargar estadísticas del docente
-                    loadTeacherStats();
+                    await loadTeacherStats();
                 } else {
                     document.getElementById('studentDashboard').classList.remove('hidden');
                     document.getElementById('teacherDashboard').classList.add('hidden');
@@ -488,40 +483,52 @@
                     document.getElementById('teacherRewardsCard').classList.add('hidden');
                     document.getElementById('studentHistoryCard').classList.remove('hidden');
                     document.getElementById('teacherHistoryCard').classList.add('hidden');
-
-                    // Cargar estadísticas del estudiante
-                    loadStudentStats();
+                    await loadStudentStats();
                 }
             };
 
-            function loadStudentStats() {
-                if (typeof activitiesSystem === 'undefined') return;
-
-                const stats = activitiesSystem.getStudentStats(username);
-                document.getElementById('studentPendingActivities').textContent = stats.totalActivities - stats.approved;
-                document.getElementById('studentSubmittedActivities').textContent = stats.pendingReview + stats.needsCorrection;
-                document.getElementById('studentTokensBalance').textContent = stats.tokensBalance;
-                document.getElementById('studentApprovedActivities').textContent = stats.approved;
-
-                // Calcular progreso
-                const progress = stats.totalActivities > 0
-                    ? Math.round((stats.approved / stats.totalActivities) * 100)
-                    : 0;
-                document.getElementById('studentProgressPercent').textContent = progress + '%';
-                document.getElementById('studentProgressBar').style.width = progress + '%';
+            async function loadStudentStats() {
+                try {
+                    const stats = await apiClient.getStudentStats(username);
+                    document.getElementById('studentPendingActivities').textContent = stats.totalActivities - stats.approved;
+                    document.getElementById('studentSubmittedActivities').textContent = (stats.pendingReview || 0) + (stats.needsCorrection || 0);
+                    document.getElementById('studentTokensBalance').textContent = stats.tokensBalance;
+                    document.getElementById('studentApprovedActivities').textContent = stats.approved;
+                    const progress = stats.progress || (stats.totalActivities > 0 ? Math.round((stats.approved / stats.totalActivities) * 100) : 0);
+                    document.getElementById('studentProgressPercent').textContent = progress + '%';
+                    document.getElementById('studentProgressBar').style.width = progress + '%';
+                } catch (e) {
+                    if (typeof activitiesSystem !== 'undefined') {
+                        const stats = activitiesSystem.getStudentStats(username);
+                        document.getElementById('studentPendingActivities').textContent = stats.totalActivities - stats.approved;
+                        document.getElementById('studentSubmittedActivities').textContent = stats.pendingReview + stats.needsCorrection;
+                        document.getElementById('studentTokensBalance').textContent = stats.tokensBalance;
+                        document.getElementById('studentApprovedActivities').textContent = stats.approved;
+                        const progress = stats.totalActivities > 0 ? Math.round((stats.approved / stats.totalActivities) * 100) : 0;
+                        document.getElementById('studentProgressPercent').textContent = progress + '%';
+                        document.getElementById('studentProgressBar').style.width = progress + '%';
+                    }
+                }
             }
 
-            function loadTeacherStats() {
-                if (typeof activitiesSystem === 'undefined') return;
-
-                const stats = activitiesSystem.getTeacherStats(username);
-                document.getElementById('teacherActiveStudents').textContent = stats.totalStudents;
-                document.getElementById('teacherPendingReviews').textContent = stats.pendingReviews;
-                document.getElementById('teacherTokensAwarded').textContent = stats.totalTokensAwarded;
-                document.getElementById('teacherTotalActivities').textContent = stats.totalActivities;
+            async function loadTeacherStats() {
+                try {
+                    const stats = await apiClient.getTeacherStats(username);
+                    document.getElementById('teacherActiveStudents').textContent = stats.totalStudents;
+                    document.getElementById('teacherPendingReviews').textContent = stats.pendingReviews;
+                    document.getElementById('teacherTokensAwarded').textContent = stats.totalTokensAwarded;
+                    document.getElementById('teacherTotalActivities').textContent = stats.totalActivities;
+                } catch (e) {
+                    if (typeof activitiesSystem !== 'undefined') {
+                        const stats = activitiesSystem.getTeacherStats(username);
+                        document.getElementById('teacherActiveStudents').textContent = stats.totalStudents;
+                        document.getElementById('teacherPendingReviews').textContent = stats.pendingReviews;
+                        document.getElementById('teacherTokensAwarded').textContent = stats.totalTokensAwarded;
+                        document.getElementById('teacherTotalActivities').textContent = stats.totalActivities;
+                    }
+                }
             }
 
-            // Botón de cerrar sesión
             const logoutBtn = document.getElementById('logoutBtn');
             if (logoutBtn) {
                 logoutBtn.addEventListener('click', function (e) {
@@ -529,6 +536,7 @@
                     if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
                         sessionStorage.removeItem('currentUser');
                         localStorage.removeItem('currentUser');
+                        apiClient.clearToken();
                         window.location.href = 'index.html';
                     }
                 });

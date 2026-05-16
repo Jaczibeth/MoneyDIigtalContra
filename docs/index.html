@@ -114,6 +114,8 @@
     style="position: fixed; bottom: 20px; right: 20px; padding: 1rem 1.5rem; border-radius: 12px; background: white; color: black; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transform: translateY(100px); opacity: 0; transition: all 0.5s ease; width: 300px; z-index: 100;">
   </div>
 
+  <script src="js/api-client.js"></script>
+  <script src="js/activities-system.js"></script>
   <script>
     // --- UTILITIES ---
     function showToast(message, type = 'info') {
@@ -277,7 +279,7 @@
       try { return JSON.parse(localStorage.getItem('users') || '[]'); } catch (e) { return []; }
     }
 
-    // 5. Submit Login
+    // 5. Submit Login (con API backend + fallback localStorage)
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const userVal = document.getElementById('username').value.trim();
@@ -285,29 +287,51 @@
 
       if (!passVal) { showToast('Falta contraseña', 'error'); return; }
 
-      const users = loadUsers();
-      const hashed = await hashPassword(passVal);
-      const user = users.find(u => (u.username === userVal || u.email === userVal) && u.passwordHash === hashed);
+      try {
+        showToast('Iniciando sesión...', 'info');
 
-      if (user) {
-        // Intentar descifrar la clave secreta si existe
-        if (user.encryptedSecret && user.encSalt && user.encIv) {
-          try {
-            showToast('Desencriptando wallet...', 'info');
-            const decryptedSecret = await decryptSecret(user.encryptedSecret, passVal, user.encSalt, user.encIv);
-            user.stellarSecret = decryptedSecret;
-          } catch (decError) {
-            console.warn('Error descifrando wallet:', decError);
-            // No bloqueamos el login, pero no tendrá la wallet cargada automáticamente
+        // Intentar con API backend primero
+        let loginResult;
+        try {
+          loginResult = await apiClient.login(userVal, passVal);
+        } catch (apiErr) {
+          console.warn('API no disponible, usando localStorage:', apiErr.message);
+
+          // Fallback a localStorage
+          const users = loadUsers();
+          const hashed = await hashPassword(passVal);
+          const user = users.find(u => (u.username === userVal || u.email === userVal) && u.passwordHash === hashed);
+
+          if (!user) throw new Error('Credenciales incorrectas');
+
+          if (user.encryptedSecret && user.encSalt && user.encIv) {
+            try {
+              const decryptedSecret = await decryptSecret(user.encryptedSecret, passVal, user.encSalt, user.encIv);
+              user.stellarSecret = decryptedSecret;
+            } catch (decError) {
+              console.warn('Error descifrando wallet:', decError);
+            }
           }
+
+          loginResult = { user };
         }
+
+        const user = loginResult.user;
 
         sessionStorage.setItem('currentUser', JSON.stringify(user));
         localStorage.setItem('currentUser', JSON.stringify(user));
+
+        // Si hay wallet manual, asociarla al usuario
+        const stellarPublic = localStorage.getItem('stellarPublic');
+        if (stellarPublic && !user.stellarPublic) {
+          user.stellarPublic = stellarPublic;
+          localStorage.setItem('currentUser', JSON.stringify(user));
+        }
+
         showToast(`Bienvenido ${user.username}`, 'success');
         setTimeout(() => window.location.href = "Inicio.html", 1000);
-      } else {
-        showToast('Credenciales incorrectas', 'error');
+      } catch (error) {
+        showToast(error.message || 'Credenciales incorrectas', 'error');
       }
     });
 

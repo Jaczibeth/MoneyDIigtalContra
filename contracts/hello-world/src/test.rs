@@ -1,6 +1,6 @@
 #![cfg(test)]
 mod tests {
-    use soroban_sdk::{Env, String, Address, testutils::Address as _};
+    use soroban_sdk::{Env, Address, String, testutils::Address as _};
 
     use crate::{MoneyDigital, MoneyDigitalClient};
 
@@ -10,163 +10,196 @@ mod tests {
         env
     }
 
-    fn str(env: &Env, s: &str) -> String {
-        String::from_str(env, s)
+    fn addr(env: &Env) -> Address {
+        Address::generate(env)
     }
 
     #[test]
     fn test_initialize() {
         let env = create_env();
-        let admin_addr = Address::generate(&env);
-        
+        let admin = addr(&env);
+
         let contract_id = env.register(MoneyDigital, ());
         let client = MoneyDigitalClient::new(&env, &contract_id);
-        client.initialize(&admin_addr);
-        
-        let stored_admin = client.get_admin();
-        assert_eq!(stored_admin, admin_addr);
+        client.initialize(&admin);
+
+        assert_eq!(client.get_admin(), admin);
     }
 
     #[test]
     fn test_register_wallet() {
         let env = create_env();
-        let admin_addr = Address::generate(&env);
-        
+        let admin = addr(&env);
+
         let contract_id = env.register(MoneyDigital, ());
         let client = MoneyDigitalClient::new(&env, &contract_id);
-        client.initialize(&admin_addr);
+        client.initialize(&admin);
 
-        let wallet = Address::generate(&env);
-        let result = client.register_wallet(&wallet.to_string(), &str(&env, "Test"), &str(&env, "test@test.com"));
-        assert!(result);
+        let wallet = addr(&env);
+        assert!(client.register_wallet(&wallet));
     }
 
     #[test]
     fn test_get_balance() {
         let env = create_env();
-        let admin_addr = Address::generate(&env);
-        
+        let admin = addr(&env);
+
         let contract_id = env.register(MoneyDigital, ());
         let client = MoneyDigitalClient::new(&env, &contract_id);
-        client.initialize(&admin_addr);
+        client.initialize(&admin);
 
-        let wallet = Address::generate(&env);
-        let balance = client.get_balance(&wallet.to_string());
-        assert_eq!(balance, str(&env, "0"));
+        let wallet = addr(&env);
+        client.register_wallet(&wallet);
+        assert_eq!(client.get_balance(&wallet), 0);
     }
 
     #[test]
     fn test_mint() {
         let env = create_env();
-        let admin_addr = Address::generate(&env);
-        
+        let admin = addr(&env);
+
         let contract_id = env.register(MoneyDigital, ());
         let client = MoneyDigitalClient::new(&env, &contract_id);
-        client.initialize(&admin_addr);
+        client.initialize(&admin);
 
-        let wallet = Address::generate(&env);
-        let result = client.mint(&admin_addr, &wallet.to_string(), &str(&env, "100"));
-        assert!(result);
-        
-        let balance = client.get_balance(&wallet.to_string());
-        assert_eq!(balance, str(&env, "100"));
+        let wallet = addr(&env);
+        assert!(client.mint(&admin, &wallet, &100));
+        assert_eq!(client.get_balance(&wallet), 100);
     }
 
     #[test]
     fn test_transfer() {
         let env = create_env();
-        let admin_addr = Address::generate(&env);
-        
+        let admin = addr(&env);
+
         let contract_id = env.register(MoneyDigital, ());
         let client = MoneyDigitalClient::new(&env, &contract_id);
-        client.initialize(&admin_addr);
+        client.initialize(&admin);
 
-        let wallet_a = Address::generate(&env);
-        let wallet_b = Address::generate(&env);
-        
-        client.register_wallet(&wallet_a.to_string(), &str(&env, "A"), &str(&env, "a@test.com"));
-        client.register_wallet(&wallet_b.to_string(), &str(&env, "B"), &str(&env, "b@test.com"));
-        client.mint(&admin_addr, &wallet_a.to_string(), &str(&env, "100"));
+        let from = addr(&env);
+        let to = addr(&env);
 
-        let result = client.transfer(&wallet_a.to_string(), &wallet_b.to_string(), &str(&env, "50"));
-        assert!(result);
-        
-        let balance_a = client.get_balance(&wallet_a.to_string());
-        let balance_b = client.get_balance(&wallet_b.to_string());
-        assert_eq!(balance_a, str(&env, "50"));
-        assert_eq!(balance_b, str(&env, "50"));
+        client.register_wallet(&from);
+        client.register_wallet(&to);
+        client.mint(&admin, &from, &100);
+
+        assert!(client.transfer(&from, &to, &50));
+        assert_eq!(client.get_balance(&from), 50);
+        assert_eq!(client.get_balance(&to), 50);
     }
 
     #[test]
     fn test_burn() {
         let env = create_env();
-        let admin_addr = Address::generate(&env);
-        
+        let admin = addr(&env);
+
         let contract_id = env.register(MoneyDigital, ());
         let client = MoneyDigitalClient::new(&env, &contract_id);
-        client.initialize(&admin_addr);
+        client.initialize(&admin);
 
-        let wallet = Address::generate(&env);
-        client.mint(&admin_addr, &wallet.to_string(), &str(&env, "100"));
+        let wallet = addr(&env);
+        client.mint(&admin, &wallet, &100);
 
-        let result = client.burn(&admin_addr, &wallet.to_string(), &str(&env, "30"));
-        assert!(result);
-        
-        let balance = client.get_balance(&wallet.to_string());
-        assert_eq!(balance, str(&env, "70"));
+        assert!(client.burn(&admin, &wallet, &30));
+        assert_eq!(client.get_balance(&wallet), 70);
     }
 
     #[test]
     fn test_total_supply() {
         let env = create_env();
-        let admin_addr = Address::generate(&env);
-        
+        let admin = addr(&env);
+
         let contract_id = env.register(MoneyDigital, ());
         let client = MoneyDigitalClient::new(&env, &contract_id);
-        client.initialize(&admin_addr);
+        client.initialize(&admin);
 
-        let wallet_a = Address::generate(&env);
-        let wallet_b = Address::generate(&env);
-        client.mint(&admin_addr, &wallet_a.to_string(), &str(&env, "100"));
-        client.mint(&admin_addr, &wallet_b.to_string(), &str(&env, "50"));
+        let wallet_a = addr(&env);
+        let wallet_b = addr(&env);
 
-        let supply = client.get_total_supply();
-        assert_eq!(supply, str(&env, "150"));
+        client.mint(&admin, &wallet_a, &100);
+        client.mint(&admin, &wallet_b, &50);
+
+        assert_eq!(client.get_total_supply(), 150);
     }
 
     #[test]
     fn test_transfer_insufficient_balance() {
         let env = create_env();
-        let admin_addr = Address::generate(&env);
-        
+        let admin = addr(&env);
+
         let contract_id = env.register(MoneyDigital, ());
         let client = MoneyDigitalClient::new(&env, &contract_id);
-        client.initialize(&admin_addr);
+        client.initialize(&admin);
 
-        let wallet_a = Address::generate(&env);
-        let wallet_b = Address::generate(&env);
-        
-        client.register_wallet(&wallet_a.to_string(), &str(&env, "A"), &str(&env, "a@test.com"));
-        client.register_wallet(&wallet_b.to_string(), &str(&env, "B"), &str(&env, "b@test.com"));
-        client.mint(&admin_addr, &wallet_a.to_string(), &str(&env, "10"));
+        let from = addr(&env);
+        let to = addr(&env);
 
-        let result = client.transfer(&wallet_a.to_string(), &wallet_b.to_string(), &str(&env, "100"));
-        assert!(!result);
+        client.register_wallet(&from);
+        client.register_wallet(&to);
+        client.mint(&admin, &from, &10);
+
+        assert!(!client.transfer(&from, &to, &100));
     }
 
     #[test]
     fn test_mint_unauthorized() {
         let env = create_env();
-        let admin_addr = Address::generate(&env);
-        
+        let admin = addr(&env);
+
         let contract_id = env.register(MoneyDigital, ());
         let client = MoneyDigitalClient::new(&env, &contract_id);
-        client.initialize(&admin_addr);
+        client.initialize(&admin);
 
-        let fake_admin = Address::generate(&env);
-        let wallet = Address::generate(&env);
-        
-        let result = client.mint(&fake_admin, &wallet.to_string(), &str(&env, "100"));
-        assert!(!result);
+        let fake_admin = addr(&env);
+        let wallet = addr(&env);
+
+        assert!(!client.mint(&fake_admin, &wallet, &100));
+    }
+
+    #[test]
+    fn test_store_and_verify_certificate() {
+        let env = create_env();
+        let admin = addr(&env);
+
+        let contract_id = env.register(MoneyDigital, ());
+        let client = MoneyDigitalClient::new(&env, &contract_id);
+        client.initialize(&admin);
+
+        let wallet = addr(&env);
+        client.register_wallet(&wallet);
+
+        let hash = String::from_str(&env, "abc123def456hash");
+        assert!(client.store_certificate_hash(&wallet, &hash));
+
+        assert_eq!(client.get_certificate_count(&wallet), 1);
+        assert!(client.verify_certificate_hash(&wallet, &1, &hash));
+        assert!(!client.verify_certificate_hash(&wallet, &1, &String::from_str(&env, "fake")));
+    }
+
+    #[test]
+    fn test_wallet_not_registered_by_default() {
+        let env = create_env();
+        let admin = addr(&env);
+
+        let contract_id = env.register(MoneyDigital, ());
+        let client = MoneyDigitalClient::new(&env, &contract_id);
+        client.initialize(&admin);
+
+        let wallet = addr(&env);
+        assert!(!client.is_wallet_registered(&wallet));
+    }
+
+    #[test]
+    fn test_double_register_fails() {
+        let env = create_env();
+        let admin = addr(&env);
+
+        let contract_id = env.register(MoneyDigital, ());
+        let client = MoneyDigitalClient::new(&env, &contract_id);
+        client.initialize(&admin);
+
+        let wallet = addr(&env);
+        assert!(client.register_wallet(&wallet));
+        assert!(!client.register_wallet(&wallet));
     }
 }
