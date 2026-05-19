@@ -7,12 +7,34 @@ const bcrypt = require('bcryptjs');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 
+// WebAuthn (Passkeys / biometría)
+const {
+  generateRegistrationOptions,
+  verifyRegistrationResponse,
+  generateAuthenticationOptions,
+  verifyAuthenticationResponse,
+} = require('@simplewebauthn/server');
+const { isoBase64URL, isoUint8Array } = require('@simplewebauthn/server/helpers');
+
+// Stellar Soroban SDK
+const StellarSdk = require('@stellar/stellar-sdk');
+
 // SQLite (sql.js)
 const initSqlJs = require('sql.js');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 const JWT_SECRET = process.env.JWT_SECRET || 'money-digital-jwt-secret-2024';
+const JWT_WEBAUTHN_SECRET = process.env.JWT_WEBAUTHN_SECRET || 'money-digital-webauthn-secret-2024';
+
+// Configuración WebAuthn (Passkeys)
+const RP_NAME = 'Money Digital - GROUP JAD';
+const RP_ID = process.env.RP_ID || 'localhost';
+const ORIGIN = process.env.ORIGIN || `http://localhost:${PORT}`;
+
+// Store temporal de challenges (en producción usar Redis/DB)
+const challengeStore = new Map();
+
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_PATH = path.join(DATA_DIR, 'database.sqlite');
@@ -141,6 +163,31 @@ async function initDB() {
     FOREIGN KEY (username) REFERENCES users(username)
   )`);
 
+  // Tabla para credenciales WebAuthn (Passkeys)
+  db.run(`CREATE TABLE IF NOT EXISTS passkeys (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    credential_id TEXT NOT NULL UNIQUE,
+    public_key TEXT NOT NULL,
+    counter INTEGER NOT NULL DEFAULT 0,
+    transports TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (username) REFERENCES users(username)
+  )`);
+
+  // Tabla para el contador blockchain
+  db.run(`CREATE TABLE IF NOT EXISTS counter_state (
+    id TEXT PRIMARY KEY,
+    value INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  // Asegurar que existe la fila del contador global
+  const counterRow = db.exec(`SELECT id FROM counter_state WHERE id = 'global'`);
+  if (!counterRow.length || !counterRow[0].values.length) {
+    db.run(`INSERT INTO counter_state (id, value, updated_at) VALUES ('global', 0, datetime('now'))`);
+  }
+
   saveDB();
   console.log('Base de datos inicializada correctamente');
 }
@@ -175,6 +222,311 @@ function adminOnly(req, res, next) {
   }
   next();
 }
+
+// Middleware para autenticación biométrica (Passkeys)
+function biometricAuthMiddleware(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token biométrico requerido' });
+  }
+  try {
+    const token = header.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_WEBAUTHN_SECRET);
+    if (decoded.authMethod !== 'passkey') {
+      return res.status(401).json({ error: 'Token no es biométrico' });
+    }
+    req.biometricUser = decoded;
+    next();
+  } catch (e) {
+    return res.status(401).json({ error: 'Token biométrico inválido o expirado' });
+  }
+}
+
+// ========================
+// WEBAUTHN (PASSKEYS) ROUTES
+// ========================
+
+// 1. Iniciar registro biométrico
+app.post('/api/auth/passkey/register/begin', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: 'Username requerido' });
+
+    // Verificar que el usuario existe en el sistema
+    const userResult = db.exec(`SELECT id, username FROM users WHERE username = ?`, [username]);
+    if (!userResult.length || !userResult[0].values.length) {
+      return res.status(404).json({ error: 'Usuario no encontrado. Regístrate primero en el sistema.' });
+    }
+
+    // Verificar si ya tiene una passkey registrada
+    const existingKeys = db.exec(`SELECT credential_id, public_key, counter, transports FROM passkeys WHERE username = ?`, [username]);
+    const existingCredentials = existingKeys.length ? existingKeys[0].values.map(row => ({
+      id: row[0], publicKey: row[1], counter: parseInt(row[2] || 0), transports: row[3] ? JSON.parse(row[3]) : []
+    })) : [];
+
+    const options = await generateRegistrationOptions({
+      rpName: RP_NAME,
+      rpID: RP_ID,
+      userName: username,
+      userDisplayName: username,
+      attestationType: 'none',
+      excludeCredentials: existingCredentials.map(cred => ({
+        id: isoBase64URL.toBuffer(cred.id),
+        type: 'public-key',
+        transports: cred.transports,
+      })),
+    });
+
+    // Guardar challenge en store temporal
+    challengeStore.set(`register:${username}`, {
+      challenge: options.challenge,
+      username,
+      expiresAt: Date.now() + 60000,
+    });
+
+    res.json(options);
+  } catch (e) {
+    console.error('Error en register/begin:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 2. Completar registro biométrico
+app.post('/api/auth/passkey/register/complete', async (req, res) => {
+  try {
+    const { username, credential } = req.body;
+    if (!username || !credential) return res.status(400).json({ error: 'Username y credential requeridos' });
+
+    const storedData = challengeStore.get(`register:${username}`);
+    if (!storedData) return res.status(400).json({ error: 'Inicia el registro primero (/register/begin)' });
+
+    if (Date.now() > storedData.expiresAt) {
+      challengeStore.delete(`register:${username}`);
+      return res.status(400).json({ error: 'Challenge expirado. Intenta de nuevo.' });
+    }
+
+    const verification = await verifyRegistrationResponse({
+      response: credential,
+      expectedChallenge: storedData.challenge,
+      expectedOrigin: ORIGIN,
+      expectedRPID: RP_ID,
+    });
+
+    if (!verification.verified || !verification.registrationInfo) {
+      return res.status(400).json({ error: 'Verificación biométrica fallida' });
+    }
+
+    const { credentialPublicKey, credentialID, counter } = verification.registrationInfo;
+
+    // Guardar credencial en DB
+    const id = uuidv4();
+    const credentialIdBase64 = isoBase64URL.fromBuffer(credentialID);
+    const publicKeyBase64 = isoBase64URL.fromBuffer(credentialPublicKey);
+    const transports = JSON.stringify(credential.response?.transports || []);
+
+    db.run(`INSERT INTO passkeys (id, username, credential_id, public_key, counter, transports) VALUES (?, ?, ?, ?, ?, ?)`,
+      [id, username, credentialIdBase64, publicKeyBase64, counter, transports]);
+    saveDB();
+
+    challengeStore.delete(`register:${username}`);
+
+    // Emitir token JWT biométrico
+    const token = jwt.sign(
+      { id: id, username, authMethod: 'passkey', credentialId: credentialIdBase64 },
+      JWT_WEBAUTHN_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({ verified: true, token, walletId: credentialIdBase64.substring(0, 12) + '...' });
+  } catch (e) {
+    console.error('Error en register/complete:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 3. Iniciar login biométrico
+app.post('/api/auth/passkey/login/begin', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: 'Username requerido' });
+
+    // Buscar credenciales del usuario
+    const keyResult = db.exec(`SELECT credential_id, public_key, counter, transports FROM passkeys WHERE username = ?`, [username]);
+    if (!keyResult.length || !keyResult[0].values.length) {
+      return res.status(404).json({ error: 'No hay passkey registrada para este usuario. Regístrate primero.' });
+    }
+
+    const credentials = keyResult[0].values.map(row => ({
+      id: row[0],
+      publicKey: row[1],
+      counter: parseInt(row[2] || 0),
+      transports: row[3] ? JSON.parse(row[3]) : [],
+    }));
+
+    const options = await generateAuthenticationOptions({
+      rpID: RP_ID,
+      allowCredentials: credentials.map(cred => ({
+        id: isoBase64URL.toBuffer(cred.id),
+        type: 'public-key',
+        transports: cred.transports,
+      })),
+      userVerification: 'preferred',
+    });
+
+    challengeStore.set(`login:${username}`, {
+      challenge: options.challenge,
+      username,
+      expiresAt: Date.now() + 60000,
+    });
+
+    res.json(options);
+  } catch (e) {
+    console.error('Error en login/begin:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 4. Completar login biométrico
+app.post('/api/auth/passkey/login/complete', async (req, res) => {
+  try {
+    const { username, credential } = req.body;
+    if (!username || !credential) return res.status(400).json({ error: 'Username y credential requeridos' });
+
+    const storedData = challengeStore.get(`login:${username}`);
+    if (!storedData) return res.status(400).json({ error: 'Inicia sesión primero (/login/begin)' });
+
+    if (Date.now() > storedData.expiresAt) {
+      challengeStore.delete(`login:${username}`);
+      return res.status(400).json({ error: 'Challenge expirado. Intenta de nuevo.' });
+    }
+
+    // Buscar la credencial en DB por credential ID
+    const credId = credential.id;
+    const credResult = db.exec(`SELECT * FROM passkeys WHERE credential_id = ?`, [credId]);
+    if (!credResult.length || !credResult[0].values.length) {
+      return res.status(404).json({ error: 'Credencial no encontrada' });
+    }
+
+    const cols = credResult[0].columns;
+    const row = credResult[0].values[0];
+    const idx = (name) => cols.indexOf(name);
+    const storedCredential = {
+      id: row[idx('credential_id')],
+      publicKey: row[idx('public_key')],
+      counter: parseInt(row[idx('counter')] || 0),
+      transports: row[idx('transports')] ? JSON.parse(row[idx('transports')]) : [],
+    };
+
+    const verification = await verifyAuthenticationResponse({
+      response: credential,
+      expectedChallenge: storedData.challenge,
+      expectedOrigin: ORIGIN,
+      expectedRPID: RP_ID,
+      credential: {
+        id: storedCredential.id,
+        publicKey: isoBase64URL.toBuffer(storedCredential.publicKey),
+        counter: storedCredential.counter,
+        transports: storedCredential.transports,
+      },
+    });
+
+    if (!verification.verified) {
+      return res.status(400).json({ error: 'Verificación biométrica fallida' });
+    }
+
+    // Actualizar contador de la credencial
+    const newCounter = verification.authenticationInfo?.newCounter || storedCredential.counter;
+    db.run(`UPDATE passkeys SET counter = ? WHERE credential_id = ?`, [newCounter, credId]);
+    saveDB();
+
+    challengeStore.delete(`login:${username}`);
+
+    // Obtener datos del usuario
+    const userResult = db.exec(`SELECT id, username, role FROM users WHERE username = ?`, [username]);
+
+    // Emitir token JWT biométrico
+    const token = jwt.sign(
+      { id: userResult[0].values[0][0], username, role: userResult[0].values[0][2], authMethod: 'passkey', credentialId: credId },
+      JWT_WEBAUTHN_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.json({ verified: true, token, walletId: credId.substring(0, 12) + '...' });
+  } catch (e) {
+    console.error('Error en login/complete:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 5. Verificar estado del token biométrico
+app.get('/api/auth/passkey/status', biometricAuthMiddleware, (req, res) => {
+  res.json({ valid: true, username: req.biometricUser.username, walletId: req.biometricUser.credentialId?.substring(0, 12) + '...' });
+});
+
+// 6. Cerrar sesión biométrica
+app.post('/api/auth/passkey/logout', biometricAuthMiddleware, (req, res) => {
+  res.json({ success: true, message: 'Sesión biométrica cerrada' });
+});
+
+// ========================
+// COUNTER (CONTADOR) ROUTES
+// ========================
+
+// Obtener valor del contador (público)
+app.get('/api/counter', (req, res) => {
+  try {
+    const result = db.exec(`SELECT value FROM counter_state WHERE id = 'global'`);
+    const value = (result.length && result[0].values.length) ? parseInt(result[0].values[0][0]) : 0;
+    res.json({ value, success: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Incrementar contador (requiere auth biométrico)
+app.post('/api/counter/increment', biometricAuthMiddleware, async (req, res) => {
+  try {
+    const result = db.exec(`SELECT value FROM counter_state WHERE id = 'global'`);
+    let value = (result.length && result[0].values.length) ? parseInt(result[0].values[0][0]) : 0;
+    value += 1;
+    db.run(`UPDATE counter_state SET value = ?, updated_at = datetime('now') WHERE id = 'global'`);
+    saveDB();
+
+    // Opcional: registrar en blockchain Soroban
+    let txHash = null;
+
+    res.json({ value, success: true, txHash, username: req.biometricUser.username });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Decrementar contador (requiere auth biométrico)
+app.post('/api/counter/decrement', biometricAuthMiddleware, async (req, res) => {
+  try {
+    const result = db.exec(`SELECT value FROM counter_state WHERE id = 'global'`);
+    let value = (result.length && result[0].values.length) ? parseInt(result[0].values[0][0]) : 0;
+    value = Math.max(0, value - 1);
+    db.run(`UPDATE counter_state SET value = ?, updated_at = datetime('now') WHERE id = 'global'`);
+    saveDB();
+
+    res.json({ value, success: true, username: req.biometricUser.username });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Resetear contador (requiere auth biométrico)
+app.post('/api/counter/reset', biometricAuthMiddleware, async (req, res) => {
+  try {
+    db.run(`UPDATE counter_state SET value = 0, updated_at = datetime('now') WHERE id = 'global'`);
+    saveDB();
+
+    res.json({ value: 0, success: true, username: req.biometricUser.username });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // ========================
 // API ROUTES
@@ -589,6 +941,9 @@ async function start() {
     console.log(`\n🚀 Servidor Money Digital iniciado`);
     console.log(`📂 Frontend: http://localhost:${PORT}`);
     console.log(`🔌 API: http://localhost:${PORT}/api`);
+    console.log(`🔐 Passkeys (WebAuthn): http://localhost:${PORT}/api/auth/passkey`);
+    console.log(`🔢 Contador: http://localhost:${PORT}/api/counter`);
+    console.log(`🆕 DApp Biometrica: http://localhost:${PORT}/contador.html`);
     console.log(`📁 Archivos: ${UPLOADS_DIR}`);
     console.log(`Presiona Ctrl+C para detener\n`);
   });
