@@ -5,152 +5,279 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Actividades Extracurriculares - Money Digital</title>
-    <!-- Tailwind -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <!-- Fonts -->
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
-    <!-- Global Styles -->
-    <link href="css/main.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-dark: rgba(255, 255, 255, 0.06);
+            --border-dark: rgba(255, 255, 255, 0.12);
+            --neon-cyan: #00eaff;
+            --neon-purple: #b400ff;
+            --text-light: #e5e5e5;
+        }
+        body {
+            margin: 0;
+            background: var(--bg-dark);
+            font-family: 'Inter', sans-serif;
+            color: var(--text-light);
+            min-height: 100vh;
+        }
+        header {
+            background: rgba(255, 255, 255, 0.05);
+            border-bottom: 1px solid var(--border-dark);
+            padding: 20px 40px;
+            backdrop-filter: blur(20px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+        nav a {
+            color: #bbb;
+            padding: 10px 18px;
+            border-radius: 10px;
+            transition: 0.3s;
+            font-weight: 500;
+            text-decoration: none;
+        }
+        nav a:hover, nav a.active {
+            background: rgba(0, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            box-shadow: 0 0 10px var(--neon-cyan);
+        }
+        .card {
+            background: var(--card-dark);
+            border: 1px solid var(--border-dark);
+            border-radius: 18px;
+            backdrop-filter: blur(12px);
+            padding: 24px;
+            transition: 0.3s;
+        }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.1);
+        }
+        .btn {
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+            color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+        }
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
   <script src="js/api-client.js"></script>
 </head>
 
 <body>
-
-    <header>
+    <header class="flex justify-between items-center">
         <h1>Money Digital - GROUP JAD</h1>
-        <nav>
+        <nav class="flex gap-6">
             <a href="Inicio.html">🏠 Inicio</a>
             <a href="cursos.html" class="active">🎯 Actividades</a>
             <a href="niveles.html">📊 Niveles</a>
-            <a href="materias.html">📖 Materias</a>
+            <a href="Moneda.html">🪙 Tokens</a>
             <a href="certificado.html">🏆 Certificados</a>
             <a href="Usuarios.html">👥 Comunidad</a>
             <a href="Wallet.html">💎 Wallet</a>
         </nav>
     </header>
 
-    <main class="main-container">
-
-        <div class="glass-card mb-8 text-center">
-            <h2 class="card-title mb-4">🎯 Actividades Disponibles</h2>
-            <p class="card-description">Explora las actividades publicadas por tus docentes. Participa, sube tus
-                evidencias y gana tokens.</p>
-
+    <div class="max-w-6xl mx-auto mt-12 px-6 pb-12">
+        <div class="card text-center mb-10">
+            <h2 class="text-3xl font-bold mb-4" style="background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple)); -webkit-background-clip: text; color: transparent;">
+                🎯 Actividades Disponibles
+            </h2>
+            <p class="text-gray-400">Explora las actividades publicadas por tus docentes. Cada actividad incluye su descripción, tokens que otorga y fecha límite.</p>
             <div class="flex justify-center mt-6">
-                <input type="text" id="searchInput" class="form-input" placeholder="Buscar actividad..."
-                    style="max-width: 400px; text-align: center;">
+                <input type="text" id="searchInput" class="form-input" placeholder="Buscar actividad..." style="max-width: 400px; text-align: center; padding: 12px; border-radius: 10px; border: 1px solid var(--border-dark); background: rgba(255,255,255,0.05); color: var(--text-light); width: 100%;">
             </div>
         </div>
 
         <div id="activitiesGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <!-- Las actividades se cargarán aquí -->
-            <div class="col-span-full text-center py-12 text-gray-400">
-                Cargando actividades...
+            <div class="card col-span-full text-center py-12">
+                <p class="text-gray-400">Cargando actividades...</p>
             </div>
         </div>
+    </div>
 
-    </main>
+    <!-- Modal de detalles de actividad -->
+    <div id="activityModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4">
+        <div class="card max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div id="modalContent">
+                <h3 class="text-2xl font-bold mb-4" id="modalTitle"></h3>
+                <p class="text-gray-400 mb-6" id="modalDescription"></p>
+                <div class="grid grid-cols-2 gap-4 mb-6 text-sm">
+                    <div class="p-4 rounded-lg" style="background: rgba(255,255,255,0.05);">
+                        <span class="text-gray-500">Tokens</span>
+                        <p class="text-xl font-bold text-neon-cyan" id="modalTokens">0</p>
+                    </div>
+                    <div class="p-4 rounded-lg" style="background: rgba(255,255,255,0.05);">
+                        <span class="text-gray-500">Vence</span>
+                        <p class="text-xl font-bold" id="modalDeadline">-</p>
+                    </div>
+                </div>
+                <div class="p-4 rounded-lg mb-6" style="background: rgba(255,255,255,0.05);">
+                    <span class="text-gray-500">Instrucciones</span>
+                    <p class="mt-2 text-sm" id="modalInstructions">Sin instrucciones adicionales.</p>
+                </div>
+                <div class="p-4 rounded-lg mb-6" style="background: rgba(255,255,255,0.05);">
+                    <span class="text-gray-500">Docente</span>
+                    <p class="mt-1 font-semibold" id="modalTeacher">-</p>
+                </div>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="closeActivityModal()" class="btn btn-secondary flex-1">Cerrar</button>
+            </div>
+        </div>
+    </div>
 
-    <footer>
-        © 2025 Money Digital - GROUP JAD — Dinero Inteligente, Futuro Brillante
-    </footer>
-
-    <!-- Scripts -->
     <script src="js/activities-system.js"></script>
     <script>
         (function () {
-            // Verificar sesión
             const userStr = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
             if (!userStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
                 return;
             }
-            const currentUser = JSON.parse(userStr);
-
-            // Cargar actividades
             loadActivities();
-
-            // Buscador
-            document.getElementById('searchInput').addEventListener('input', (e) => {
-                const term = e.target.value.toLowerCase();
-                filterActivities(term);
-            });
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', (e) => {
+                    filterActivities(e.target.value.toLowerCase());
+                });
+            }
         })();
 
         function loadActivities() {
-            if (typeof activitiesSystem === 'undefined') {
-                setTimeout(loadActivities, 100);
-                return;
-            }
+            try {
+                if (typeof activitiesSystem === 'undefined') {
+                    setTimeout(loadActivities, 200);
+                    return;
+                }
 
-            const activities = activitiesSystem.getActivities().filter(a => a.status === 'active');
-            const grid = document.getElementById('activitiesGrid');
+                const activities = activitiesSystem.getActivities().filter(a => a.status === 'active');
+                const grid = document.getElementById('activitiesGrid');
+                if (!grid) return;
 
-            if (activities.length === 0) {
-                grid.innerHTML = `
-                    <div class="glass-card col-span-full text-center py-12">
-                        <div class="card-icon mx-auto mb-4">📭</div>
-                        <h3 class="text-xl font-bold mb-2">No hay actividades disponibles</h3>
-                        <p class="text-gray-400">Tus docentes aún no han publicado actividades activas.</p>
-                    </div>
-                `;
-                return;
-            }
+                if (activities.length === 0) {
+                    grid.innerHTML = `
+                        <div class="card col-span-full text-center py-12">
+                            <div class="text-6xl mb-6">📭</div>
+                            <h3 class="text-2xl font-bold mb-3">No hay actividades disponibles</h3>
+                            <p class="text-gray-400">Tus docentes aún no han publicado actividades activas. Vuelve más tarde.</p>
+                        </div>
+                    `;
+                    return;
+                }
 
-            // Imágenes aleatorias para las tarjetas (placeholders temáticos)
-            const images = [
-                'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80', // Coding
-                'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=600&q=80', // Education
-                'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=600&q=80', // Work
-                'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=600&q=80', // Team
-                'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=600&q=80', // Graphic
-                'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80'  // Tech
-            ];
+                const images = [
+                    'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=600&q=80',
+                    'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=600&q=80',
+                    'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=600&q=80',
+                    'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=600&q=80',
+                    'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=600&q=80',
+                    'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=600&q=80'
+                ];
 
-            grid.innerHTML = activities.map((activity, index) => {
-                // Usar hash del ID para seleccionar imagen consistente
-                const imgIndex = activity.id.charCodeAt(activity.id.length - 1) % images.length;
-                const image = images[imgIndex];
-                const deadline = new Date(activity.deadline).toLocaleDateString();
+                grid.innerHTML = activities.map(activity => {
+                    const imgIndex = activity.id.charCodeAt(activity.id.length - 1) % images.length;
+                    const deadline = new Date(activity.deadline).toLocaleDateString('es-MX');
+                    const isOverdue = new Date(activity.deadline) < new Date();
 
-                return `
-                    <div class="glass-card flex flex-col h-full activity-item">
-                        <div class="h-48 rounded-xl bg-gray-800 mb-4 overflow-hidden relative">
-                            <img src="${image}" class="w-full h-full object-cover relative z-0 opacity-80 hover:scale-110 transition-transform duration-500">
-                            <div class="absolute top-2 right-2 bg-black bg-opacity-60 text-neon-cyan px-2 py-1 rounded-lg text-xs font-bold border border-neon-cyan backdrop-filter blur-sm z-10">
-                                ${activity.tokens} Tokens
+                    return `
+                        <div class="card flex flex-col h-full activity-item">
+                            <div class="h-44 rounded-xl overflow-hidden relative mb-4" style="background: rgba(255,255,255,0.03);">
+                                <img src="${images[imgIndex]}" class="w-full h-full object-cover opacity-80 hover:scale-110 transition-transform duration-500" loading="lazy" alt="Actividad">
+                                <div class="absolute top-3 right-3 px-3 py-1 rounded-lg text-xs font-bold" style="background: rgba(0,0,0,0.7); color: var(--neon-cyan); border: 1px solid var(--neon-cyan);">
+                                    ${activity.tokens} Tokens
+                                </div>
                             </div>
+                            <h3 class="text-xl font-bold mb-2">${escapeHtml(activity.title)}</h3>
+                            <p class="text-gray-400 text-sm flex-grow mb-4">${escapeHtml(activity.description)}</p>
+                            <div class="text-sm text-gray-500 mb-4">
+                                <p>📅 ${isOverdue ? 'Vencida' : 'Vence: ' + deadline}</p>
+                                <p>👨‍🏫 ${activity.createdBy || 'Docente'}</p>
+                            </div>
+                            <button onclick="showActivityDetail('${activity.id}')" class="btn btn-primary mt-auto w-full">
+                                Ver Detalles
+                            </button>
                         </div>
-                        
-                        <h3 class="card-title text-xl mb-2">${escapeHtml(activity.title)}</h3>
-                        <p class="card-description flex-grow line-clamp-3">${escapeHtml(activity.description)}</p>
-                        
-                        <div class="text-sm text-gray-400 mb-4">
-                            <p>📅 Vence: ${deadline}</p>
-                            <p>👨‍🏫 Docente: ${activity.createdBy || 'Desconocido'}</p>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Error cargando actividades:', e);
+                const grid = document.getElementById('activitiesGrid');
+                if (grid) {
+                    grid.innerHTML = `
+                        <div class="card col-span-full text-center py-12">
+                            <div class="text-6xl mb-6">⚠️</div>
+                            <h3 class="text-2xl font-bold mb-3">Error al cargar</h3>
+                            <p class="text-gray-400 mb-6">Ocurrió un error. Recarga la página.</p>
+                            <button onclick="location.reload()" class="btn btn-primary">Recargar</button>
                         </div>
+                    `;
+                }
+            }
+        }
 
-                        <a href="actividades-estudiante.html" class="card-action mt-auto">
-                            Ver Detalles / Participar
-                        </a>
-                    </div>
-                `;
-            }).join('');
+        function showActivityDetail(activityId) {
+            const activity = activitiesSystem.getActivityById(activityId);
+            if (!activity) {
+                alert('Actividad no encontrada');
+                return;
+            }
+            document.getElementById('modalTitle').textContent = activity.title;
+            document.getElementById('modalDescription').textContent = activity.description;
+            document.getElementById('modalTokens').textContent = activity.tokens + ' tokens';
+            document.getElementById('modalDeadline').textContent = new Date(activity.deadline).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('modalInstructions').textContent = activity.instructions || 'Realiza la actividad y sube la evidencia correspondiente.';
+            document.getElementById('modalTeacher').textContent = activity.createdBy || 'Docente asignado';
+            document.getElementById('activityModal').classList.remove('hidden');
+        }
+
+        function closeActivityModal() {
+            document.getElementById('activityModal').classList.add('hidden');
         }
 
         function filterActivities(term) {
             const items = document.querySelectorAll('.activity-item');
             items.forEach(item => {
-                const title = item.querySelector('.card-title').textContent.toLowerCase();
-                const desc = item.querySelector('.card-description').textContent.toLowerCase();
-                if (title.includes(term) || desc.includes(term)) {
-                    item.style.display = 'flex';
-                } else {
-                    item.style.display = 'none';
-                }
+                const title = item.querySelector('h3').textContent.toLowerCase();
+                const desc = item.querySelector('.text-gray-400.text-sm')?.textContent.toLowerCase() || '';
+                item.style.display = (title.includes(term) || desc.includes(term)) ? 'flex' : 'none';
             });
         }
 
@@ -159,8 +286,11 @@
             div.textContent = text;
             return div.innerHTML;
         }
-    </script>
 
+        document.getElementById('activityModal')?.addEventListener('click', (e) => {
+            if (e.target === document.getElementById('activityModal')) closeActivityModal();
+        });
+    </script>
 </body>
 
 </html>

@@ -403,204 +403,471 @@
 
   </main>
 
-  <script src="js/activities-system.js"></script>
-  <script>
-    (function() {
-      const currentUserStr = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
-      if (!currentUserStr) {
-        alert('Por favor, inicia sesión para acceder a esta página.');
-        window.location.href = 'index.html';
-        return;
+    <!-- MODAL: Enviar Tokens -->
+    <div id="sendModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4">
+      <div class="panel max-w-lg w-full">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold">Enviar Tokens</h2>
+          <button onclick="closeModal('sendModal')" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        <p class="text-gray-400 text-sm mb-4">Envía tokens a otro usuario de la plataforma.</p>
+        <div class="mb-4">
+          <label class="block text-gray-400 text-sm mb-2">Dirección destino (G...)</label>
+          <input type="text" id="sendAddress" class="w-full p-3 rounded-lg" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: white;" placeholder="G...">
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-400 text-sm mb-2">Cantidad de tokens</label>
+          <input type="number" id="sendAmount" class="w-full p-3 rounded-lg" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: white;" placeholder="10" min="1">
+        </div>
+        <div id="sendError" class="text-red-400 text-sm mb-4 hidden"></div>
+        <div class="flex gap-4">
+          <button onclick="sendTokens()" class="btn accent flex-1"><i class="fa-solid fa-paper-plane"></i> Enviar</button>
+          <button onclick="closeModal('sendModal')" class="btn ghost flex-1">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Recibir Tokens -->
+    <div id="receiveModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4">
+      <div class="panel max-w-lg w-full text-center">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold">Recibir Tokens</h2>
+          <button onclick="closeModal('receiveModal')" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        <p class="text-gray-400 text-sm mb-4">Comparte esta dirección para recibir tokens.</p>
+        <div class="wallet-address mb-4" id="receiveAddress">Cargando...</div>
+        <img id="receiveQr" class="qr" src="" alt="QR Code">
+        <div class="flex gap-4 mt-4">
+          <button onclick="copyReceiveAddress()" class="btn ghost flex-1"><i class="fa-regular fa-copy"></i> Copiar Dirección</button>
+          <button onclick="closeModal('receiveModal')" class="btn ghost flex-1">Cerrar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL: Swap -->
+    <div id="swapModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80 p-4">
+      <div class="panel max-w-lg w-full">
+        <div class="flex justify-between items-center mb-6">
+          <h2 class="text-xl font-bold">Convertir (Swap)</h2>
+          <button onclick="closeModal('swapModal')" class="text-gray-400 hover:text-white text-2xl">&times;</button>
+        </div>
+        <p class="text-gray-400 text-sm mb-4">Convierte tus tokens entre diferentes monedas.</p>
+        <div class="mb-4">
+          <label class="block text-gray-400 text-sm mb-2">De</label>
+          <select id="swapFrom" class="w-full p-3 rounded-lg" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: white;">
+            <option value="tokens">Tokens MD</option>
+            <option value="XLM">XLM</option>
+          </select>
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-400 text-sm mb-2">Cantidad</label>
+          <input type="number" id="swapAmount" class="w-full p-3 rounded-lg" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: white;" placeholder="10" min="1">
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-400 text-sm mb-2">A</label>
+          <select id="swapTo" class="w-full p-3 rounded-lg" style="background: rgba(255,255,255,0.1); border: 1px solid var(--glass-border); color: white;">
+            <option value="XLM">XLM</option>
+            <option value="tokens">Tokens MD</option>
+          </select>
+        </div>
+        <div class="p-4 rounded-lg mb-4 text-center" style="background: rgba(255,255,255,0.05);">
+          <span class="text-gray-400">Tasa de cambio: </span>
+          <span class="font-bold" id="swapRate">1 token = 0.1 XLM</span>
+        </div>
+        <div id="swapError" class="text-red-400 text-sm mb-4 hidden"></div>
+        <div class="flex gap-4">
+          <button onclick="executeSwap()" class="btn accent flex-1"><i class="fa-solid fa-exchange-alt"></i> Convertir</button>
+          <button onclick="closeModal('swapModal')" class="btn ghost flex-1">Cancelar</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="js/activities-system.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
+    <script>
+      (function() {
+        const currentUserStr = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+        if (!currentUserStr) {
+          alert('Por favor, inicia sesión para acceder a esta página.');
+          window.location.href = 'index.html';
+          return;
+        }
+      })();
+
+      const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
+      const username = currentUser.username || 'Usuario';
+
+      function createParticles(count = 30) {
+        const container = document.getElementById('particles');
+        for (let i = 0; i < count; i++) {
+          const el = document.createElement('div');
+          el.className = 'particle';
+          const size = 2 + Math.round(Math.random() * 6);
+          el.style.width = size + 'px';
+          el.style.height = size + 'px';
+          el.style.left = Math.random() * 100 + '%';
+          el.style.top = Math.random() * 100 + '%';
+          el.style.opacity = (0.04 + Math.random() * 0.12).toString();
+          el.style.transform = `translate3d(0,0,0)`;
+          const dur = 8 + Math.random()*10;
+          el.style.animation = `float ${dur}s ease-in-out ${Math.random()*5}s infinite`;
+          container.appendChild(el);
+        }
       }
-    })();
 
-    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
-    const username = currentUser.username || 'Usuario';
+      const mainBalanceEl = document.getElementById('mainBalance');
+      const currencyChips = document.querySelectorAll('.currency-chip');
 
-    function createParticles(count = 30) {
-      const container = document.getElementById('particles');
-      for (let i = 0; i < count; i++) {
-        const el = document.createElement('div');
-        el.className = 'particle';
-        const size = 2 + Math.round(Math.random() * 6);
-        el.style.width = size + 'px';
-        el.style.height = size + 'px';
-        el.style.left = Math.random() * 100 + '%';
-        el.style.top = Math.random() * 100 + '%';
-        el.style.opacity = (0.04 + Math.random() * 0.12).toString();
-        el.style.transform = `translate3d(0,0,0)`;
-        const dur = 8 + Math.random()*10;
-        el.style.animation = `float ${dur}s ease-in-out ${Math.random()*5}s infinite`;
-        container.appendChild(el);
+      function formatAmount(amount, currency) {
+        return Math.abs(amount).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' ' + currency;
       }
-    }
 
-    const mainBalanceEl = document.getElementById('mainBalance');
-    const currencyChips = document.querySelectorAll('.currency-chip');
-
-    function formatAmount(amount, currency) {
-      return Math.abs(amount).toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' ' + currency;
-    }
-
-    function updateBalance(currency='XLM') {
-      mainBalanceEl.textContent = formatAmount(getCurrentBalance(), currency);
-      currencyChips.forEach(chip => {
-        chip.classList.toggle('active', chip.dataset.currency === currency);
-      });
-    }
-
-    function getCurrentBalance() {
-      if (typeof activitiesSystem !== 'undefined') {
-        const userTokens = activitiesSystem.getUserTokens(username);
-        return userTokens.balance || 0;
-      }
-      return 0;
-    }
-
-    function getRealTransactions() {
-      const txs = [];
-      if (typeof activitiesSystem !== 'undefined') {
-        const userTokens = activitiesSystem.getUserTokens(username);
-        (userTokens.transactions || []).forEach(tx => {
-          txs.push({
-            type: tx.type === 'earned' ? 'Recibido' : tx.type === 'redeemed' ? 'Canjeado' : tx.type,
-            date: new Date(tx.timestamp).toLocaleString(),
-            amount: tx.type === 'earned' ? Math.abs(tx.amount) : -Math.abs(tx.amount),
-            description: tx.description,
-            icon: tx.type === 'earned' ? 'fa-arrow-down-left' : 'fa-arrow-up-right'
-          });
+      function updateBalance(currency='XLM') {
+        mainBalanceEl.textContent = formatAmount(getCurrentBalance(), currency);
+        currencyChips.forEach(chip => {
+          chip.classList.toggle('active', chip.dataset.currency === currency);
         });
-        const redemptions = activitiesSystem.getRedemptions().filter(r => r.username === username);
-        redemptions.forEach(r => {
-          txs.push({
-            type: 'Canjeado',
-            date: new Date(r.timestamp).toLocaleString(),
-            amount: -r.cost,
-            description: r.rewardName,
-            icon: 'fa-gift'
+      }
+
+      function getCurrentBalance() {
+        if (typeof activitiesSystem !== 'undefined') {
+          const userTokens = activitiesSystem.getUserTokens(username);
+          return userTokens.balance || 0;
+        }
+        return 0;
+      }
+
+      function getUserWalletAddress() {
+        return currentUser.stellarPublic || localStorage.getItem('wallet_public_' + username) || 'Conecta tu wallet en Wallet.html';
+      }
+
+      function getRealTransactions() {
+        const txs = [];
+        if (typeof activitiesSystem !== 'undefined') {
+          const userTokens = activitiesSystem.getUserTokens(username);
+          (userTokens.transactions || []).forEach(tx => {
+            txs.push({
+              type: tx.type === 'earned' ? 'Recibido' : tx.type === 'redeemed' ? 'Canjeado' : tx.type === 'sent' ? 'Enviado' : tx.type,
+              date: new Date(tx.timestamp).toLocaleString(),
+              amount: tx.type === 'earned' ? Math.abs(tx.amount) : -Math.abs(tx.amount),
+              description: tx.description,
+              icon: tx.type === 'earned' ? 'fa-arrow-down-left' : 'fa-arrow-up-right'
+            });
           });
+          const redemptions = activitiesSystem.getRedemptions().filter(r => r.username === username);
+          redemptions.forEach(r => {
+            txs.push({
+              type: 'Canjeado',
+              date: new Date(r.timestamp).toLocaleString(),
+              amount: -r.cost,
+              description: r.rewardName,
+              icon: 'fa-gift'
+            });
+          });
+        }
+        if (txs.length === 0) {
+          txs.push({ type: 'Bienvenido', date: new Date().toLocaleString(), amount: 0, description: 'Completa actividades para ganar tokens', icon: 'fa-star' });
+        }
+        return txs.sort((a, b) => new Date(b.date) - new Date(a.date));
+      }
+
+      function createTxElement(tx) {
+        const wrap = document.createElement('div');
+        wrap.className = 'tx-item';
+        const icon = document.createElement('div');
+        icon.className = 'tx-icon';
+        icon.innerHTML = `<i class="fa-solid ${tx.icon}"></i>`;
+        wrap.appendChild(icon);
+        const meta = document.createElement('div');
+        meta.className = 'tx-meta';
+        const title = document.createElement('div');
+        title.className = 'title';
+        title.textContent = tx.type;
+        const sub = document.createElement('div');
+        sub.className = 'sub';
+        sub.textContent = (tx.description || tx.date) + ' • ' + tx.date;
+        meta.appendChild(title);
+        meta.appendChild(sub);
+        wrap.appendChild(meta);
+        const amount = document.createElement('div');
+        amount.className = 'tx-amount ' + (tx.amount < 0 ? 'negative' : 'positive');
+        amount.textContent = (tx.amount < 0 ? '- ' : '+ ') + formatAmount(Math.abs(tx.amount), 'tokens');
+        wrap.appendChild(amount);
+        return wrap;
+      }
+
+      function renderTransactions() {
+        const container = document.getElementById('transactionsList');
+        const small = document.getElementById('transactionsListSmall');
+        if (container) container.innerHTML = '';
+        if (small) small.innerHTML = '';
+        const txs = getRealTransactions();
+        txs.forEach(tx => {
+          if (container) container.appendChild(createTxElement(tx));
+          if (small) small.appendChild(createTxElement(tx));
         });
       }
-      if (txs.length === 0) {
-        txs.push({ type: 'Bienvenido', date: new Date().toLocaleString(), amount: 0, description: 'Completa actividades para ganar tokens', icon: 'fa-star' });
-      }
-      return txs.sort((a, b) => new Date(b.date) - new Date(a.date));
-    }
 
-    function createTxElement(tx) {
-      const wrap = document.createElement('div');
-      wrap.className = 'tx-item';
-      const icon = document.createElement('div');
-      icon.className = 'tx-icon';
-      icon.innerHTML = `<i class="fa-solid ${tx.icon}"></i>`;
-      wrap.appendChild(icon);
-      const meta = document.createElement('div');
-      meta.className = 'tx-meta';
-      const title = document.createElement('div');
-      title.className = 'title';
-      title.textContent = tx.type;
-      const sub = document.createElement('div');
-      sub.className = 'sub';
-      sub.textContent = (tx.description || tx.date) + ' • ' + tx.date;
-      meta.appendChild(title);
-      meta.appendChild(sub);
-      wrap.appendChild(meta);
-      const amount = document.createElement('div');
-      amount.className = 'tx-amount ' + (tx.amount < 0 ? 'negative' : 'positive');
-      amount.textContent = (tx.amount < 0 ? '- ' : '+ ') + formatAmount(Math.abs(tx.amount), 'tokens');
-      wrap.appendChild(amount);
-      return wrap;
-    }
+      function initChart() {
+        const canvas = document.getElementById('balanceChart');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const balance = getCurrentBalance();
+        const dataPoints = [];
+        const labels = [];
+        const now = new Date();
+        for (let i = 29; i >= 0; i--) {
+          const d = new Date(now);
+          d.setDate(d.getDate() - i);
+          labels.push(d.toLocaleDateString('es', { day: '2-digit', month: '2-digit' }));
+          dataPoints.push(i === 29 ? 0 : balance);
+        }
+        if (balance > 0) dataPoints[dataPoints.length - 1] = balance;
 
-    function renderTransactions() {
-      const container = document.getElementById('transactionsList');
-      const small = document.getElementById('transactionsListSmall');
-      container.innerHTML = '';
-      small.innerHTML = '';
-      const txs = getRealTransactions();
-      txs.forEach(tx => {
-        container.appendChild(createTxElement(tx));
-        small.appendChild(createTxElement(tx));
-      });
-    }
-
-    function initChart() {
-      const ctx = document.getElementById('balanceChart').getContext('2d');
-      const balance = getCurrentBalance();
-      const dataPoints = [];
-      const labels = [];
-      const now = new Date();
-      for (let i = 29; i >= 0; i--) {
-        const d = new Date(now);
-        d.setDate(d.getDate() - i);
-        labels.push(d.toLocaleDateString('es', { day: '2-digit', month: '2-digit' }));
-        dataPoints.push(i === 29 ? 0 : balance);
-      }
-      if (balance > 0) dataPoints[dataPoints.length - 1] = balance;
-
-      new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels,
-          datasets: [{
-            label: 'Tokens',
-            data: dataPoints,
-            fill: true,
-            backgroundColor: 'rgba(0,229,255,0.06)',
-            borderColor: '#00e5ff',
-            borderWidth: 2.8,
-            tension: 0.36,
-            pointRadius: 4,
-            pointBackgroundColor: '#00e5ff'
-          }]
-        },
-        options: {
-          responsive:true,
-          plugins:{ legend: { display:false } },
-          scales:{
-            x:{ ticks:{ color:'#7fefff' }, grid:{ color:'rgba(0,229,255,0.04)' } },
-            y:{ ticks:{ color:'#7fefff' }, grid:{ color:'rgba(0,229,255,0.04)' } }
+        new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'Tokens',
+              data: dataPoints,
+              fill: true,
+              backgroundColor: 'rgba(0,229,255,0.06)',
+              borderColor: '#00e5ff',
+              borderWidth: 2.8,
+              tension: 0.36,
+              pointRadius: 4,
+              pointBackgroundColor: '#00e5ff'
+            }]
+          },
+          options: {
+            responsive:true,
+            plugins:{ legend: { display:false } },
+            scales:{
+              x:{ ticks:{ color:'#7fefff' }, grid:{ color:'rgba(0,229,255,0.04)' } },
+              y:{ ticks:{ color:'#7fefff' }, grid:{ color:'rgba(0,229,255,0.04)' } }
+            }
           }
-        }
-      });
-    }
-
-    document.addEventListener('click', (e)=>{
-      if (e.target.closest('#copyAddr')) {
-        const addr = document.getElementById('walletAddress').textContent.trim();
-        navigator.clipboard?.writeText(addr).then(()=> {
-          e.target.closest('button').textContent = 'Copiado ✓';
-          setTimeout(()=> e.target.closest('button').innerHTML = '<i class="fa-regular fa-copy"></i> Copiar', 1500);
-        }).catch(()=> alert('No se pudo copiar'));
+        });
       }
-    });
 
-    document.querySelectorAll('.currency-chip').forEach(chip=>{
-      chip.addEventListener('click', (e)=> updateBalance(chip.dataset.currency));
-    });
+      function openModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) modal.classList.remove('hidden');
+      }
 
-    document.querySelectorAll('.action-card').forEach(card=>{
-      card.addEventListener('click', ()=> {
-        const id = card.id;
-        if (id === 'sendAction') alert('Abrir modal Enviar');
-        else if (id === 'receiveAction') alert('Abrir modal Recibir');
-        else if (id === 'swapAction') alert('Abrir modal Swap');
-        else if (id === 'historyAction') {
-          document.querySelector('#transactionsList').scrollIntoView({behavior:'smooth'});
+      function closeModal(id) {
+        const modal = document.getElementById(id);
+        if (modal) modal.classList.add('hidden');
+      }
+
+      // ====== ENVIAR ======
+      function openSendModal() {
+        document.getElementById('sendAddress').value = '';
+        document.getElementById('sendAmount').value = '';
+        document.getElementById('sendError').classList.add('hidden');
+        openModal('sendModal');
+      }
+
+      async function sendTokens() {
+        const address = document.getElementById('sendAddress').value.trim();
+        const amount = parseInt(document.getElementById('sendAmount').value);
+        const errorEl = document.getElementById('sendError');
+
+        if (!address) {
+          errorEl.textContent = 'Ingresa una dirección destino';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+        if (!amount || amount <= 0) {
+          errorEl.textContent = 'Ingresa una cantidad válida';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        const userTokens = activitiesSystem.getUserTokens(username);
+        if (userTokens.balance < amount) {
+          errorEl.textContent = 'Saldo insuficiente. Tienes ' + userTokens.balance + ' tokens.';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        try {
+          userTokens.balance -= amount;
+          userTokens.transactions.push({
+            id: Date.now().toString(), username, amount: -amount, type: 'sent',
+            description: 'Enviado a: ' + address.substring(0, 8) + '...',
+            timestamp: new Date().toISOString()
+          });
+          localStorage.setItem('tokens_' + username, JSON.stringify(userTokens));
+
+          const activitySys = activitiesSystem;
+          const allTxs = activitySys.getAllTokenTransactions();
+          allTxs.push({
+            id: Date.now().toString(), username, amount: -amount, type: 'sent',
+            description: 'Enviado a: ' + address.substring(0, 8) + '...',
+            timestamp: new Date().toISOString()
+          });
+          localStorage.setItem('token_transactions', JSON.stringify(allTxs));
+
+          closeModal('sendModal');
+          updateBalance();
+          renderTransactions();
+          alert('✓ Envío exitoso: ' + amount + ' tokens enviados a ' + address.substring(0, 8) + '...');
+        } catch (e) {
+          errorEl.textContent = 'Error: ' + e.message;
+          errorEl.classList.remove('hidden');
+        }
+      }
+
+      // ====== RECIBIR ======
+      function openReceiveModal() {
+        const addr = getUserWalletAddress();
+        document.getElementById('receiveAddress').textContent = addr;
+        document.getElementById('receiveQr').src = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(addr);
+        openModal('receiveModal');
+      }
+
+      function copyReceiveAddress() {
+        const addr = document.getElementById('receiveAddress').textContent;
+        navigator.clipboard.writeText(addr).then(() => {
+          alert('Dirección copiada al portapapeles');
+        }).catch(() => {
+          alert('No se pudo copiar. Selecciona manualmente.');
+        });
+      }
+
+      // ====== SWAP ======
+      function openSwapModal() {
+        document.getElementById('swapAmount').value = '';
+        document.getElementById('swapError').classList.add('hidden');
+        updateSwapRate();
+        openModal('swapModal');
+      }
+
+      function updateSwapRate() {
+        const from = document.getElementById('swapFrom').value;
+        const to = document.getElementById('swapTo').value;
+        const rateEl = document.getElementById('swapRate');
+        if (from === 'tokens' && to === 'XLM') {
+          rateEl.textContent = '1 token = 0.1 XLM';
+        } else if (from === 'XLM' && to === 'tokens') {
+          rateEl.textContent = '1 XLM = 10 tokens';
+        } else {
+          rateEl.textContent = '1:1 (misma moneda)';
+        }
+      }
+
+      document.getElementById('swapFrom')?.addEventListener('change', updateSwapRate);
+      document.getElementById('swapTo')?.addEventListener('change', updateSwapRate);
+
+      async function executeSwap() {
+        const from = document.getElementById('swapFrom').value;
+        const to = document.getElementById('swapTo').value;
+        const amount = parseInt(document.getElementById('swapAmount').value);
+        const errorEl = document.getElementById('swapError');
+
+        if (!amount || amount <= 0) {
+          errorEl.textContent = 'Ingresa una cantidad válida';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        if (from === to) {
+          errorEl.textContent = 'Selecciona monedas diferentes para convertir';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        const userTokens = activitiesSystem.getUserTokens(username);
+        if (from === 'tokens' && userTokens.balance < amount) {
+          errorEl.textContent = 'Saldo insuficiente en tokens. Tienes ' + userTokens.balance + ' tokens.';
+          errorEl.classList.remove('hidden');
+          return;
+        }
+
+        try {
+          if (from === 'tokens' && to === 'XLM') {
+            const xlmAmount = amount * 0.1;
+            userTokens.balance -= amount;
+            userTokens.transactions.push({
+              id: Date.now().toString(), username, amount: -amount, type: 'swap',
+              description: 'Swap: ' + amount + ' tokens → ' + xlmAmount.toFixed(2) + ' XLM',
+              timestamp: new Date().toISOString()
+            });
+          } else if (from === 'XLM' && to === 'tokens') {
+            const tokenAmount = amount * 10;
+            userTokens.balance += tokenAmount;
+            userTokens.transactions.push({
+              id: Date.now().toString(), username, amount: tokenAmount, type: 'swap',
+              description: 'Swap: ' + amount + ' XLM → ' + tokenAmount + ' tokens',
+              timestamp: new Date().toISOString()
+            });
+          }
+
+          localStorage.setItem('tokens_' + username, JSON.stringify(userTokens));
+          closeModal('swapModal');
+          updateBalance();
+          renderTransactions();
+          alert('✓ Conversión exitosa');
+        } catch (e) {
+          errorEl.textContent = 'Error: ' + e.message;
+          errorEl.classList.remove('hidden');
+        }
+      }
+
+      // ====== HISTORIAL ======
+      function scrollToHistory() {
+        const el = document.getElementById('transactionsList');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }
+
+      // Click handlers
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('#copyAddr')) {
+          const addr = document.getElementById('walletAddress').textContent.trim();
+          navigator.clipboard?.writeText(addr).then(() => {
+            e.target.closest('button').textContent = 'Copiado ✓';
+            setTimeout(() => e.target.closest('button').innerHTML = '<i class="fa-regular fa-copy"></i> Copiar', 1500);
+          }).catch(() => alert('No se pudo copiar'));
         }
       });
-    });
 
-    createParticles(28);
-    updateBalance('XLM');
-    renderTransactions();
-    initChart();
+      // Header action buttons
+      document.getElementById('btnSend')?.addEventListener('click', openSendModal);
+      document.getElementById('btnReceive')?.addEventListener('click', openReceiveModal);
+      document.getElementById('btnSwap')?.addEventListener('click', openSwapModal);
 
-    (function setWalletAddress(){
-      const publicKey = currentUser.stellarPublic || localStorage.getItem('wallet_public_' + username) || 'Conecta tu wallet en Wallet.html';
-      document.getElementById('walletAddress').textContent = publicKey;
-      document.getElementById('qrImg').src = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data='+encodeURIComponent(publicKey);
-    })();
-  </script>
+      // Quick action cards
+      document.getElementById('sendAction')?.addEventListener('click', openSendModal);
+      document.getElementById('receiveAction')?.addEventListener('click', openReceiveModal);
+      document.getElementById('swapAction')?.addEventListener('click', openSwapModal);
+      document.getElementById('historyAction')?.addEventListener('click', scrollToHistory);
+
+      // Currency chips
+      document.querySelectorAll('.currency-chip').forEach(chip => {
+        chip.addEventListener('click', () => updateBalance(chip.dataset.currency));
+      });
+
+      // Close modals on backdrop click
+      document.querySelectorAll('.fixed.inset-0').forEach(modal => {
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) closeModal(modal.id);
+        });
+      });
+
+      createParticles(28);
+      updateBalance('XLM');
+      renderTransactions();
+      initChart();
+
+      (function setWalletAddress() {
+        const publicKey = getUserWalletAddress();
+        const addrEl = document.getElementById('walletAddress');
+        const qrEl = document.getElementById('qrImg');
+        if (addrEl) addrEl.textContent = publicKey;
+        if (qrEl) qrEl.src = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=' + encodeURIComponent(publicKey);
+      })();
+    </script>
 </body>
 </html>
