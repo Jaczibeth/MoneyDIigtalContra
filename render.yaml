@@ -1,7 +1,7 @@
 services:
   - type: web
     name: money-digital
-    env: node
+    runtime: node
     region: oregon
     plan: free
     buildCommand: npm install
