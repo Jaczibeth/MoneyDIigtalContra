@@ -19,6 +19,16 @@ const { isoBase64URL, isoUint8Array } = require('@simplewebauthn/server/helpers'
 // Stellar Soroban SDK
 const StellarSdk = require('@stellar/stellar-sdk');
 
+// Configuración Stellar / Soroban
+const CONTRACT_ID = process.env.CONTRACT_ID || 'CBNEJ7M4BIAMX4URHV72DYQDS4KELL7EYJJQOHPQIOMFEIWFK64U7D3T';
+const COUNTER_CONTRACT_ID = process.env.COUNTER_CONTRACT_ID || CONTRACT_ID;
+const STELLAR_SECRET = process.env.STELLAR_SECRET || process.env.SECRET_KEY;
+const STELLAR_PUBLIC = process.env.STELLAR_PUBLIC || process.env.PUBLIC_KEY;
+const SOROBAN_RPC_URL = process.env.SOROBAN_RPC_URL || 'https://rpc-testnet.stellar.org';
+const HORIZON_URL = process.env.HORIZON_URL || 'https://horizon-testnet.stellar.org';
+const NETWORK_PASSPHRASE = process.env.NETWORK_PASSPHRASE || 'Test SDF Network ; September 2015';
+const BLOCKCHAIN_MODE = process.env.BLOCKCHAIN_MODE || 'off'; // 'off' | 'log' | 'full'
+
 // SQLite (sql.js)
 const initSqlJs = require('sql.js');
 
@@ -29,8 +39,18 @@ const JWT_WEBAUTHN_SECRET = process.env.JWT_WEBAUTHN_SECRET || 'money-digital-we
 
 // Configuración WebAuthn (Passkeys)
 const RP_NAME = 'Money Digital - GROUP JAD';
-const RP_ID = process.env.RP_ID || 'localhost';
-const ORIGIN = process.env.ORIGIN || `http://localhost:${PORT}`;
+const isRender = !!process.env.RENDER;
+const isRailway = !!process.env.RAILWAY;
+const RP_ID = process.env.RP_ID || process.env.RENDER_EXTERNAL_HOSTNAME || process.env.RAILWAY_PUBLIC_DOMAIN || 'localhost';
+const ORIGINS = (() => {
+  if (process.env.ORIGINS) return process.env.ORIGINS.split(',');
+  const origins = [`http://localhost:${PORT}`, 'http://localhost:3000', 'http://localhost:8080'];
+  if (process.env.ORIGIN) origins.push(process.env.ORIGIN);
+  if (isRender && RP_ID) origins.push(`https://${RP_ID}`);
+  if (isRailway && process.env.RAILWAY_PUBLIC_DOMAIN) origins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+  origins.push('https://money-digital.surge.sh');
+  return origins;
+})();
 
 // Store temporal de challenges (en producción usar Redis/DB)
 const challengeStore = new Map();
@@ -64,7 +84,12 @@ const upload = multer({
 });
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ORIGINS,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json({ limit: '50mb' }));
 app.use('/uploads', express.static(UPLOADS_DIR));
 
@@ -308,7 +333,7 @@ app.post('/api/auth/passkey/register/complete', async (req, res) => {
     const verification = await verifyRegistrationResponse({
       response: credential,
       expectedChallenge: storedData.challenge,
-      expectedOrigin: ORIGIN,
+      expectedOrigin: ORIGINS,
       expectedRPID: RP_ID,
     });
 
@@ -420,7 +445,7 @@ app.post('/api/auth/passkey/login/complete', async (req, res) => {
     const verification = await verifyAuthenticationResponse({
       response: credential,
       expectedChallenge: storedData.challenge,
-      expectedOrigin: ORIGIN,
+      expectedOrigin: ORIGINS,
       expectedRPID: RP_ID,
       credential: {
         id: storedCredential.id,
@@ -469,6 +494,52 @@ app.post('/api/auth/passkey/logout', biometricAuthMiddleware, (req, res) => {
 });
 
 // ========================
+// SOROBAN HELPER
+// ========================
+
+async function sorobanInvoke(functionName, args = []) {
+  if (!STELLAR_SECRET || BLOCKCHAIN_MODE === 'off') return { hash: null, error: 'Blockchain disabled' };
+  try {
+    const contractId = ['increment', 'decrement', 'reset', 'get'].includes(functionName)
+      ? COUNTER_CONTRACT_ID : CONTRACT_ID;
+    const server = new StellarSdk.SorobanRpc.Server(SOROBAN_RPC_URL);
+    const keypair = StellarSdk.Keypair.fromSecret(STELLAR_SECRET);
+    const publicKey = keypair.publicKey();
+    const account = await server.getAccount(publicKey);
+    const contract = new StellarSdk.Contract(contractId);
+    let operation;
+    if (functionName === 'get') {
+      operation = contract.call(functionName);
+    } else {
+      const scvalArgs = args.map(a => {
+        if (typeof a === 'number' || typeof a === 'bigint') return StellarSdk.xdr.ScVal.scvU32(Number(a));
+        if (typeof a === 'string' && a.startsWith('G')) return StellarSdk.xdr.ScVal.scvAddress(StellarSdk.Keypair.fromPublicKey(a).xdrAccountId());
+        return StellarSdk.xdr.ScVal.scvU32(Number(a));
+      });
+      operation = contract.call(functionName, ...scvalArgs);
+    }
+    const tx = new StellarSdk.TransactionBuilder(account, {
+      fee: StellarSdk.BASE_FEE,
+      networkPassphrase: NETWORK_PASSPHRASE,
+    })
+      .addOperation(operation)
+      .setTimeout(30)
+      .build();
+    const preparedTx = await server.prepareTransaction(tx);
+    preparedTx.sign(keypair);
+    const result = await server.sendTransaction(preparedTx);
+    return { hash: result.hash, error: null };
+  } catch (e) {
+    if (BLOCKCHAIN_MODE === 'full') {
+      console.error(`Soroban invoke (${functionName}):`, e.message);
+      return { hash: null, error: e.message };
+    }
+    console.warn(`Soroban invoke (${functionName}):`, e.message);
+    return { hash: null, error: e.message };
+  }
+}
+
+// ========================
 // COUNTER (CONTADOR) ROUTES
 // ========================
 
@@ -489,11 +560,15 @@ app.post('/api/counter/increment', biometricAuthMiddleware, async (req, res) => 
     const result = db.exec(`SELECT value FROM counter_state WHERE id = 'global'`);
     let value = (result.length && result[0].values.length) ? parseInt(result[0].values[0][0]) : 0;
     value += 1;
-    db.run(`UPDATE counter_state SET value = ?, updated_at = datetime('now') WHERE id = 'global'`);
+    db.run(`UPDATE counter_state SET value = ?, updated_at = datetime('now') WHERE id = 'global'`, [value]);
     saveDB();
 
-    // Opcional: registrar en blockchain Soroban
+    // Registrar en blockchain Soroban (si hay secret configurado)
     let txHash = null;
+    if (STELLAR_SECRET) {
+      const sorobanResult = await sorobanInvoke('increment');
+      txHash = sorobanResult.hash;
+    }
 
     res.json({ value, success: true, txHash, username: req.biometricUser.username });
   } catch (e) {
@@ -507,10 +582,16 @@ app.post('/api/counter/decrement', biometricAuthMiddleware, async (req, res) => 
     const result = db.exec(`SELECT value FROM counter_state WHERE id = 'global'`);
     let value = (result.length && result[0].values.length) ? parseInt(result[0].values[0][0]) : 0;
     value = Math.max(0, value - 1);
-    db.run(`UPDATE counter_state SET value = ?, updated_at = datetime('now') WHERE id = 'global'`);
+    db.run(`UPDATE counter_state SET value = ?, updated_at = datetime('now') WHERE id = 'global'`, [value]);
     saveDB();
 
-    res.json({ value, success: true, username: req.biometricUser.username });
+    let txHash = null;
+    if (STELLAR_SECRET) {
+      const sorobanResult = await sorobanInvoke('decrement');
+      txHash = sorobanResult.hash;
+    }
+
+    res.json({ value, success: true, txHash, username: req.biometricUser.username });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -522,7 +603,13 @@ app.post('/api/counter/reset', biometricAuthMiddleware, async (req, res) => {
     db.run(`UPDATE counter_state SET value = 0, updated_at = datetime('now') WHERE id = 'global'`);
     saveDB();
 
-    res.json({ value: 0, success: true, username: req.biometricUser.username });
+    let txHash = null;
+    if (STELLAR_SECRET) {
+      const sorobanResult = await sorobanInvoke('reset');
+      txHash = sorobanResult.hash;
+    }
+
+    res.json({ value: 0, success: true, txHash, username: req.biometricUser.username });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

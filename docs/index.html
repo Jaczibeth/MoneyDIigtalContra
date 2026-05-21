@@ -117,6 +117,15 @@
   <script src="js/api-client.js"></script>
   <script src="js/activities-system.js"></script>
   <script>
+    // Banner si está en surge.sh
+    if (window.location.hostname.includes('surge.sh')) {
+      const b = document.createElement('div');
+      b.style.cssText = 'background:#ff9800;color:#000;text-align:center;padding:12px 20px;font-size:14px;font-weight:500;position:fixed;top:0;left:0;right:0;z-index:9999';
+      b.innerHTML = '⚠️ Vista previa estática &mdash; Funcionalidad completa en <a href="https://money-digital.onrender.com" style="color:#fff;font-weight:700;text-decoration:underline">money-digital.onrender.com</a>';
+      document.body.prepend(b);
+      document.querySelector('.main-container').style.marginTop = '50px';
+    }
+
     // --- UTILITIES ---
     function showToast(message, type = 'info') {
       const el = document.getElementById('result');
@@ -136,8 +145,8 @@
       }, 4000);
     }
 
-    // --- STELLAR CONSTANTS & LOGIC ---
-    const CONTRACT_ID = 'CDS3VGIAZFIZUG3GL6LWAXLOXWCRIIBDPPRS4225LLLEHPGTFDNF4PQK';
+    // --- STELLAR CONSTANTS ---
+    // CONTRACT_ID principal en stellar-integration.js y app.js
     // Logic from previous file preserved
     (function cleanTestUsersImmediate() {
       try {

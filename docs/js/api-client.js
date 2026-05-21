@@ -6,6 +6,7 @@ class ApiClient {
       if (host === 'localhost' || host === '127.0.0.1') {
         return `http://${host}:${port}`;
       }
+      if (host.includes('surge.sh')) return 'https://money-digital.onrender.com';
       return '';
     })();
     this.token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
@@ -83,23 +84,30 @@ class ApiClient {
   }
 
   async login(username, password) {
+    // Intentar con backend primero
     if (this.backendAvailable || await this.isBackendAlive()) {
-      const res = await fetch(`${this.baseURL}/api/auth/login`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      this.setToken(json.token);
-      return json;
+      try {
+        const res = await fetch(`${this.baseURL}/api/auth/login`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        if (res.ok) {
+          const json = await res.json();
+          this.setToken(json.token);
+          return json;
+        }
+      } catch (e) {
+        console.log('Backend no disponible para login, usando offline');
+      }
     }
+    // Fallback a localStorage
     const users = JSON.parse(localStorage.getItem('users') || '[]');
     const user = users.find(u => u.username === username);
-    if (!user) throw new Error('Credenciales inválidas');
+    if (!user) throw new Error('Credenciales inválidas. ¿Ya te registraste?');
     const encoder = new TextEncoder();
     const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(password));
     const hash = Array.prototype.map.call(new Uint8Array(hashBuf), x => ('00' + x.toString(16)).slice(-2)).join('');
-    if (user.passwordHash !== hash) throw new Error('Credenciales inválidas');
+    if (user.passwordHash !== hash) throw new Error('Credenciales inválidas. Verifica tu contraseña.');
     return { token: null, user: { id: user.id, username: user.username, email: user.email, role: user.role, stellarPublic: user.stellarPublic } };
   }
 

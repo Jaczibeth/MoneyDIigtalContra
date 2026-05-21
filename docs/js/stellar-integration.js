@@ -1,12 +1,17 @@
+// CONTRACT_ID del contrato money-digital desplegado en Stellar Testnet
 const CONTRACT_ID = 'CBNEJ7M4BIAMX4URHV72DYQDS4KELL7EYJJQOHPQIOMFEIWFK64U7D3T';
-const RPC_URL = 'https://horizon-testnet.stellar.org';
+// NOTA: Si cambia el contrato, actualizar también en app.js y server.js (.env)
+
+// URLs de Stellar
+const HORIZON_URL = 'https://horizon-testnet.stellar.org';
 const SOROBAN_RPC_URL = 'https://rpc-testnet.stellar.org';
+const NETWORK_PASSPHRASE = 'Test SDF Network ; September 2015';
 
 class StellarIntegration {
   constructor() {
-    this.RPC_URL = RPC_URL;
+    this.RPC_URL = HORIZON_URL;
     this.SOROBAN_RPC_URL = SOROBAN_RPC_URL;
-    this.networkPassphrase = 'Test SDF Network ; September 2015';
+    this.networkPassphrase = NETWORK_PASSPHRASE;
   }
 
   isFreighterAvailable() {

@@ -181,12 +181,12 @@
           <details>
             <summary class="cursor-pointer text-sm text-gray-400 font-semibold">📚 ¿Qué ocurre al pulsar + o −?</summary>
             <div class="mt-4 space-y-2 text-sm text-gray-500">
-              <p>1️⃣ El navegador verifica tu identidad con biometría (WebAuthn)</p>
-              <p>2️⃣ La API recibe el token biométrico y valida tu sesión</p>
-              <p>3️⃣ Se actualiza el valor del contador en la base de datos</p>
-              <p>4️⃣ Se registra la transacción con tu usuario</p>
-              <p>5️⃣ El frontend muestra el nuevo valor</p>
-              <p class="text-xs text-cyan-400 mt-2">🔐 Autenticación sin contraseñas gracias a WebAuthn / Passkeys</p>
+              <p>1️⃣ La API verifica tu Bearer Token (middleware biométrico)</p>
+              <p>2️⃣ El servidor obtiene el número de secuencia de la cuenta Stellar</p>
+              <p>3️⃣ Construye y simula la transacción Soroban para calcular el fee</p>
+              <p>4️⃣ Firma con la SECRET_KEY del servidor y envía a la red</p>
+              <p>5️⃣ Retorna el nuevo valor + txHash</p>
+              <p class="text-xs text-cyan-400 mt-2">🔐 Autenticación biométrica via WebAuthn / Passkeys</p>
             </div>
           </details>
         </div>
@@ -207,56 +207,40 @@
 
   <script>
     // ============================================================
-    // HELPERS: WebAuthn - Conversión Base64URL <-> ArrayBuffer
+    // WEB AUTHN + CONTADOR via BACKEND API
     // ============================================================
-    function base64URLEncode(buffer) {
-      return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+
+    // ============================================================
+    // HELPERS: ArrayBuffer <-> base64url
+    // ============================================================
+    function buf2base64url(buf) {
+      return btoa(String.fromCharCode(...new Uint8Array(buf)))
         .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     }
-    function base64URLDecode(str) {
+    function base64url2buf(str) {
       str = str.replace(/-/g, '+').replace(/_/g, '/');
       while (str.length % 4) str += '=';
-      return Uint8Array.from(atob(str), c => c.charCodeAt(0)).buffer;
+      return Uint8Array.from(atob(str), c => c.charCodeAt(0));
     }
-    function credentialToJSON(cred) {
-      const obj = { id: cred.id, type: cred.type, rawId: base64URLEncode(cred.rawId), response: {} };
-      if (cred.response.clientDataJSON) obj.response.clientDataJSON = base64URLEncode(cred.response.clientDataJSON);
-      if (cred.response.attestationObject) obj.response.attestationObject = base64URLEncode(cred.response.attestationObject);
-      if (cred.response.authenticatorData) obj.response.authenticatorData = base64URLEncode(cred.response.authenticatorData);
-      if (cred.response.signature) obj.response.signature = base64URLEncode(cred.response.signature);
-      if (cred.response.userHandle) obj.response.userHandle = base64URLEncode(cred.response.userHandle);
-      if (cred.response.transports) obj.response.transports = cred.response.transports;
-      if (cred.response.publicKey) obj.response.publicKey = base64URLEncode(cred.response.publicKey);
-      if (cred.response.publicKeyAlgorithm) obj.response.publicKeyAlgorithm = cred.response.publicKeyAlgorithm;
-      if (cred.response.authenticatorAttachment) obj.response.authenticatorAttachment = cred.response.authenticatorAttachment;
-      if (cred.authenticatorAttachment) obj.authenticatorAttachment = cred.authenticatorAttachment;
-      if (cred.clientExtensionResults) obj.clientExtensionResults = cred.clientExtensionResults;
-      return obj;
-    }
-    function createPublicKeyCredential(options) {
-      const opts = JSON.parse(JSON.stringify(options));
-      if (opts.challenge) opts.challenge = base64URLDecode(opts.challenge);
-      if (opts.user?.id) opts.user.id = base64URLDecode(opts.user.id);
-      if (opts.excludeCredentials) {
-        opts.excludeCredentials.forEach(c => { if (c.id) c.id = base64URLDecode(c.id); });
-      }
-      return opts;
-    }
-    function getPublicKeyCredential(options) {
-      const opts = JSON.parse(JSON.stringify(options));
-      if (opts.challenge) opts.challenge = base64URLDecode(opts.challenge);
-      if (opts.allowCredentials) {
-        opts.allowCredentials.forEach(c => { if (c.id) c.id = base64URLDecode(c.id); });
-      }
-      return opts;
-    }
+
+    // ============================================================
+    // API CONFIG
+    // ============================================================
+    const API_BASE = (() => {
+      const h = window.location.hostname;
+      if (h === 'localhost' || h === '127.0.0.1') return '';
+      if (h.includes('surge.sh')) return 'https://money-digital.onrender.com';
+      return '';
+    })();
+    const IS_SURGE = window.location.hostname.includes('surge.sh');
+
+    function apiURL(path) { return API_BASE + path; }
 
     // ============================================================
     // STATE
     // ============================================================
-    const API = window.location.origin;
-    let token = localStorage.getItem('bio_token') || null;
     let currentUsername = localStorage.getItem('bio_username') || null;
+    let bioToken = localStorage.getItem('bio_token') || null;
     let counterValue = 0;
     let txHistory = JSON.parse(localStorage.getItem('bio_tx_history') || '[]');
 
@@ -285,25 +269,85 @@
     const txHistoryEl = $('txHistory');
 
     // ============================================================
-    // FUNCTIONS
+    // API: headers con token
+    // ============================================================
+    function authHeaders() {
+      const h = { 'Content-Type': 'application/json' };
+      if (bioToken) h['Authorization'] = 'Bearer ' + bioToken;
+      return h;
+    }
+
+    // ============================================================
+    // CONTADOR: leer desde backend
+    // ============================================================
+    async function fetchCounter() {
+      try {
+        const res = await fetch(apiURL('/api/counter'), { headers: { 'Content-Type': 'application/json' } });
+        if (res.ok) {
+          const data = await res.json();
+          counterValue = data.value;
+          counterDisplay.textContent = counterValue;
+        }
+      } catch (e) {
+        console.warn('Error leyendo contador:', e);
+      }
+    }
+
+    async function counterAction(action) {
+      if (!currentUsername || !bioToken) {
+        showError(counterError, 'Conecta tu Smart Wallet primero con biometría');
+        return;
+      }
+
+      const endpoint = '/api/counter/' + action;
+      try {
+        const res = await fetch(apiURL(endpoint), {
+          method: 'POST',
+          headers: authHeaders()
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Error en operación');
+        }
+        const data = await res.json();
+        counterValue = data.value;
+        counterDisplay.textContent = counterValue;
+        // Registrar en historial local
+        const now = new Date().toLocaleString();
+        const txEntry = { action, value: counterValue, username: currentUsername, date: now };
+        if (data.txHash) txEntry.txHash = data.txHash;
+        txHistory.unshift(txEntry);
+        if (txHistory.length > 50) txHistory.pop();
+        localStorage.setItem('bio_tx_history', JSON.stringify(txHistory));
+        renderTxHistory();
+        counterError.classList.add('hidden');
+      } catch (e) {
+        showError(counterError, e.message);
+      }
+    }
+
+    // ============================================================
+    // UI
     // ============================================================
     function showError(el, msg) {
-      el.textContent = msg; el.classList.remove('hidden');
+      el.textContent = msg;
+      el.classList.remove('hidden');
       setTimeout(() => el.classList.add('hidden'), 5000);
     }
 
-    function updateUI() {
-      if (token && currentUsername) {
+    async function updateUI() {
+      if (currentUsername && bioToken) {
         connectionBadge.className = 'status-badge status-connected';
         connectionBadge.innerHTML = '<i class="fa-solid fa-circle"></i> Conectado';
         walletInfo.classList.remove('hidden');
         walletUsername.textContent = currentUsername;
-        walletId.textContent = localStorage.getItem('bio_walletId') || '—';
+        walletId.textContent = currentUsername + ' • ' + (bioToken ? bioToken.substring(0, 12) + '...' : '—');
         walletActions.classList.add('hidden');
         walletConnected.classList.remove('hidden');
         counterLocked.classList.add('hidden');
         counterActive.classList.remove('hidden');
         usernameInput.value = currentUsername;
+        await fetchCounter();
       } else {
         connectionBadge.className = 'status-badge status-disconnected';
         connectionBadge.innerHTML = '<i class="fa-solid fa-circle"></i> Sin conectar';
@@ -316,55 +360,8 @@
       renderTxHistory();
     }
 
-    async function fetchCounter() {
-      try {
-        const res = await fetch(`${API}/api/counter`);
-        if (!res.ok) throw new Error('Error al obtener contador');
-        const data = await res.json();
-        counterValue = data.value || 0;
-        counterDisplay.textContent = counterValue;
-      } catch (e) {
-        console.warn('Error fetching counter:', e);
-      }
-    }
-
-    async function refreshCounter() {
-      await fetchCounter();
-      renderTxHistory();
-    }
-
-    async function callCounter(action) {
-      if (!token) { showError(counterError, 'Conecta tu Smart Wallet primero'); return; }
-      const actions = { increment: 'increment', decrement: 'decrement', reset: 'reset' };
-      try {
-        const res = await fetch(`${API}/api/counter/${actions[action]}`, {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }
-        });
-        if (res.status === 401) {
-          showError(counterError, 'Sesión expirada. Vuelve a conectar.');
-          logout();
-          return;
-        }
-        const data = await res.json();
-        if (!data.success) throw new Error(data.error || 'Error en operación');
-        counterValue = data.value;
-        counterDisplay.textContent = counterValue;
-
-        const now = new Date().toLocaleString();
-        const tx = { action, value: counterValue, username: currentUsername, date: now };
-        txHistory.unshift(tx);
-        if (txHistory.length > 50) txHistory.pop();
-        localStorage.setItem('bio_tx_history', JSON.stringify(txHistory));
-        renderTxHistory();
-        counterError.classList.add('hidden');
-      } catch (e) {
-        showError(counterError, e.message);
-      }
-    }
-
     function renderTxHistory() {
-      if (txHistory.length === 0) {
+      if (!txHistory.length) {
         txHistoryEl.innerHTML = `
           <div class="text-center text-gray-500 text-sm py-8">
             <p>Las transacciones aparecerán aquí</p>
@@ -376,11 +373,14 @@
         const icon = tx.action === 'increment' ? 'fa-plus-circle' : tx.action === 'decrement' ? 'fa-minus-circle' : 'fa-undo-alt';
         const color = tx.action === 'increment' ? 'text-green-400' : tx.action === 'decrement' ? 'text-red-400' : 'text-yellow-400';
         const label = tx.action === 'increment' ? 'Incrementar' : tx.action === 'decrement' ? 'Decrementar' : 'Reset';
+        const explorerLink = tx.txHash
+          ? `<a href="https://stellar.expert/explorer/testnet/tx/${tx.txHash}" target="_blank" class="text-cyan-400 text-xs ml-2">🔗 TX</a>`
+          : '';
         return `
           <div class="tx-item">
             <div class="tx-icon"><i class="fa-solid ${icon} ${color}"></i></div>
             <div class="flex-1 min-w-0">
-              <div class="font-semibold text-sm">${label}</div>
+              <div class="font-semibold text-sm">${label} ${explorerLink}</div>
               <div class="text-xs text-gray-500">${tx.date} • ${tx.username}</div>
             </div>
             <div class="font-bold text-sm ${color}">${tx.value}</div>
@@ -389,56 +389,66 @@
       }).join('');
     }
 
-    async function checkSession() {
-      if (!token) return false;
-      try {
-        const res = await fetch(`${API}/api/auth/passkey/status`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.valid) {
-            currentUsername = data.username;
-            localStorage.setItem('bio_username', currentUsername);
-            localStorage.setItem('bio_walletId', data.walletId || '—');
-            updateUI();
-            fetchCounter();
-            return true;
-          }
-        }
-      } catch (e) {}
-      logout();
-      return false;
+    // ============================================================
+    // WEBAUTHN: Serializar credential para enviar al backend
+    // ============================================================
+    function serializeCredential(cred) {
+      const out = {
+        id: cred.id,
+        rawId: buf2base64url(cred.rawId),
+        response: {},
+        type: cred.type,
+      };
+      if (cred.response.clientDataJSON) out.response.clientDataJSON = buf2base64url(cred.response.clientDataJSON);
+      if (cred.response.attestationObject) out.response.attestationObject = buf2base64url(cred.response.attestationObject);
+      if (cred.response.authenticatorData) out.response.authenticatorData = buf2base64url(cred.response.authenticatorData);
+      if (cred.response.signature) out.response.signature = buf2base64url(cred.response.signature);
+      if (cred.response.userHandle) out.response.userHandle = buf2base64url(cred.response.userHandle);
+      if (cred.response.getTransports) out.response.transports = cred.response.getTransports();
+      return out;
     }
 
-    function logout() {
-      if (token) {
-        fetch(`${API}/api/auth/passkey/logout`, {
-          method: 'POST', headers: { 'Authorization': `Bearer ${token}` }
-        }).catch(() => {});
-      }
-      token = null;
-      currentUsername = null;
-      localStorage.removeItem('bio_token');
-      localStorage.removeItem('bio_username');
-      localStorage.removeItem('bio_walletId');
-      updateUI();
+    // Preparar opciones de creación (convertir base64url -> ArrayBuffer)
+    function prepareCreationOpts(opts) {
+      return {
+        ...opts,
+        challenge: base64url2buf(opts.challenge),
+        user: { ...opts.user, id: base64url2buf(opts.user.id) },
+        excludeCredentials: (opts.excludeCredentials || []).map(c => ({
+          ...c, id: base64url2buf(c.id)
+        }))
+      };
+    }
+
+    // Preparar opciones de autenticación (convertir base64url -> ArrayBuffer)
+    function prepareRequestOpts(opts) {
+      return {
+        ...opts,
+        challenge: base64url2buf(opts.challenge),
+        allowCredentials: (opts.allowCredentials || []).map(c => ({
+          ...c, id: base64url2buf(c.id)
+        }))
+      };
     }
 
     // ============================================================
-    // WEB AUTHN: REGISTRO
+    // REGISTRAR PASSKEY (via backend)
     // ============================================================
     async function handleRegister() {
       const username = usernameInput.value.trim();
       if (!username) { showError(walletError, 'Ingresa tu nombre de usuario'); return; }
+      if (!navigator.credentials?.create) {
+        showError(walletError, 'Tu navegador no soporta WebAuthn. Usa Chrome, Edge o Safari.');
+        return;
+      }
 
       registerBtn.disabled = true;
-      registerBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Registrando...';
+      registerBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando con servidor...';
       walletError.classList.add('hidden');
 
       try {
-        // 1. Begin registration
-        const beginRes = await fetch(`${API}/api/auth/passkey/register/begin`, {
+        // 1. Solicitar challenge al backend
+        const beginRes = await fetch(apiURL('/api/auth/passkey/register/begin'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username })
@@ -447,38 +457,34 @@
           const err = await beginRes.json();
           throw new Error(err.error || 'Error al iniciar registro');
         }
-        const options = await beginRes.json();
+        const creationOpts = await beginRes.json();
 
-        // 2. Create credential with browser
-        const publicKey = createPublicKeyCredential(options);
-        const credential = await navigator.credentials.create({ publicKey });
-        const credentialJSON = credentialToJSON(credential);
+        // 2. Pedir biometría al usuario
+        registerBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Esperando biometría...';
+        const credential = await navigator.credentials.create({
+          publicKey: prepareCreationOpts(creationOpts)
+        });
 
-        // 3. Complete registration
-        const completeRes = await fetch(`${API}/api/auth/passkey/register/complete`, {
+        // 3. Enviar credencial al backend para verificar
+        const completeRes = await fetch(apiURL('/api/auth/passkey/register/complete'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, credential: credentialJSON })
+          body: JSON.stringify({ username, credential: serializeCredential(credential) })
         });
         if (!completeRes.ok) {
           const err = await completeRes.json();
           throw new Error(err.error || 'Error al completar registro');
         }
-        const result = await completeRes.json();
+        const completeData = await completeRes.json();
 
-        if (result.verified && result.token) {
-          token = result.token;
-          currentUsername = username;
-          localStorage.setItem('bio_token', token);
-          localStorage.setItem('bio_username', username);
-          localStorage.setItem('bio_walletId', result.walletId || '—');
-          updateUI();
-          fetchCounter();
-        } else {
-          throw new Error('Verificación biométrica fallida');
-        }
+        // 4. Guardar token
+        bioToken = completeData.token;
+        currentUsername = username;
+        localStorage.setItem('bio_token', bioToken);
+        localStorage.setItem('bio_username', username);
+        updateUI();
       } catch (e) {
-        showError(walletError, e.message || 'Error en registro biométrico');
+        showError(walletError, e.message || 'Error al registrar con biometría');
       } finally {
         registerBtn.disabled = false;
         registerBtn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Registrar con Passkey';
@@ -486,59 +492,59 @@
     }
 
     // ============================================================
-    // WEB AUTHN: LOGIN
+    // LOGIN PASSKEY (via backend)
     // ============================================================
     async function handleLogin() {
       const username = usernameInput.value.trim();
       if (!username) { showError(walletError, 'Ingresa tu nombre de usuario'); return; }
+      if (!navigator.credentials?.get) {
+        showError(walletError, 'Tu navegador no soporta WebAuthn.');
+        return;
+      }
 
       loginBtn.disabled = true;
-      loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
+      loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando con servidor...';
       walletError.classList.add('hidden');
 
       try {
-        // 1. Begin login
-        const beginRes = await fetch(`${API}/api/auth/passkey/login/begin`, {
+        // 1. Solicitar challenge al backend
+        const beginRes = await fetch(apiURL('/api/auth/passkey/login/begin'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username })
         });
         if (!beginRes.ok) {
           const err = await beginRes.json();
-          throw new Error(err.error || 'Error al iniciar login');
+          throw new Error(err.error || 'Error al iniciar sesión');
         }
-        const options = await beginRes.json();
+        const requestOpts = await beginRes.json();
 
-        // 2. Get credential from browser
-        const publicKey = getPublicKeyCredential(options);
-        const credential = await navigator.credentials.get({ publicKey });
-        const credentialJSON = credentialToJSON(credential);
+        // 2. Pedir biometría
+        loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando biometría...';
+        const assertion = await navigator.credentials.get({
+          publicKey: prepareRequestOpts(requestOpts)
+        });
 
-        // 3. Complete login
-        const completeRes = await fetch(`${API}/api/auth/passkey/login/complete`, {
+        // 3. Enviar assertion al backend
+        const completeRes = await fetch(apiURL('/api/auth/passkey/login/complete'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, credential: credentialJSON })
+          body: JSON.stringify({ username, credential: serializeCredential(assertion) })
         });
         if (!completeRes.ok) {
           const err = await completeRes.json();
-          throw new Error(err.error || 'Error al completar login');
+          throw new Error(err.error || 'Error al verificar biometría');
         }
-        const result = await completeRes.json();
+        const completeData = await completeRes.json();
 
-        if (result.verified && result.token) {
-          token = result.token;
-          currentUsername = username;
-          localStorage.setItem('bio_token', token);
-          localStorage.setItem('bio_username', username);
-          localStorage.setItem('bio_walletId', result.walletId || '—');
-          updateUI();
-          fetchCounter();
-        } else {
-          throw new Error('Verificación biométrica fallida');
-        }
+        // 4. Guardar token
+        bioToken = completeData.token;
+        currentUsername = username;
+        localStorage.setItem('bio_token', bioToken);
+        localStorage.setItem('bio_username', username);
+        updateUI();
       } catch (e) {
-        showError(walletError, e.message || 'Error en login biométrico');
+        showError(walletError, e.message || 'Error en verificación biométrica');
       } finally {
         loginBtn.disabled = false;
         loginBtn.innerHTML = '<i class="fa-solid fa-key"></i> Conectar con Passkey';
@@ -546,29 +552,70 @@
     }
 
     // ============================================================
+    // LOGOUT
+    // ============================================================
+    async function handleLogout() {
+      if (bioToken) {
+        try {
+          await fetch(apiURL('/api/auth/passkey/logout'), {
+            method: 'POST',
+            headers: authHeaders()
+          });
+        } catch (e) { /* ignora error */ }
+      }
+      bioToken = null;
+      currentUsername = null;
+      localStorage.removeItem('bio_token');
+      localStorage.removeItem('bio_username');
+      updateUI();
+    }
+
+    // ============================================================
     // EVENT LISTENERS
     // ============================================================
     registerBtn.addEventListener('click', handleRegister);
     loginBtn.addEventListener('click', handleLogin);
-    logoutBtn.addEventListener('click', logout);
-    incrementBtn.addEventListener('click', () => callCounter('increment'));
-    decrementBtn.addEventListener('click', () => callCounter('decrement'));
-    resetBtn.addEventListener('click', () => callCounter('reset'));
+    logoutBtn.addEventListener('click', handleLogout);
+    incrementBtn.addEventListener('click', () => counterAction('increment'));
+    decrementBtn.addEventListener('click', () => counterAction('decrement'));
+    resetBtn.addEventListener('click', () => counterAction('reset'));
+    usernameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleRegister(); });
 
-    // Enter key in username input triggers register
-    usernameInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') handleRegister();
-    });
+    // ============================================================
+    // Mostrar banner en surge.sh
+    // ============================================================
+    if (IS_SURGE) {
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:#ff9800;color:#000;text-align:center;padding:12px 20px;font-size:14px;font-weight:500';
+      banner.innerHTML = '⚠️ Vista previa estática &mdash; La funcionalidad completa está en <a href="https://money-digital.onrender.com" style="color:#fff;font-weight:700;text-decoration:underline">money-digital.onrender.com</a>';
+      document.body.prepend(banner);
+    }
+
+    // ============================================================
+    // Verificar token al iniciar
+    // ============================================================
+    async function verifyToken() {
+      if (!bioToken) return false;
+      try {
+        const res = await fetch(apiURL('/api/auth/passkey/status'), { headers: authHeaders() });
+        if (res.ok) return true;
+      } catch (e) { /* ignora */ }
+      bioToken = null;
+      currentUsername = null;
+      localStorage.removeItem('bio_token');
+      localStorage.removeItem('bio_username');
+      return false;
+    }
 
     // ============================================================
     // INIT
     // ============================================================
     (async function init() {
-      updateUI();
-      await fetchCounter();
-      if (token) {
-        await checkSession();
+      if (bioToken) {
+        const valid = await verifyToken();
+        if (!valid) updateUI();
       }
+      updateUI();
     })();
   </script>
 </body>

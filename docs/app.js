@@ -1,11 +1,14 @@
+// CONTRACT_ID del contrato money-digital desplegado en Stellar Testnet
+// Mismo valor en: stellar-integration.js, server.js (.env)
 const CONTRACT_ID = "CBNEJ7M4BIAMX4URHV72DYQDS4KELL7EYJJQOHPQIOMFEIWFK64U7D3T";
 
-const RPC_URL = 'https://horizon-testnet.stellar.org';
+const HORIZON_URL = 'https://horizon-testnet.stellar.org';
 const SOROBAN_RPC_URL = 'https://rpc-testnet.stellar.org';
+const NETWORK_PASSPHRASE = StellarSdk.Networks.TESTNET;
 
 let connectedWallet = null;
 let publicKey = null;
-let networkPassphrase = StellarSdk.Networks.TESTNET;
+let networkPassphrase = NETWORK_PASSPHRASE;
 
 const form = document.getElementById('userForm');
 const nameEl = document.getElementById('name');
@@ -83,7 +86,7 @@ async function ejecutarAccion(accion, params = {}) {
   result.textContent = `Ejecutando: ${accion}...`;
 
   try {
-    const server = new StellarSdk.Server(RPC_URL);
+    const server = new StellarSdk.Server(HORIZON_URL);
 
     let account;
     try {
