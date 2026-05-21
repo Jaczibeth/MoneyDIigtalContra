@@ -482,6 +482,13 @@
         currentUsername = username;
         localStorage.setItem('bio_token', bioToken);
         localStorage.setItem('bio_username', username);
+        // Compartir sesión con el resto del sistema
+        sessionStorage.setItem('auth_token', bioToken);
+        if (completeData.user) {
+          sessionStorage.setItem('currentUser', JSON.stringify(completeData.user));
+        } else {
+          sessionStorage.setItem('currentUser', JSON.stringify({ username, role: 'estudiante', email: '', stellarPublic: null }));
+        }
         updateUI();
       } catch (e) {
         showError(walletError, e.message || 'Error al registrar con biometría');
@@ -542,6 +549,13 @@
         currentUsername = username;
         localStorage.setItem('bio_token', bioToken);
         localStorage.setItem('bio_username', username);
+        // Compartir sesión con el resto del sistema
+        sessionStorage.setItem('auth_token', bioToken);
+        if (completeData.user) {
+          sessionStorage.setItem('currentUser', JSON.stringify(completeData.user));
+        } else {
+          sessionStorage.setItem('currentUser', JSON.stringify({ username, role: 'estudiante', email: '', stellarPublic: null }));
+        }
         updateUI();
       } catch (e) {
         showError(walletError, e.message || 'Error en verificación biométrica');
@@ -567,6 +581,8 @@
       currentUsername = null;
       localStorage.removeItem('bio_token');
       localStorage.removeItem('bio_username');
+      sessionStorage.removeItem('auth_token');
+      sessionStorage.removeItem('currentUser');
       updateUI();
     }
 

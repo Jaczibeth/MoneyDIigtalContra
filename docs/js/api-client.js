@@ -92,7 +92,9 @@ class ApiClient {
   }
 
   async login(username, password) {
-    if (this.backendAvailable || await this.isBackendAlive()) {
+    // Siempre intentar con el backend primero
+    const backendAlive = this.backendAvailable || await this.isBackendAlive();
+    if (backendAlive) {
       try {
         const res = await fetch(`${this.baseURL}/api/auth/login`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -101,6 +103,10 @@ class ApiClient {
         if (res.ok) {
           const json = await res.json();
           this.setToken(json.token);
+          // También guardar en sessionStorage para auth-manager
+          if (json.user) {
+            sessionStorage.setItem('currentUser', JSON.stringify(json.user));
+          }
           return json;
         }
         const err = await res.json();
@@ -112,7 +118,11 @@ class ApiClient {
         console.log('Backend no disponible para login, usando offline');
       }
     }
+    // Fallback offline: solo funciona si hay usuarios en localStorage (mismo dispositivo)
     const users = JSON.parse(localStorage.getItem('users') || '[]');
+    if (!users.length) {
+      throw new Error('No se puede conectar al servidor. Verifica tu conexión a internet.');
+    }
     const user = users.find(u => u.username === username);
     if (!user) throw new Error('Credenciales inválidas. ¿Ya te registraste?');
     const encoder = new TextEncoder();

@@ -182,7 +182,7 @@ function rateLimit(ms, maxRequests) {
   };
 }
 
-app.use('/uploads', authMiddleware, express.static(UPLOADS_DIR));
+app.use('/uploads', anyAuthMiddleware, express.static(UPLOADS_DIR));
 
 // Variable global de DB
 let db = null;
@@ -331,22 +331,6 @@ function saveDB() {
   }
 }
 
-// Middleware JWT
-function authMiddleware(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Token requerido' });
-  }
-  try {
-    const token = header.split(' ')[1];
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    next();
-  } catch (e) {
-    return res.status(401).json({ error: 'Token inválido o expirado' });
-  }
-}
-
 function adminOnly(req, res, next) {
   if (req.user.role !== 'docente') {
     return res.status(403).json({ error: 'Solo docentes pueden realizar esta acción' });
@@ -371,6 +355,54 @@ function biometricAuthMiddleware(req, res, next) {
   } catch (e) {
     return res.status(401).json({ error: 'Token biométrico inválido o expirado' });
   }
+}
+
+// Middleware de autenticación unificado - acepta tokens de contraseña Y biométricos
+function anyAuthMiddleware(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token requerido' });
+  }
+  const token = header.split(' ')[1];
+  
+  // Intentar con JWT_SECRET (login con contraseña)
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    req.authMethod = 'password';
+    return next();
+  } catch (e) {
+    // No es token de contraseña, continuar
+  }
+  
+  // Intentar con JWT_WEBAUTHN_SECRET (login biométrico)
+  try {
+    const decoded = jwt.verify(token, JWT_WEBAUTHN_SECRET);
+    if (decoded.authMethod === 'passkey') {
+      // Buscar datos completos del usuario en DB
+      const userResult = db.exec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [decoded.username]);
+      if (userResult.length && userResult[0].values.length) {
+        const cols = userResult[0].columns;
+        const row = userResult[0].values[0];
+        const idx = (name) => cols.indexOf(name);
+        req.user = {
+          id: row[idx('id')],
+          username: row[idx('username')],
+          email: row[idx('email')],
+          role: row[idx('role')],
+          stellarPublic: row[idx('stellar_public')],
+          authMethod: 'passkey',
+          credentialId: decoded.credentialId
+        };
+        req.authMethod = 'passkey';
+        return next();
+      }
+    }
+  } catch (e) {
+    // No es token biométrico
+  }
+  
+  return res.status(401).json({ error: 'Token inválido o expirado' });
 }
 
 // ========================
@@ -401,11 +433,6 @@ app.post('/api/auth/passkey/register/begin', async (req, res) => {
       userName: username,
       userDisplayName: username,
       attestationType: 'none',
-      excludeCredentials: existingCredentials.map(cred => ({
-        id: isoBase64URL.toBuffer(cred.id),
-        type: 'public-key',
-        transports: cred.transports,
-      })),
     });
 
     // Guardar challenge en store temporal
@@ -468,7 +495,21 @@ app.post('/api/auth/passkey/register/complete', async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    res.json({ verified: true, token, walletId: credentialIdBase64.substring(0, 12) + '...' });
+    // Obtener datos del usuario
+    const userResult = db.exec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [username]);
+
+    res.json({
+      verified: true,
+      token,
+      user: userResult.length && userResult[0].values.length ? {
+        id: userResult[0].values[0][0],
+        username: userResult[0].values[0][1],
+        email: userResult[0].values[0][2],
+        role: userResult[0].values[0][3],
+        stellarPublic: userResult[0].values[0][4],
+      } : null,
+      walletId: credentialIdBase64.substring(0, 12) + '...'
+    });
   } catch (e) {
     console.error('Error en register/complete:', e);
     res.status(500).json({ error: e.message });
@@ -496,11 +537,6 @@ app.post('/api/auth/passkey/login/begin', async (req, res) => {
 
     const options = await generateAuthenticationOptions({
       rpID: RP_ID,
-      allowCredentials: credentials.map(cred => ({
-        id: isoBase64URL.toBuffer(cred.id),
-        type: 'public-key',
-        transports: cred.transports,
-      })),
       userVerification: 'preferred',
     });
 
@@ -577,17 +613,28 @@ app.post('/api/auth/passkey/login/complete', async (req, res) => {
 
     challengeStore.delete(`login:${username}`);
 
-    // Obtener datos del usuario
-    const userResult = db.exec(`SELECT id, username, role FROM users WHERE username = ?`, [username]);
+    // Obtener datos completos del usuario
+    const userResult = db.exec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [username]);
 
     // Emitir token JWT biométrico
     const token = jwt.sign(
-      { id: userResult[0].values[0][0], username, role: userResult[0].values[0][2], authMethod: 'passkey', credentialId: credId },
+      { id: userResult[0].values[0][0], username, role: userResult[0].values[0][3], authMethod: 'passkey', credentialId: credId },
       JWT_WEBAUTHN_SECRET,
       { expiresIn: '24h' }
     );
 
-    res.json({ verified: true, token, walletId: credId.substring(0, 12) + '...' });
+    res.json({
+      verified: true,
+      token,
+      user: {
+        id: userResult[0].values[0][0],
+        username: userResult[0].values[0][1],
+        email: userResult[0].values[0][2],
+        role: userResult[0].values[0][3],
+        stellarPublic: userResult[0].values[0][4],
+      },
+      walletId: credId.substring(0, 12) + '...'
+    });
   } catch (e) {
     console.error('Error en login/complete:', e);
     res.status(500).json({ error: e.message });
@@ -817,7 +864,7 @@ app.post('/api/auth/login', rateLimit(60000, 10), async (req, res) => {
   }
 });
 
-app.get('/api/auth/me', authMiddleware, (req, res) => {
+app.get('/api/auth/me', anyAuthMiddleware, (req, res) => {
   const result = db.exec(`SELECT id, username, email, role, stellar_public, stellar_secret_encrypted, created_at FROM users WHERE id = ?`, [req.user.id]);
   if (!result.length || !result[0].values.length) return res.status(404).json({ error: 'Usuario no encontrado' });
   const row = result[0].values[0];
@@ -831,7 +878,7 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
 });
 
 // --- USERS ---
-app.get('/api/users', authMiddleware, (req, res) => {
+app.get('/api/users', anyAuthMiddleware, (req, res) => {
   const result = db.exec(`SELECT id, username, email, role, stellar_public FROM users ORDER BY created_at DESC`);
   if (!result.length) return res.json([]);
   const cols = result[0].columns;
@@ -843,7 +890,7 @@ app.get('/api/users', authMiddleware, (req, res) => {
   res.json(users);
 });
 
-app.get('/api/users/students', authMiddleware, (req, res) => {
+app.get('/api/users/students', anyAuthMiddleware, (req, res) => {
   const result = db.exec(`SELECT id, username, email, stellar_public FROM users WHERE role = 'estudiante' ORDER BY username`);
   if (!result.length) return res.json([]);
   const cols = result[0].columns;
@@ -853,7 +900,7 @@ app.get('/api/users/students', authMiddleware, (req, res) => {
   })));
 });
 
-app.get('/api/users/:username/stellar-key', authMiddleware, (req, res) => {
+app.get('/api/users/:username/stellar-key', anyAuthMiddleware, (req, res) => {
   const isOwner = req.params.username === req.user.username;
   if (!isOwner && req.user.role !== 'docente') {
     return res.status(403).json({ error: 'No puedes ver la clave de otro usuario' });
@@ -872,7 +919,7 @@ app.get('/api/users/:username/stellar-key', authMiddleware, (req, res) => {
 });
 
 // --- ACTIVITIES ---
-app.get('/api/activities', authMiddleware, (req, res) => {
+app.get('/api/activities', anyAuthMiddleware, (req, res) => {
   const result = db.exec(`SELECT * FROM activities WHERE status = 'active' ORDER BY created_at DESC`);
   if (!result.length) return res.json([]);
   const cols = result[0].columns;
@@ -885,7 +932,7 @@ app.get('/api/activities', authMiddleware, (req, res) => {
   })));
 });
 
-app.post('/api/activities', authMiddleware, adminOnly, (req, res) => {
+app.post('/api/activities', anyAuthMiddleware, adminOnly, (req, res) => {
   const { title, description, tokens, deadline, subject, instructions } = req.body;
   if (!title) return res.status(400).json({ error: 'Título requerido' });
   const id = uuidv4();
@@ -896,7 +943,7 @@ app.post('/api/activities', authMiddleware, adminOnly, (req, res) => {
   res.json({ id, title, description, tokens: parseInt(tokens) || 0, deadline, subject, instructions, createdBy: req.user.username, createdAt: now, status: 'active' });
 });
 
-app.put('/api/activities/:id', authMiddleware, adminOnly, (req, res) => {
+app.put('/api/activities/:id', anyAuthMiddleware, adminOnly, (req, res) => {
   const { title, description, tokens, deadline, subject, instructions, status } = req.body;
   const updates = [];
   const params = [];
@@ -914,14 +961,14 @@ app.put('/api/activities/:id', authMiddleware, adminOnly, (req, res) => {
   res.json({ success: true });
 });
 
-app.delete('/api/activities/:id', authMiddleware, adminOnly, (req, res) => {
+app.delete('/api/activities/:id', anyAuthMiddleware, adminOnly, (req, res) => {
   db.run(`UPDATE activities SET status = 'inactive' WHERE id = ?`, [req.params.id]);
   saveDB();
   res.json({ success: true });
 });
 
 // --- SUBMISSIONS ---
-app.get('/api/submissions', authMiddleware, (req, res) => {
+app.get('/api/submissions', anyAuthMiddleware, (req, res) => {
   let query = `SELECT s.*, a.title as activity_title, a.tokens as activity_tokens FROM submissions s LEFT JOIN activities a ON s.activity_id = a.id`;
   const params = [];
   const where = [];
@@ -961,7 +1008,7 @@ app.get('/api/submissions', authMiddleware, (req, res) => {
   })));
 });
 
-app.post('/api/submissions', authMiddleware, upload.single('file'), (req, res) => {
+app.post('/api/submissions', anyAuthMiddleware, upload.single('file'), (req, res) => {
   const { activityId, comments } = req.body;
   if (!activityId) return res.status(400).json({ error: 'ID de actividad requerido' });
 
@@ -975,7 +1022,7 @@ app.post('/api/submissions', authMiddleware, upload.single('file'), (req, res) =
   res.json({ id, activityId, studentUsername: req.user.username, ...fileInfo, comments, status: 'pending', submittedAt: now });
 });
 
-app.put('/api/submissions/:id/review', authMiddleware, adminOnly, async (req, res) => {
+app.put('/api/submissions/:id/review', anyAuthMiddleware, adminOnly, async (req, res) => {
   const { status, reviewComment } = req.body;
   if (!['pending', 'approved', 'rejected', 'needs_correction'].includes(status)) {
     return res.status(400).json({ error: 'Estado inválido' });
@@ -1014,7 +1061,7 @@ app.put('/api/submissions/:id/review', authMiddleware, adminOnly, async (req, re
 });
 
 // --- TOKENS ---
-app.get('/api/tokens/:username', authMiddleware, (req, res) => {
+app.get('/api/tokens/:username', anyAuthMiddleware, (req, res) => {
   const result = db.exec(`SELECT amount, type, description, blockchain_tx_hash, timestamp FROM token_transactions WHERE username = ? ORDER BY timestamp DESC`, [req.params.username]);
   const transactions = result.length ? result[0].values.map(row => ({
     amount: parseInt(row[0]), type: row[1], description: row[2], blockchainTxHash: row[3], timestamp: row[4]
@@ -1025,7 +1072,7 @@ app.get('/api/tokens/:username', authMiddleware, (req, res) => {
   res.json({ username: req.params.username, balance, transactions });
 });
 
-app.post('/api/tokens/mint', authMiddleware, adminOnly, async (req, res) => {
+app.post('/api/tokens/mint', anyAuthMiddleware, adminOnly, async (req, res) => {
   const { username, amount, description } = req.body;
   if (!username || !amount) return res.status(400).json({ error: 'Usuario y cantidad requeridos' });
 
@@ -1041,7 +1088,7 @@ app.post('/api/tokens/mint', authMiddleware, adminOnly, async (req, res) => {
 });
 
 // --- REWARDS ---
-app.get('/api/rewards', authMiddleware, (req, res) => {
+app.get('/api/rewards', anyAuthMiddleware, (req, res) => {
   const result = db.exec(`SELECT * FROM rewards WHERE status = 'active' ORDER BY created_at DESC`);
   if (!result.length) return res.json([]);
   const cols = result[0].columns;
@@ -1054,7 +1101,7 @@ app.get('/api/rewards', authMiddleware, (req, res) => {
   })));
 });
 
-app.post('/api/rewards', authMiddleware, adminOnly, (req, res) => {
+app.post('/api/rewards', anyAuthMiddleware, adminOnly, (req, res) => {
   const { name, description, cost, image } = req.body;
   if (!name || !cost) return res.status(400).json({ error: 'Nombre y costo requeridos' });
   const id = uuidv4();
@@ -1065,7 +1112,7 @@ app.post('/api/rewards', authMiddleware, adminOnly, (req, res) => {
   res.json({ id, name, description, cost: parseInt(cost), image, createdBy: req.user.username, createdAt: now, status: 'active', redeemedCount: 0 });
 });
 
-app.post('/api/rewards/:id/redeem', authMiddleware, (req, res) => {
+app.post('/api/rewards/:id/redeem', anyAuthMiddleware, (req, res) => {
   const result = db.exec(`SELECT * FROM rewards WHERE id = ? AND status = 'active'`, [req.params.id]);
   if (!result.length || !result[0].values.length) return res.status(404).json({ error: 'Recompensa no encontrada' });
 
@@ -1097,7 +1144,7 @@ app.post('/api/rewards/:id/redeem', authMiddleware, (req, res) => {
 });
 
 // --- FILE DOWNLOAD ---
-app.get('/api/files/:filename', authMiddleware, (req, res) => {
+app.get('/api/files/:filename', anyAuthMiddleware, (req, res) => {
   const resolved = path.resolve(UPLOADS_DIR, req.params.filename);
   if (!resolved.startsWith(path.resolve(UPLOADS_DIR))) {
     return res.status(403).json({ error: 'Acceso denegado' });
@@ -1107,7 +1154,7 @@ app.get('/api/files/:filename', authMiddleware, (req, res) => {
 });
 
 // --- STATS ---
-app.get('/api/stats/student', authMiddleware, (req, res) => {
+app.get('/api/stats/student', anyAuthMiddleware, (req, res) => {
   const username = req.user.username;
 
   const activitiesResult = db.exec(`SELECT id, tokens FROM activities WHERE status = 'active'`);
@@ -1132,7 +1179,7 @@ app.get('/api/stats/student', authMiddleware, (req, res) => {
   res.json({ totalActivities, pendingSubmissions: pending, pendingReview: pending, needsCorrection, approved, rejected, tokensBalance, tokensEarned, activitiesCompleted: approved, progress });
 });
 
-app.get('/api/stats/teacher', authMiddleware, (req, res) => {
+app.get('/api/stats/teacher', anyAuthMiddleware, (req, res) => {
   const username = req.user.username;
 
   const actResult = db.exec(`SELECT id FROM activities WHERE created_by = ?`, [username]);

@@ -38,16 +38,16 @@
       <div id="walletStatus" class="web3-status" style="display: none; margin-bottom: 1.5rem;">
       </div>
 
-      <form id="loginForm">
+      <form id="loginForm" method="post" action="/api/auth/login">
         <div class="input-group">
           <label for="username" class="input-label">Usuario o Email</label>
-          <input id="username" type="text" placeholder="nombre@ejemplo.com" class="input-field" required
+          <input id="username" name="username" type="text" placeholder="nombre@ejemplo.com" class="input-field" required
             autocomplete="username" />
         </div>
 
         <div class="input-group">
           <label for="loginPassword" class="input-label">Contraseña</label>
-          <input id="loginPassword" type="password" placeholder="••••••••" class="input-field" />
+          <input id="loginPassword" name="password" type="password" placeholder="••••••••" class="input-field" autocomplete="current-password" />
         </div>
 
         <div class="input-group">
@@ -66,6 +66,9 @@
 
         <button type="submit" id="loginBtn" class="btn btn-primary" style="margin-top: 1rem;">
           Iniciar Sesión &rarr;
+        </button>
+        <button type="button" id="biometricLoginBtn" class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%;">
+          <span id="biometricBtnText">🔐 Iniciar con Biometría</span>
         </button>
       </form>
 
@@ -388,11 +391,106 @@
       );
     }
 
-    // Init - No mostrar wallet en login por seguridad
-    window.onload = () => {
-      // La wallet se mostrará solo después de hacer login exitosamente
-      // en la página Inicio.html, no aquí en el login
-    };
+    // ============================================================
+    // LOGIN BIOMÉTRICO (Passkeys)
+    // ============================================================
+
+    // Funciones auxiliares WebAuthn
+    function buf2base64url(buf) {
+      const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : new Uint8Array(buf.buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function base64url2buf(str) {
+      str = str.replace(/-/g, '+').replace(/_/g, '/');
+      while (str.length % 4) str += '=';
+      const binary = atob(str);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes.buffer;
+    }
+
+    function serializeCredential(cred) {
+      const out = { id: cred.id, rawId: buf2base64url(cred.rawId), response: {}, type: cred.type };
+      if (cred.response.clientDataJSON) out.response.clientDataJSON = buf2base64url(cred.response.clientDataJSON);
+      if (cred.response.attestationObject) out.response.attestationObject = buf2base64url(cred.response.attestationObject);
+      if (cred.response.authenticatorData) out.response.authenticatorData = buf2base64url(cred.response.authenticatorData);
+      if (cred.response.signature) out.response.signature = buf2base64url(cred.response.signature);
+      if (cred.response.userHandle) out.response.userHandle = buf2base64url(cred.response.userHandle);
+      if (cred.response.getTransports) out.response.transports = cred.response.getTransports();
+      return out;
+    }
+
+    function prepareRequestOpts(opts) {
+      return {
+        ...opts,
+        challenge: base64url2buf(opts.challenge),
+        allowCredentials: (opts.allowCredentials || []).map(c => ({ ...c, id: base64url2buf(c.id) }))
+      };
+    }
+
+    // Botón de login biométrico
+    document.getElementById('biometricLoginBtn').addEventListener('click', async () => {
+      const username = document.getElementById('username').value.trim();
+      if (!username) { showToast('Ingresa tu nombre de usuario primero', 'error'); return; }
+      if (!navigator.credentials?.get) {
+        showToast('Tu navegador no soporta biometría. Usa Chrome, Edge o Safari.', 'error');
+        return;
+      }
+
+      const btnText = document.getElementById('biometricBtnText');
+      try {
+        btnText.textContent = '⏳ Conectando con servidor...';
+
+        const beginRes = await fetch(`/api/auth/passkey/login/begin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+        if (!beginRes.ok) {
+          const err = await beginRes.json();
+          throw new Error(err.error || 'Error al iniciar sesión biométrica');
+        }
+        const requestOpts = await beginRes.json();
+
+        btnText.textContent = '⏳ Verificando biometría...';
+        const assertion = await navigator.credentials.get({
+          publicKey: prepareRequestOpts(requestOpts)
+        });
+
+        const completeRes = await fetch(`/api/auth/passkey/login/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, credential: serializeCredential(assertion) })
+        });
+        if (!completeRes.ok) {
+          const err = await completeRes.json();
+          throw new Error(err.error || 'Error al verificar biometría');
+        }
+        const completeData = await completeRes.json();
+
+        // Guardar token y datos de sesión
+        sessionStorage.setItem('auth_token', completeData.token);
+        if (completeData.user) {
+          sessionStorage.setItem('currentUser', JSON.stringify(completeData.user));
+        }
+        // También en apiClient si ya se inicializó
+        if (typeof apiClient !== 'undefined') {
+          apiClient.setToken(completeData.token);
+        }
+
+        showToast(`Bienvenido ${username}`, 'success');
+        setTimeout(() => window.location.href = "Inicio.html", 1000);
+      } catch (e) {
+        btnText.textContent = '🔐 Iniciar con Biometría';
+        showToast(e.message || 'Error en autenticación biométrica', 'error');
+      }
+    });
+
+    // Init
+    window.onload = () => {};
   </script>
 </body>
 
