@@ -16,14 +16,15 @@ class ApiClient {
 
   async init() {
     try {
-      const res = await fetch(`${this.baseURL}/api/auth/me`, {
-        headers: this.getHeaders()
-      });
-      this.backendAvailable = res.ok;
-      if (res.ok) console.log('Backend disponible');
-      else console.log('Modo offline (localStorage)');
+      if (this.token) {
+        const res = await fetch(`${this.baseURL}/api/auth/me`, { headers: this.getHeaders() });
+        this.backendAvailable = res.ok;
+      } else {
+        const res = await fetch(`${this.baseURL}/api/counter`);
+        this.backendAvailable = res.ok;
+      }
     } catch (e) {
-      console.log('Modo offline (localStorage) - backend no disponible');
+      this.backendAvailable = false;
     }
   }
 
@@ -50,7 +51,7 @@ class ApiClient {
 
   async isBackendAlive() {
     try {
-      const res = await fetch(`${this.baseURL}/api/auth/me`, { headers: this.getHeaders() });
+      const res = await fetch(`${this.baseURL}/api/counter`);
       return res.ok;
     } catch { return false; }
   }
