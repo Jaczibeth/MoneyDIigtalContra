@@ -1098,6 +1098,25 @@ app.get('/api/stats/teacher', authMiddleware, (req, res) => {
 // MIGRACIÓN DESDE LOCALSTORAGE
 // ========================
 
+// Endpoint temporal para limpiar un usuario de la DB
+app.post('/api/migrate/reset', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: 'Username requerido' });
+
+    db.run(`DELETE FROM token_transactions WHERE username = ?`, [username]);
+    db.run(`DELETE FROM submissions WHERE student_username = ?`, [username]);
+    db.run(`DELETE FROM passkeys WHERE username = ?`, [username]);
+    db.run(`DELETE FROM redemptions WHERE username = ?`, [username]);
+    db.run(`DELETE FROM activities WHERE created_by = ?`, [username]);
+    db.run(`DELETE FROM users WHERE username = ?`, [username]);
+    saveDB();
+    res.json({ success: true, message: `Usuario ${username} eliminado de la DB` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 app.post('/api/migrate/import', async (req, res) => {
   try {
     const { users, activities, submissions, rewards, redemptions, tokenTransactions, username } = req.body;
