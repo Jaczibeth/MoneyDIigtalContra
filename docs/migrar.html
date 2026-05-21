@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><title>Migrar datos - Money Digital</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+body{font-family:sans-serif;background:#111;color:#fff;display:flex;justify-content:center;align-items:center;min-height:100vh;margin:0}
+.card{background:#1e1e1e;padding:2rem;border-radius:16px;max-width:500px;width:90%;text-align:center}
+h1{color:#00eaff}
+pre{background:#000;padding:1rem;border-radius:8px;text-align:left;font-size:0.85rem;max-height:200px;overflow:auto}
+button{padding:12px 24px;border:none;border-radius:8px;font-size:1rem;cursor:pointer;margin:8px}
+.btn-primary{background:#00eaff;color:#000}
+.btn-danger{background:#ef4444;color:#fff}
+.hidden{display:none}
+#result{margin-top:1rem;padding:1rem;border-radius:8px}
+.success{background:#065f46;color:#6ee7b7}
+.error{background:#7f1d1d;color:#fca5a5}
+.info{background:#1e3a5f;color:#93c5fd}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>🔄 Migrar datos</h1>
+<p>Esto importará tus datos de <strong>localStorage</strong> al servidor Render.</p>
+
+<div id="preview" class="hidden">
+<p>Datos encontrados:</p>
+<pre id="previewData"></pre>
+</div>
+
+<button id="btnPreview" class="btn-primary">🔍 Vista previa</button>
+<button id="btnMigrate" class="btn-danger hidden">⬆️ Migrar a Render</button>
+
+<div id="result"></div>
+</div>
+
+<script src="js/api-client.js"></script>
+<script>
+const btnPreview = document.getElementById('btnPreview');
+const btnMigrate = document.getElementById('btnMigrate');
+const preview = document.getElementById('preview');
+const previewData = document.getElementById('previewData');
+const result = document.getElementById('result');
+
+function getLS(key) { try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch { return null; } }
+
+btnPreview.addEventListener('click', () => {
+const users = getLS('users') || [];
+const username = (getLS('currentUser') || {}).username;
+
+if (!username) {
+showResult('No hay sesión activa. Inicia sesión primero.', 'error');
+return;
+}
+
+const userData = users.find(u => u.username === username);
+if (!userData) {
+showResult(`Usuario "${username}" no encontrado en localStorage.`, 'error');
+return;
+}
+
+const data = {
+users, username, activities: getLS('activities'),
+submissions: getLS('submissions'), rewards: getLS('rewards'),
+redemptions: getLS('redemptions'),
+tokenTransactions: getLS('token_transactions')
+};
+
+previewData.textContent = JSON.stringify({
+usuario: username,
+actividades: (data.activities || []).length,
+submissions: (data.submissions || []).length,
+transacciones: (data.tokenTransactions || []).length,
+recompensas: (data.rewards || []).length
+}, null, 2);
+
+preview.classList.remove('hidden');
+btnMigrate.classList.remove('hidden');
+showResult('Vista previa cargada. Revisa los datos y haz clic en Migrar.', 'info');
+});
+
+btnMigrate.addEventListener('click', async () => {
+const users = getLS('users') || [];
+const username = (getLS('currentUser') || {}).username;
+if (!username) { showResult('No hay sesión activa.', 'error'); return; }
+
+const data = {
+users, username, activities: getLS('activities'),
+submissions: getLS('submissions'), rewards: getLS('rewards'),
+redemptions: getLS('redemptions'),
+tokenTransactions: getLS('token_transactions')
+};
+
+btnMigrate.disabled = true;
+btnMigrate.textContent = '⏳ Migrando...';
+showResult('Enviando datos al servidor...', 'info');
+
+try {
+const res = await fetch(`${apiClient.baseURL}/api/migrate/import`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(data)
+});
+const json = await res.json();
+if (res.ok) {
+showResult(`✅ ${json.message}. Actividades: ${json.imported.activities}, Envíos: ${json.imported.submissions}, Transacciones: ${json.imported.transactions}`, 'success');
+btnMigrate.textContent = '✅ Migrado';
+} else {
+showResult(`❌ Error: ${json.error}`, 'error');
+btnMigrate.disabled = false;
+btnMigrate.textContent = '⬆️ Migrar a Render';
+}
+} catch (e) {
+showResult(`❌ Error de conexión: ${e.message}`, 'error');
+btnMigrate.disabled = false;
+btnMigrate.textContent = '⬆️ Migrar a Render';
+}
+});
+
+function showResult(msg, type) {
+result.textContent = msg;
+result.className = type;
+result.style.display = 'block';
+}
+</script>
+</body>
+</html>

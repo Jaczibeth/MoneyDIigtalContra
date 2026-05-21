@@ -1095,6 +1095,135 @@ app.get('/api/stats/teacher', authMiddleware, (req, res) => {
 });
 
 // ========================
+// MIGRACIÓN DESDE LOCALSTORAGE
+// ========================
+
+app.post('/api/migrate/import', async (req, res) => {
+  try {
+    const { users, activities, submissions, rewards, redemptions, tokenTransactions, username } = req.body;
+    if (!users || !username) {
+      return res.status(400).json({ error: 'Datos de usuario requeridos' });
+    }
+
+    const localUser = users.find(u => u.username === username);
+    if (!localUser) {
+      return res.status(404).json({ error: 'Usuario no encontrado en datos locales' });
+    }
+
+    // Verificar si el usuario ya existe en la DB
+    const existing = db.exec(`SELECT id FROM users WHERE username = ?`, [username]);
+    if (existing.length && existing[0].values.length) {
+      // Eliminar el usuario nuevo (creado desde Render) para reemplazarlo
+      db.run(`DELETE FROM token_transactions WHERE username = ?`, [username]);
+      db.run(`DELETE FROM submissions WHERE student_username = ?`, [username]);
+      db.run(`DELETE FROM passkeys WHERE username = ?`, [username]);
+      db.run(`DELETE FROM redemptions WHERE username = ?`, [username]);
+      db.run(`DELETE FROM users WHERE username = ?`, [username]);
+      saveDB();
+    }
+
+    // Importar usuario
+    const id = localUser.id || uuidv4();
+    const passwordHash = localUser.passwordHash || await bcrypt.hash(username + '_migrated', 10);
+    const now = new Date().toISOString();
+    db.run(`INSERT INTO users (id, username, email, password_hash, role, stellar_public, stellar_secret_encrypted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, localUser.username, localUser.email || `${username}@migrated.local`,
+       passwordHash, localUser.role || 'estudiante',
+       localUser.stellarPublic || null,
+       localUser.stellarSecretEncrypted || localUser.encryptedSecret || null,
+       localUser.createdAt || now]);
+    saveDB();
+
+    // Importar actividades
+    let importedActivities = 0;
+    if (Array.isArray(activities)) {
+      for (const act of activities) {
+        const exists = db.exec(`SELECT id FROM activities WHERE id = ?`, [act.id]);
+        if (!exists.length || !exists[0].values.length) {
+          db.run(`INSERT INTO activities (id, title, description, tokens, deadline, subject, instructions, created_by, created_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [act.id, act.title || 'Migrada', act.description || '', parseInt(act.tokens) || 0,
+             act.deadline || null, act.subject || null, act.instructions || null,
+             act.createdBy || act.created_by || username, act.createdAt || now, act.status || 'active']);
+          importedActivities++;
+        }
+      }
+      saveDB();
+    }
+
+    // Importar submissions
+    let importedSubmissions = 0;
+    if (Array.isArray(submissions)) {
+      for (const sub of submissions) {
+        const actId = sub.activityId || sub.activity_id;
+        db.run(`INSERT OR IGNORE INTO submissions (id, activity_id, student_username, file_path, file_name, file_type, file_size, comments, status, submitted_at, reviewed_at, reviewed_by, review_comment, tokens_awarded, blockchain_tx_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [sub.id, actId, sub.studentUsername || sub.student_username || username,
+           sub.filePath || sub.file_path || null, sub.fileName || sub.file_name || null,
+           sub.fileType || sub.file_type || null, parseInt(sub.fileSize || sub.file_size) || null,
+           sub.comments || null, sub.status || 'pending', sub.submittedAt || sub.submitted_at || now,
+           sub.reviewedAt || sub.reviewed_at || null, sub.reviewedBy || sub.reviewed_by || null,
+           sub.reviewComment || sub.review_comment || null, parseInt(sub.tokensAwarded || sub.tokens_awarded) || 0,
+           sub.blockchainTxHash || sub.blockchain_tx_hash || null]);
+        importedSubmissions++;
+      }
+      saveDB();
+    }
+
+    // Importar transacciones de tokens
+    let importedTxs = 0;
+    const txData = tokenTransactions || (localUser.tokens ? localUser.tokens.transactions : []);
+    if (Array.isArray(txData)) {
+      for (const tx of txData) {
+        db.run(`INSERT OR IGNORE INTO token_transactions (id, username, amount, type, activity_id, reward_id, description, blockchain_tx_hash, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [tx.id || uuidv4(), tx.username || username, parseInt(tx.amount) || 0,
+           tx.type || 'earned', tx.activityId || tx.activity_id || null,
+           tx.rewardId || tx.reward_id || null, tx.description || null,
+           tx.blockchainTxHash || tx.blockchain_tx_hash || null,
+           tx.timestamp || tx.createdAt || now]);
+        importedTxs++;
+      }
+      saveDB();
+    }
+
+    // Importar recompensas
+    if (Array.isArray(rewards)) {
+      for (const rew of rewards) {
+        const exists = db.exec(`SELECT id FROM rewards WHERE id = ?`, [rew.id]);
+        if (!exists.length || !exists[0].values.length) {
+          db.run(`INSERT INTO rewards (id, name, description, cost, image, created_by, created_at, status, redeemed_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [rew.id, rew.name, rew.description || '', parseInt(rew.cost) || 0,
+             rew.image || null, rew.createdBy || rew.created_by || username,
+             rew.createdAt || now, rew.status || 'active', parseInt(rew.redeemedCount || rew.redeemed_count) || 0]);
+        }
+      }
+      saveDB();
+    }
+
+    // Importar redemptions
+    if (Array.isArray(redemptions)) {
+      for (const red of redemptions) {
+        db.run(`INSERT OR IGNORE INTO redemptions (id, username, reward_id, reward_name, cost, timestamp) VALUES (?, ?, ?, ?, ?, ?)`,
+          [red.id, red.username || username, red.rewardId || red.reward_id,
+           red.rewardName || red.reward_name, parseInt(red.cost) || 0,
+           red.timestamp || now]);
+      }
+      saveDB();
+    }
+
+    res.json({
+      success: true,
+      message: `Migración completada para ${username}`,
+      imported: {
+        user: 1, activities: importedActivities,
+        submissions: importedSubmissions, transactions: importedTxs
+      }
+    });
+  } catch (e) {
+    console.error('Error en migración:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ========================
 // STATIC FILES (Frontend)
 // ========================
 app.use(express.static(DOCS_DIR));
