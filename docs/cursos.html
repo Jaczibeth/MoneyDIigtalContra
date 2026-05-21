@@ -166,7 +166,7 @@
     <script src="js/activities-system.js"></script>
     <script>
         (function () {
-            const userStr = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+            const userStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
             if (!userStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';

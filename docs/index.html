@@ -329,14 +329,12 @@
         // SEGURIDAD: La clave secreta cifrada se guarda en sessionStorage
         // (se borra al cerrar el navegador), NUNCA en localStorage
         sessionStorage.setItem('currentUser', JSON.stringify(user));
-        localStorage.setItem('currentUser', JSON.stringify(user));
 
         // Si hay wallet manual, asociarla al usuario
         const stellarPublic = localStorage.getItem('stellarPublic');
         if (stellarPublic && !user.stellarPublic) {
           user.stellarPublic = stellarPublic;
           sessionStorage.setItem('currentUser', JSON.stringify(user));
-          localStorage.setItem('currentUser', JSON.stringify(user));
         }
 
         showToast(`Bienvenido ${user.username}`, 'success');

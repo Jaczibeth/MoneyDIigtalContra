@@ -138,7 +138,7 @@
         let usingFreighter = false;
 
         (function () {
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser') || '{}');
             const username = currentUser.username || 'unknown';
             const savedPublic = localStorage.getItem(`wallet_public_${username}`);
             const savedFreighter = localStorage.getItem(`wallet_freighter_${username}`);
@@ -150,7 +150,6 @@
                 currentPublicKey = savedPublic;
                 currentUser.stellarPublic = savedPublic;
                 sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-                localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 showWalletView(savedPublic);
             }
         })();

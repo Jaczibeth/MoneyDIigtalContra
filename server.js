@@ -148,6 +148,32 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '50mb' }));
+
+// Seguridad: headers básicos
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// Rate limiter simple en memoria para login/register
+const rateLimitStore = {};
+function rateLimit(ms, maxRequests) {
+  return (req, res, next) => {
+    const key = req.ip || req.connection.remoteAddress;
+    const now = Date.now();
+    if (!rateLimitStore[key]) rateLimitStore[key] = [];
+    rateLimitStore[key] = rateLimitStore[key].filter(t => now - t < ms);
+    if (rateLimitStore[key].length >= maxRequests) {
+      return res.status(429).json({ error: 'Demasiadas solicitudes. Intenta de nuevo más tarde.' });
+    }
+    rateLimitStore[key].push(now);
+    next();
+  };
+}
+
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 // Variable global de DB
@@ -690,7 +716,7 @@ app.post('/api/counter/reset', biometricAuthMiddleware, async (req, res) => {
 // ========================
 
 // --- AUTH ---
-app.post('/api/auth/register', async (req, res) => {
+app.post('/api/auth/register', rateLimit(60000, 5), async (req, res) => {
   try {
     const { username, email, password, role, stellarPublic, stellarSecretEncrypted } = req.body;
     if (!username || !email || !password) {
@@ -729,7 +755,7 @@ app.post('/api/auth/register', async (req, res) => {
       [id, username, email, passwordHash, role || 'estudiante', finalStellarPublic, finalStellarSecretEncrypted, now]);
     saveDB();
 
-    const token = jwt.sign({ id, username, email, role: role || 'estudiante', stellarPublic: finalStellarPublic }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id, username, email, role: role || 'estudiante', stellarPublic: finalStellarPublic }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token, user: { id, username, email, role: role || 'estudiante', stellarPublic: finalStellarPublic } });
   } catch (e) {
     console.error('Error en registro:', e);
@@ -737,7 +763,7 @@ app.post('/api/auth/register', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', rateLimit(60000, 10), async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
@@ -765,7 +791,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     const token = jwt.sign(
       { id: user.id, username: user.username, email: user.email, role: user.role, stellarPublic: user.stellarPublic },
-      JWT_SECRET, { expiresIn: '7d' }
+      JWT_SECRET, { expiresIn: '24h' }
     );
     res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role, stellarPublic: user.stellarPublic, stellarSecretEncrypted: user.stellarSecretEncrypted } });
   } catch (e) {

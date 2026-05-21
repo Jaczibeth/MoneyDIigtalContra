@@ -9,7 +9,7 @@ class ApiClient {
       if (host.includes('surge.sh')) return 'https://money-digital.onrender.com';
       return '';
     })();
-    this.token = localStorage.getItem('auth_token') || sessionStorage.getItem('auth_token');
+    this.token = sessionStorage.getItem('auth_token');
     this.backendAvailable = false;
     this.init();
   }
@@ -37,10 +37,8 @@ class ApiClient {
   setToken(token) {
     this.token = token;
     if (token) {
-      localStorage.setItem('auth_token', token);
       sessionStorage.setItem('auth_token', token);
     } else {
-      localStorage.removeItem('auth_token');
       sessionStorage.removeItem('auth_token');
     }
   }

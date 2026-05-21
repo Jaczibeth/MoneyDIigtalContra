@@ -151,7 +151,7 @@
     <script>
         // Verificación de sesión
         (function() {
-            const currentUserStr = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+            const currentUserStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
@@ -173,7 +173,7 @@
                 return;
             }
 
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
             const submissions = activitiesSystem.getSubmissionsByStudent(currentUser.username);
             const userTokens = activitiesSystem.getUserTokens(currentUser.username);
             const redemptions = activitiesSystem.getRedemptions().filter(r => r.username === currentUser.username);

@@ -189,7 +189,7 @@
     <script>
         // Verificación de sesión
         (function () {
-            const currentUserStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
+            const currentUserStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
@@ -210,7 +210,7 @@
                 return;
             }
 
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser'));
             if (!currentUser) return; // Should be handled by init check
 
             const activities = activitiesSystem.getActivities()
@@ -271,7 +271,7 @@
         document.getElementById('createActivityForm').addEventListener('submit', (e) => {
             e.preventDefault();
 
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser'));
             const activityData = {
                 title: document.getElementById('activityTitle').value.trim(),
                 description: document.getElementById('activityDescription').value.trim(),

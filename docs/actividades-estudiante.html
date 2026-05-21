@@ -209,7 +209,7 @@
     <script src="js/stellar-integration.js?v=3"></script>
     <script>
         (function () {
-            const currentUserStr = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+            const currentUserStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
@@ -218,7 +218,6 @@
 
             const currentUser = JSON.parse(currentUserStr);
             sessionStorage.setItem('currentUser', currentUserStr);
-            localStorage.setItem('currentUser', currentUserStr);
 
             if (currentUser.role === 'docente') {
                 window.location.href = 'gestion-actividades.html';
@@ -235,7 +234,7 @@
                 return;
             }
 
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser') || '{}');
             const username = currentUser.username;
             const activities = activitiesSystem.getActivities().filter(a => a.status === 'active');
             const submissions = activitiesSystem.getSubmissionsByStudent(username);
@@ -355,7 +354,7 @@
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser'));
             const fileInput = document.getElementById('evidenceFile');
             const comments = document.getElementById('evidenceComments').value;
 

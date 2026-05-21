@@ -421,7 +421,7 @@
     <script src="js/api-client.js"></script>
     <script>
         (function () {
-            const currentUserStr = sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser');
+            const currentUserStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
 
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
@@ -434,7 +434,6 @@
                 currentUser = JSON.parse(currentUserStr);
             } catch (e) {
                 sessionStorage.removeItem('currentUser');
-                localStorage.removeItem('currentUser');
                 window.location.href = 'index.html';
                 return;
             }
@@ -537,7 +536,6 @@
                     e.preventDefault();
                     if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
                         sessionStorage.removeItem('currentUser');
-                        localStorage.removeItem('currentUser');
                         apiClient.clearToken();
                         window.location.href = 'index.html';
                     }

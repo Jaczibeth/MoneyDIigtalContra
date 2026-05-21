@@ -486,7 +486,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
     <script>
       (function() {
-        const currentUserStr = localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
+        const currentUserStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
         if (!currentUserStr) {
           alert('Por favor, inicia sesión para acceder a esta página.');
           window.location.href = 'index.html';
@@ -494,7 +494,7 @@
         }
       })();
 
-      const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
+      const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser') || '{}');
       const username = currentUser.username || 'Usuario';
 
       function createParticles(count = 30) {
