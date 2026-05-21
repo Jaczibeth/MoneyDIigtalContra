@@ -241,6 +241,7 @@
     // ============================================================
     let currentUsername = localStorage.getItem('bio_username') || null;
     let bioToken = localStorage.getItem('bio_token') || null;
+    let isPasswordSession = false; // Flag para saber si es token de contraseña
     // Si no hay sesión biométrica, buscar sesión de contraseña en sessionStorage
     if (!bioToken && !currentUsername) {
       const sessionToken = sessionStorage.getItem('auth_token');
@@ -250,6 +251,7 @@
           const user = JSON.parse(sessionUser);
           bioToken = sessionToken;
           currentUsername = user.username || null;
+          isPasswordSession = true;
         } catch (e) {
           // Ignorar error
         }
@@ -641,7 +643,7 @@
     // INIT
     // ============================================================
     (async function init() {
-      if (bioToken) {
+      if (bioToken && !isPasswordSession) {
         const valid = await verifyToken();
         if (!valid) updateUI();
       }
