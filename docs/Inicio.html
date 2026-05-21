@@ -419,6 +419,7 @@
     </footer>
 
     <script src="js/api-client.js"></script>
+    <script src="js/passkey-helper.js"></script>
     <script>
         (function () {
             const currentUserStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
@@ -530,12 +531,39 @@
                 }
             }
 
+            // Verificar estado de passkey y mostrar info
+            (async () => {
+                try {
+                    const pkHelper = new PasskeyHelper(apiClient ? apiClient.baseURL : '');
+                    const hasPasskey = await pkHelper.hasPasskey(username);
+                    const passkeyInfo = document.createElement('div');
+                    passkeyInfo.className = 'text-xs mt-1';
+                    if (hasPasskey) {
+                        passkeyInfo.innerHTML = '✅ <span class="text-green-400">Passkey activa</span> · <a href="Wallet.html" class="text-cyan-400 hover:underline">Gestionar</a>';
+                    } else {
+                        passkeyInfo.innerHTML = '❌ <span class="text-yellow-400">Sin passkey</span> · <a href="Wallet.html" class="text-cyan-400 hover:underline">Configurar</a>';
+                    }
+                    if (userInfo) userInfo.appendChild(passkeyInfo);
+                } catch (e) {
+                    // Ignorar error
+                }
+            })();
+
             const logoutBtn = document.getElementById('logoutBtn');
             if (logoutBtn) {
-                logoutBtn.addEventListener('click', function (e) {
+                logoutBtn.addEventListener('click', async function (e) {
                     e.preventDefault();
                     if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                        try {
+                            await fetch('/api/auth/passkey/logout', {
+                                method: 'POST',
+                                headers: { 'Authorization': 'Bearer ' + sessionStorage.getItem('auth_token') }
+                            });
+                        } catch (e) { /* ignora */ }
                         sessionStorage.removeItem('currentUser');
+                        sessionStorage.removeItem('auth_token');
+                        localStorage.removeItem('bio_token');
+                        localStorage.removeItem('bio_username');
                         apiClient.clearToken();
                         window.location.href = 'index.html';
                     }

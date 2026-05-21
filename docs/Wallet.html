@@ -17,7 +17,8 @@
     <!-- Stellar & Freighter -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
     <script src="https://unpkg.com/@stellar/freighter-api@4.1.0/dist/freighter-api.min.js"></script>
-  <script src="js/api-client.js"></script>
+    <script src="js/api-client.js"></script>
+    <script src="js/passkey-helper.js"></script>
 </head>
 
 <body>
@@ -102,6 +103,52 @@
             <button id="sendBtn" class="card-action">Enviar Transacción</button>
         </div>
 
+        <!-- Security: Passkey Section -->
+        <div id="passkeySection" class="glass-card mt-8">
+            <h3 class="card-title mb-4">🔐 Seguridad Biométrica (Passkey)</h3>
+            <p class="card-description mb-4">Registra una passkey para iniciar sesión con tu huella digital, Face ID o PIN
+                del dispositivo.</p>
+
+            <!-- Estado -->
+            <div id="passkeyStatus" class="hidden mb-4 p-4 rounded-xl text-center" style="font-weight: 600;"></div>
+
+            <!-- Formulario de registro -->
+            <div id="passkeyRegisterForm" class="mb-4">
+                <div id="passkeyHasKey" class="hidden">
+                    <div class="flex items-center gap-3 p-4 rounded-xl mb-4" style="background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.2);">
+                        <span class="text-2xl">✅</span>
+                        <div>
+                            <p class="text-green-400 font-semibold">Tienes una passkey registrada</p>
+                            <p class="text-xs text-gray-400 mt-1">Puedes iniciar sesión con biometría desde la página de login.</p>
+                        </div>
+                    </div>
+                </div>
+                <div id="passkeyNoKey" class="hidden">
+                    <div class="flex items-center gap-3 p-4 rounded-xl mb-4" style="background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.2);">
+                        <span class="text-2xl">❌</span>
+                        <div>
+                            <p class="text-yellow-400 font-semibold">No tienes passkey registrada</p>
+                            <p class="text-xs text-gray-400 mt-1">Registra una para acceder más rápido y seguro.</p>
+                        </div>
+                    </div>
+                </div>
+                <button id="registerPasskeyBtn" class="card-action" style="background: rgba(0, 229, 255, 0.1); border-color: var(--neon-cyan); color: var(--neon-cyan);">
+                    📱 Registrar Passkey
+                </button>
+            </div>
+
+            <!-- Lista de passkeys registradas -->
+            <div id="passkeyListSection" class="hidden">
+                <h4 class="text-lg font-bold mb-3">Tus Passkeys Registradas</h4>
+                <div id="passkeyList" class="space-y-3"></div>
+            </div>
+
+            <!-- Loading -->
+            <div id="passkeyLoading" class="hidden text-center py-4">
+                <span class="text-gray-400">Cargando...</span>
+            </div>
+        </div>
+
         <!-- History Section -->
         <div id="historySection" class="glass-card mt-8 hidden">
             <h3 class="card-title mb-4">📜 Transacciones Recientes (Stellar Testnet)</h3>
@@ -131,7 +178,113 @@
     </footer>
 
     <script>
-        // Stellar Logic
+        // ============================================================
+        // PASSKEY SECTION
+        // ============================================================
+        const passkeyHelper = new PasskeyHelper(apiClient ? apiClient.baseURL : '');
+        let passkeyToken = sessionStorage.getItem('auth_token');
+
+        async function checkPasskeyStatus() {
+            const passkeyStatus = document.getElementById('passkeyStatus');
+            const passkeyHasKey = document.getElementById('passkeyHasKey');
+            const passkeyNoKey = document.getElementById('passkeyNoKey');
+            const registerBtn = document.getElementById('registerPasskeyBtn');
+            const passkeyListSection = document.getElementById('passkeyListSection');
+            const passkeyLoading = document.getElementById('passkeyLoading');
+
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+            const username = currentUser.username;
+            if (!username || !passkeyToken) {
+                passkeyStatus.innerHTML = '⚠️ <span class="text-gray-400">Inicia sesión primero para gestionar tu passkey.</span>';
+                passkeyStatus.classList.remove('hidden');
+                registerBtn.disabled = true;
+                return;
+            }
+
+            passkeyLoading.classList.remove('hidden');
+            try {
+                const hasPasskey = await passkeyHelper.hasPasskey(username);
+                if (hasPasskey) {
+                    passkeyHasKey.classList.remove('hidden');
+                    passkeyNoKey.classList.add('hidden');
+                    registerBtn.textContent = '🔄 Registrar Nueva Passkey';
+                } else {
+                    passkeyHasKey.classList.add('hidden');
+                    passkeyNoKey.classList.remove('hidden');
+                    registerBtn.textContent = '📱 Registrar Passkey';
+                }
+                registerBtn.disabled = false;
+                passkeyStatus.classList.add('hidden');
+
+                // Cargar lista
+                const passkeys = await passkeyHelper.listPasskeys(passkeyToken);
+                if (passkeys.length > 0) {
+                    passkeyListSection.classList.remove('hidden');
+                    const listEl = document.getElementById('passkeyList');
+                    listEl.innerHTML = passkeys.map(pk => `
+                        <div class="flex items-center justify-between p-3 rounded-lg" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xl">🔑</span>
+                                <div>
+                                    <p class="text-sm font-semibold">Passkey ${pk.counter > 0 ? '(en uso)' : '(nueva)'}</p>
+                                    <p class="text-xs text-gray-500">ID: ${pk.credentialId.substring(0, 16)}... | Creada: ${new Date(pk.createdAt).toLocaleDateString()}</p>
+                                </div>
+                            </div>
+                            <button onclick="deletePasskey('${pk.id}')" class="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded-lg" style="border: 1px solid rgba(255,50,50,0.3); background: rgba(255,50,50,0.1);">
+                                Eliminar
+                            </button>
+                        </div>
+                    `).join('');
+                } else {
+                    passkeyListSection.classList.add('hidden');
+                }
+            } catch (e) {
+                passkeyStatus.innerHTML = `❌ <span class="text-red-400">Error: ${e.message}</span>`;
+                passkeyStatus.classList.remove('hidden');
+            } finally {
+                passkeyLoading.classList.add('hidden');
+            }
+        }
+
+        async function deletePasskey(id) {
+            if (!confirm('¿Estás seguro de eliminar esta passkey?')) return;
+            try {
+                await passkeyHelper.deletePasskey(id, passkeyToken);
+                showStatus('Passkey eliminada correctamente', 'success');
+                checkPasskeyStatus();
+            } catch (e) {
+                showStatus('Error: ' + e.message, 'error');
+            }
+        }
+
+        document.getElementById('registerPasskeyBtn').addEventListener('click', async () => {
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+            const username = currentUser.username;
+            const btn = document.getElementById('registerPasskeyBtn');
+            if (!username) { showStatus('Inicia sesión primero', 'error'); return; }
+
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Conectando con servidor...';
+
+            try {
+                const result = await passkeyHelper.registerPasskey(username);
+                passkeyToken = result.token;
+                sessionStorage.setItem('auth_token', result.token);
+                if (result.user) {
+                    sessionStorage.setItem('currentUser', JSON.stringify(result.user));
+                }
+                showStatus('✅ Passkey registrada exitosamente', 'success');
+                checkPasskeyStatus();
+            } catch (e) {
+                showStatus('❌ ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '📱 Registrar Passkey';
+            }
+        });
+
+        // ============================================================
+        // STELLAR LOGIC
         const server = new StellarSdk.Horizon.Server('https://horizon-testnet.stellar.org');
         let currentPublicKey = null;
         let currentSecretKey = null;
@@ -157,6 +310,9 @@
             if (savedFreighter === 'true') {
                 setTimeout(() => connectFreighter(true), 500);
             }
+
+            // Verificar estado de passkey
+            setTimeout(() => checkPasskeyStatus(), 300);
         })();
 
         async function connectFreighter(silent = false) {

@@ -30,8 +30,12 @@ const HORIZON_URL = process.env.HORIZON_URL || 'https://horizon-testnet.stellar.
 const NETWORK_PASSPHRASE = process.env.NETWORK_PASSPHRASE || 'Test SDF Network ; September 2015';
 const BLOCKCHAIN_MODE = process.env.BLOCKCHAIN_MODE || 'full'; // 'off' | 'log' | 'full'
 
-// SQLite (sql.js)
-const initSqlJs = require('sql.js');
+// Base de datos: PostgreSQL (Render) o SQLite (local)
+const DATABASE_URL = process.env.DATABASE_URL;
+let initSqlJs, pgPool;
+if (!DATABASE_URL) {
+  initSqlJs = require('sql.js');
+}
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -184,143 +188,307 @@ function rateLimit(ms, maxRequests) {
 
 app.use('/uploads', anyAuthMiddleware, express.static(UPLOADS_DIR));
 
-// Variable global de DB
+// Variable global de DB (compatible SQLite y PostgreSQL)
 let db = null;
+
+// Convertir ? a $1,$2,... para PostgreSQL
+function pgParams(sql, params) {
+  if (!params || params.length === 0) return { sql, params };
+  let idx = 0;
+  const converted = sql.replace(/\?/g, () => `$${++idx}`);
+  return { sql: converted, params };
+}
+
+// Ejecutar query y devolver en formato {columns, values}[]
+async function dbExec(sql, params) {
+  if (DATABASE_URL) {
+    const { Pool } = require('pg');
+    if (!pgPool) pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const { sql: pgSql, params: pgParamsArr } = pgParams(sql, params);
+    const result = await pgPool.query(pgSql, pgParamsArr);
+    if (!result.rows.length) return [];
+    return [{ columns: Object.keys(result.rows[0]), values: result.rows.map(r => Object.values(r)) }];
+  }
+  return db.exec(sql, params);
+}
+
+async function dbRun(sql, params) {
+  if (DATABASE_URL) {
+    const { Pool } = require('pg');
+    if (!pgPool) pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    const { sql: pgSql, params: pgParamsArr } = pgParams(sql, params);
+    await pgPool.query(pgSql, pgParamsArr);
+    return;
+  }
+  db.run(sql, params);
+  saveDB();
+}
 
 // Inicializar base de datos
 async function initDB() {
-  const SQL = await initSqlJs();
-  let buffer;
-  if (fs.existsSync(DB_PATH)) {
-    buffer = fs.readFileSync(DB_PATH);
-    db = new SQL.Database(buffer);
+  if (DATABASE_URL) {
+    // PostgreSQL en Render
+    const { Pool } = require('pg');
+    pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+    
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT UNIQUE NOT NULL,
+        email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'estudiante',
+        stellar_public TEXT,
+        stellar_secret_encrypted TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS activities (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        tokens INTEGER NOT NULL DEFAULT 0,
+        deadline TEXT,
+        subject TEXT,
+        instructions TEXT,
+        created_by TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        status TEXT NOT NULL DEFAULT 'active'
+      )
+    `);
+
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS submissions (
+        id TEXT PRIMARY KEY,
+        activity_id TEXT NOT NULL,
+        student_username TEXT NOT NULL,
+        file_path TEXT,
+        file_name TEXT,
+        file_type TEXT,
+        file_size INTEGER,
+        comments TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        submitted_at TIMESTAMP DEFAULT NOW(),
+        reviewed_at TIMESTAMP,
+        reviewed_by TEXT,
+        review_comment TEXT,
+        tokens_awarded INTEGER DEFAULT 0,
+        blockchain_tx_hash TEXT
+      )
+    `);
+
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS rewards (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        cost INTEGER NOT NULL,
+        image TEXT,
+        created_by TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        status TEXT NOT NULL DEFAULT 'active',
+        redeemed_count INTEGER DEFAULT 0
+      )
+    `);
+
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS redemptions (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        reward_id TEXT NOT NULL,
+        reward_name TEXT NOT NULL,
+        cost INTEGER NOT NULL,
+        timestamp TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS token_transactions (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        activity_id TEXT,
+        reward_id TEXT,
+        description TEXT,
+        blockchain_tx_hash TEXT,
+        timestamp TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS passkeys (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL,
+        credential_id TEXT NOT NULL UNIQUE,
+        public_key TEXT NOT NULL,
+        counter INTEGER NOT NULL DEFAULT 0,
+        transports TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS counter_state (
+        id TEXT PRIMARY KEY,
+        value INTEGER NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS auth_challenges (
+        id TEXT PRIMARY KEY,
+        type TEXT NOT NULL,
+        username TEXT NOT NULL,
+        challenge TEXT NOT NULL,
+        expires_at BIGINT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `);
+
+    // Limpiar challenges expirados
+    await pgPool.query(`DELETE FROM auth_challenges WHERE expires_at < $1`, [Date.now()]);
+
+    // Asegurar contador global
+    const counterRow = await pgPool.query(`SELECT id FROM counter_state WHERE id = 'global'`);
+    if (!counterRow.rows.length) {
+      await pgPool.query(`INSERT INTO counter_state (id, value, updated_at) VALUES ('global', 0, NOW())`);
+    }
+
+    console.log('Base de datos PostgreSQL inicializada correctamente');
   } else {
-    db = new SQL.Database();
+    // SQLite local
+    const SQL = await initSqlJs();
+    let buffer;
+    if (fs.existsSync(DB_PATH)) {
+      buffer = fs.readFileSync(DB_PATH);
+      db = new SQL.Database(buffer);
+    } else {
+      db = new SQL.Database();
+    }
+
+    db.run('PRAGMA foreign_keys = ON');
+
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      username TEXT UNIQUE NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'estudiante',
+      stellar_public TEXT,
+      stellar_secret_encrypted TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS activities (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      tokens INTEGER NOT NULL DEFAULT 0,
+      deadline TEXT,
+      subject TEXT,
+      instructions TEXT,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      status TEXT NOT NULL DEFAULT 'active',
+      FOREIGN KEY (created_by) REFERENCES users(username)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS submissions (
+      id TEXT PRIMARY KEY,
+      activity_id TEXT NOT NULL,
+      student_username TEXT NOT NULL,
+      file_path TEXT,
+      file_name TEXT,
+      file_type TEXT,
+      file_size INTEGER,
+      comments TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
+      reviewed_at TEXT,
+      reviewed_by TEXT,
+      review_comment TEXT,
+      tokens_awarded INTEGER DEFAULT 0,
+      blockchain_tx_hash TEXT,
+      FOREIGN KEY (activity_id) REFERENCES activities(id),
+      FOREIGN KEY (student_username) REFERENCES users(username)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS rewards (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT,
+      cost INTEGER NOT NULL,
+      image TEXT,
+      created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      status TEXT NOT NULL DEFAULT 'active',
+      redeemed_count INTEGER DEFAULT 0
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS redemptions (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      reward_id TEXT NOT NULL,
+      reward_name TEXT NOT NULL,
+      cost INTEGER NOT NULL,
+      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (username) REFERENCES users(username),
+      FOREIGN KEY (reward_id) REFERENCES rewards(id)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS token_transactions (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      amount INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      activity_id TEXT,
+      reward_id TEXT,
+      description TEXT,
+      blockchain_tx_hash TEXT,
+      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (username) REFERENCES users(username)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS passkeys (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      credential_id TEXT NOT NULL UNIQUE,
+      public_key TEXT NOT NULL,
+      counter INTEGER NOT NULL DEFAULT 0,
+      transports TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      FOREIGN KEY (username) REFERENCES users(username)
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS counter_state (
+      id TEXT PRIMARY KEY,
+      value INTEGER NOT NULL DEFAULT 0,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+
+    db.run(`CREATE TABLE IF NOT EXISTS auth_challenges (
+      id TEXT PRIMARY KEY,
+      type TEXT NOT NULL,
+      username TEXT NOT NULL,
+      challenge TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+
+    db.run(`DELETE FROM auth_challenges WHERE expires_at < ?`, [Date.now()]);
+
+    const counterRow = db.exec(`SELECT id FROM counter_state WHERE id = 'global'`);
+    if (!counterRow.length || !counterRow[0].values.length) {
+      db.run(`INSERT INTO counter_state (id, value, updated_at) VALUES ('global', 0, datetime('now'))`);
+    }
+
+    saveDB();
+    console.log('Base de datos SQLite inicializada correctamente');
   }
-
-  db.run('PRAGMA foreign_keys = ON');
-
-  db.run(`CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'estudiante',
-    stellar_public TEXT,
-    stellar_secret_encrypted TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS activities (
-    id TEXT PRIMARY KEY,
-    title TEXT NOT NULL,
-    description TEXT,
-    tokens INTEGER NOT NULL DEFAULT 0,
-    deadline TEXT,
-    subject TEXT,
-    instructions TEXT,
-    created_by TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    status TEXT NOT NULL DEFAULT 'active',
-    FOREIGN KEY (created_by) REFERENCES users(username)
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS submissions (
-    id TEXT PRIMARY KEY,
-    activity_id TEXT NOT NULL,
-    student_username TEXT NOT NULL,
-    file_path TEXT,
-    file_name TEXT,
-    file_type TEXT,
-    file_size INTEGER,
-    comments TEXT,
-    status TEXT NOT NULL DEFAULT 'pending',
-    submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
-    reviewed_at TEXT,
-    reviewed_by TEXT,
-    review_comment TEXT,
-    tokens_awarded INTEGER DEFAULT 0,
-    blockchain_tx_hash TEXT,
-    FOREIGN KEY (activity_id) REFERENCES activities(id),
-    FOREIGN KEY (student_username) REFERENCES users(username)
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS rewards (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT,
-    cost INTEGER NOT NULL,
-    image TEXT,
-    created_by TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    status TEXT NOT NULL DEFAULT 'active',
-    redeemed_count INTEGER DEFAULT 0
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS redemptions (
-    id TEXT PRIMARY KEY,
-    username TEXT NOT NULL,
-    reward_id TEXT NOT NULL,
-    reward_name TEXT NOT NULL,
-    cost INTEGER NOT NULL,
-    timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (username) REFERENCES users(username),
-    FOREIGN KEY (reward_id) REFERENCES rewards(id)
-  )`);
-
-  db.run(`CREATE TABLE IF NOT EXISTS token_transactions (
-    id TEXT PRIMARY KEY,
-    username TEXT NOT NULL,
-    amount INTEGER NOT NULL,
-    type TEXT NOT NULL,
-    activity_id TEXT,
-    reward_id TEXT,
-    description TEXT,
-    blockchain_tx_hash TEXT,
-    timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (username) REFERENCES users(username)
-  )`);
-
-  // Tabla para credenciales WebAuthn (Passkeys)
-  db.run(`CREATE TABLE IF NOT EXISTS passkeys (
-    id TEXT PRIMARY KEY,
-    username TEXT NOT NULL,
-    credential_id TEXT NOT NULL UNIQUE,
-    public_key TEXT NOT NULL,
-    counter INTEGER NOT NULL DEFAULT 0,
-    transports TEXT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (username) REFERENCES users(username)
-  )`);
-
-  // Tabla para el contador blockchain
-  db.run(`CREATE TABLE IF NOT EXISTS counter_state (
-    id TEXT PRIMARY KEY,
-    value INTEGER NOT NULL DEFAULT 0,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`);
-
-  // Tabla para challenges de WebAuthn (persistencia, no solo en memoria)
-  db.run(`CREATE TABLE IF NOT EXISTS auth_challenges (
-    id TEXT PRIMARY KEY,
-    type TEXT NOT NULL,
-    username TEXT NOT NULL,
-    challenge TEXT NOT NULL,
-    expires_at INTEGER NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`);
-
-  // Limpiar challenges expirados al iniciar
-  db.run(`DELETE FROM auth_challenges WHERE expires_at < ?`, [Date.now()]);
-
-  // Asegurar que existe la fila del contador global
-  const counterRow = db.exec(`SELECT id FROM counter_state WHERE id = 'global'`);
-  if (!counterRow.length || !counterRow[0].values.length) {
-    db.run(`INSERT INTO counter_state (id, value, updated_at) VALUES ('global', 0, datetime('now'))`);
-  }
-
-  saveDB();
-  console.log('Base de datos inicializada correctamente');
 }
 
 function saveDB() {
@@ -358,51 +526,56 @@ function biometricAuthMiddleware(req, res, next) {
 }
 
 // Middleware de autenticación unificado - acepta tokens de contraseña Y biométricos
-function anyAuthMiddleware(req, res, next) {
-  const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Token requerido' });
-  }
-  const token = header.split(' ')[1];
-  
-  // Intentar con JWT_SECRET (login con contraseña)
+async function anyAuthMiddleware(req, res, next) {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    req.user = decoded;
-    req.authMethod = 'password';
-    return next();
-  } catch (e) {
-    // No es token de contraseña, continuar
-  }
-  
-  // Intentar con JWT_WEBAUTHN_SECRET (login biométrico)
-  try {
-    const decoded = jwt.verify(token, JWT_WEBAUTHN_SECRET);
-    if (decoded.authMethod === 'passkey') {
-      // Buscar datos completos del usuario en DB
-      const userResult = db.exec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [decoded.username]);
-      if (userResult.length && userResult[0].values.length) {
-        const cols = userResult[0].columns;
-        const row = userResult[0].values[0];
-        const idx = (name) => cols.indexOf(name);
-        req.user = {
-          id: row[idx('id')],
-          username: row[idx('username')],
-          email: row[idx('email')],
-          role: row[idx('role')],
-          stellarPublic: row[idx('stellar_public')],
-          authMethod: 'passkey',
-          credentialId: decoded.credentialId
-        };
-        req.authMethod = 'passkey';
-        return next();
-      }
+    const header = req.headers.authorization;
+    if (!header || !header.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Token requerido' });
     }
+    const token = header.split(' ')[1];
+    
+    // Intentar con JWT_SECRET (login con contraseña)
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      req.user = decoded;
+      req.authMethod = 'password';
+      return next();
+    } catch (e) {
+      // No es token de contraseña, continuar
+    }
+    
+    // Intentar con JWT_WEBAUTHN_SECRET (login biométrico)
+    try {
+      const decoded = jwt.verify(token, JWT_WEBAUTHN_SECRET);
+      if (decoded.authMethod === 'passkey') {
+        // Buscar datos completos del usuario en DB
+        const userResult = await dbExec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [decoded.username]);
+        if (userResult.length && userResult[0].values.length) {
+          const cols = userResult[0].columns;
+          const row = userResult[0].values[0];
+          const idx = (name) => cols.indexOf(name);
+          req.user = {
+            id: row[idx('id')],
+            username: row[idx('username')],
+            email: row[idx('email')],
+            role: row[idx('role')],
+            stellarPublic: row[idx('stellar_public')],
+            authMethod: 'passkey',
+            credentialId: decoded.credentialId
+          };
+          req.authMethod = 'passkey';
+          return next();
+        }
+      }
+    } catch (e) {
+      // No es token biométrico
+    }
+    
+    return res.status(401).json({ error: 'Token inválido o expirado' });
   } catch (e) {
-    // No es token biométrico
+    console.error('Error en anyAuthMiddleware:', e);
+    return res.status(500).json({ error: 'Error interno de autenticación' });
   }
-  
-  return res.status(401).json({ error: 'Token inválido o expirado' });
 }
 
 // ========================
@@ -416,13 +589,13 @@ app.post('/api/auth/passkey/register/begin', async (req, res) => {
     if (!username) return res.status(400).json({ error: 'Username requerido' });
 
     // Verificar que el usuario existe en el sistema
-    const userResult = db.exec(`SELECT id, username FROM users WHERE username = ?`, [username]);
+    const userResult = await dbExec(`SELECT id, username FROM users WHERE username = ?`, [username]);
     if (!userResult.length || !userResult[0].values.length) {
       return res.status(404).json({ error: 'Usuario no encontrado. Regístrate primero en el sistema.' });
     }
 
     // Verificar si ya tiene una passkey registrada
-    const existingKeys = db.exec(`SELECT credential_id, public_key, counter, transports FROM passkeys WHERE username = ?`, [username]);
+    const existingKeys = await dbExec(`SELECT credential_id, public_key, counter, transports FROM passkeys WHERE username = ?`, [username]);
     const existingCredentials = existingKeys.length ? existingKeys[0].values.map(row => ({
       id: row[0], publicKey: row[1], counter: parseInt(row[2] || 0), transports: row[3] ? JSON.parse(row[3]) : []
     })) : [];
@@ -482,9 +655,8 @@ app.post('/api/auth/passkey/register/complete', async (req, res) => {
     const publicKeyBase64 = isoBase64URL.fromBuffer(credentialPublicKey);
     const transports = JSON.stringify(credential.response?.transports || []);
 
-    db.run(`INSERT INTO passkeys (id, username, credential_id, public_key, counter, transports) VALUES (?, ?, ?, ?, ?, ?)`,
+    await dbRun(`INSERT INTO passkeys (id, username, credential_id, public_key, counter, transports) VALUES (?, ?, ?, ?, ?, ?)`,
       [id, username, credentialIdBase64, publicKeyBase64, counter, transports]);
-    saveDB();
 
     challengeStore.delete(`register:${username}`);
 
@@ -496,7 +668,7 @@ app.post('/api/auth/passkey/register/complete', async (req, res) => {
     );
 
     // Obtener datos del usuario
-    const userResult = db.exec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [username]);
+    const userResult = await dbExec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [username]);
 
     res.json({
       verified: true,
@@ -523,7 +695,7 @@ app.post('/api/auth/passkey/login/begin', async (req, res) => {
     if (!username) return res.status(400).json({ error: 'Username requerido' });
 
     // Buscar credenciales del usuario
-    const keyResult = db.exec(`SELECT credential_id, public_key, counter, transports FROM passkeys WHERE username = ?`, [username]);
+    const keyResult = await dbExec(`SELECT credential_id, public_key, counter, transports FROM passkeys WHERE username = ?`, [username]);
     if (!keyResult.length || !keyResult[0].values.length) {
       return res.status(404).json({ error: 'No hay passkey registrada para este usuario. Regístrate primero.' });
     }
@@ -569,7 +741,7 @@ app.post('/api/auth/passkey/login/complete', async (req, res) => {
 
     // Buscar la credencial en DB por credential ID
     const credId = credential.id;
-    const credResult = db.exec(`SELECT * FROM passkeys WHERE credential_id = ?`, [credId]);
+    const credResult = await dbExec(`SELECT * FROM passkeys WHERE credential_id = ?`, [credId]);
     if (!credResult.length || !credResult[0].values.length) {
       return res.status(404).json({ error: 'Credencial no encontrada' });
     }
@@ -608,13 +780,12 @@ app.post('/api/auth/passkey/login/complete', async (req, res) => {
 
     // Actualizar contador de la credencial
     const newCounter = verification.authenticationInfo?.newCounter || storedCredential.counter;
-    db.run(`UPDATE passkeys SET counter = ? WHERE credential_id = ?`, [newCounter, credId]);
-    saveDB();
+    await dbRun(`UPDATE passkeys SET counter = ? WHERE credential_id = ?`, [newCounter, credId]);
 
     challengeStore.delete(`login:${username}`);
 
     // Obtener datos completos del usuario
-    const userResult = db.exec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [username]);
+    const userResult = await dbExec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [username]);
 
     // Emitir token JWT biométrico
     const token = jwt.sign(
@@ -649,6 +820,54 @@ app.get('/api/auth/passkey/status', biometricAuthMiddleware, (req, res) => {
 // 6. Cerrar sesión biométrica
 app.post('/api/auth/passkey/logout', biometricAuthMiddleware, (req, res) => {
   res.json({ success: true, message: 'Sesión biométrica cerrada' });
+});
+
+// 7. Verificar si un usuario tiene passkey registrada
+app.get('/api/auth/passkey/has-passkey/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    const result = await dbExec(`SELECT id FROM passkeys WHERE username = ? LIMIT 1`, [username]);
+    const hasPasskey = result.length > 0 && result[0].values.length > 0;
+    res.json({ hasPasskey, username });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 8. Listar passkeys del usuario autenticado
+app.get('/api/auth/passkey/list', anyAuthMiddleware, async (req, res) => {
+  try {
+    const result = await dbExec(`SELECT id, credential_id, created_at, counter FROM passkeys WHERE username = ?`, [req.user.username]);
+    if (!result.length) return res.json([]);
+    const cols = result[0].columns;
+    const idx = (name) => cols.indexOf(name);
+    const passkeys = result[0].values.map(row => ({
+      id: row[idx('id')],
+      credentialId: row[idx('credential_id')],
+      createdAt: row[idx('created_at')],
+      counter: parseInt(row[idx('counter')] || 0),
+    }));
+    res.json(passkeys);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// 9. Eliminar una passkey
+app.delete('/api/auth/passkey/:id', anyAuthMiddleware, async (req, res) => {
+  try {
+    const result = await dbExec(`SELECT username FROM passkeys WHERE id = ?`, [req.params.id]);
+    if (!result.length || !result[0].values.length) {
+      return res.status(404).json({ error: 'Passkey no encontrada' });
+    }
+    if (result[0].values[0][0] !== req.user.username) {
+      return res.status(403).json({ error: 'No puedes eliminar la passkey de otro usuario' });
+    }
+    await dbRun(`DELETE FROM passkeys WHERE id = ?`, [req.params.id]);
+    res.json({ success: true, message: 'Passkey eliminada correctamente' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ========================
@@ -789,7 +1008,7 @@ app.post('/api/auth/register', rateLimit(60000, 5), async (req, res) => {
     const allowedRoles = ['estudiante', 'docente'];
     const finalRole = allowedRoles.includes(role) ? role : 'estudiante';
 
-    const existing = db.exec(`SELECT id FROM users WHERE username = ? OR email = ?`, [username, email]);
+    const existing = await dbExec(`SELECT id FROM users WHERE username = ? OR email = ?`, [username, email]);
     if (existing.length > 0 && existing[0].values.length > 0) {
       return res.status(400).json({ error: 'Usuario o email ya registrado' });
     }
@@ -814,9 +1033,8 @@ app.post('/api/auth/register', rateLimit(60000, 5), async (req, res) => {
       console.warn('No se pudo generar cuenta Stellar:', stellarErr.message);
     }
 
-    db.run(`INSERT INTO users (id, username, email, password_hash, role, stellar_public, stellar_secret_encrypted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    await dbRun(`INSERT INTO users (id, username, email, password_hash, role, stellar_public, stellar_secret_encrypted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, username, email, passwordHash, finalRole, finalStellarPublic, finalStellarSecretEncrypted, now]);
-    saveDB();
 
     const token = jwt.sign({ id, username, email, role: finalRole, stellarPublic: finalStellarPublic }, JWT_SECRET, { expiresIn: '24h' });
     res.json({ token, user: { id, username, email, role: finalRole, stellarPublic: finalStellarPublic } });
@@ -831,7 +1049,7 @@ app.post('/api/auth/login', rateLimit(60000, 10), async (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
 
-    const result = db.exec(`SELECT * FROM users WHERE username = ?`, [username]);
+    const result = await dbExec(`SELECT * FROM users WHERE username = ?`, [username]);
     if (!result.length || !result[0].values.length) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
@@ -863,8 +1081,8 @@ app.post('/api/auth/login', rateLimit(60000, 10), async (req, res) => {
   }
 });
 
-app.get('/api/auth/me', anyAuthMiddleware, (req, res) => {
-  const result = db.exec(`SELECT id, username, email, role, stellar_public, stellar_secret_encrypted, created_at FROM users WHERE id = ?`, [req.user.id]);
+app.get('/api/auth/me', anyAuthMiddleware, async (req, res) => {
+  const result = await dbExec(`SELECT id, username, email, role, stellar_public, stellar_secret_encrypted, created_at FROM users WHERE id = ?`, [req.user.id]);
   if (!result.length || !result[0].values.length) return res.status(404).json({ error: 'Usuario no encontrado' });
   const row = result[0].values[0];
   const cols = result[0].columns;
