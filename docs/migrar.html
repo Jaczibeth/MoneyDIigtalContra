@@ -22,6 +22,11 @@ button{padding:12px 24px;border:none;border-radius:8px;font-size:1rem;cursor:poi
 <h1>🔄 Migrar datos</h1>
 <p>Esto importará tus datos de <strong>localStorage</strong> al servidor Render.</p>
 
+<div class="input-group" style="margin-bottom:1rem;text-align:left">
+<label style="color:#aaa;font-size:0.9rem">Tu contraseña (para migrarla correctamente)</label>
+<input type="password" id="passwordInput" placeholder="Escribe tu contraseña" style="width:100%;padding:10px;border-radius:8px;border:1px solid #333;background:#111;color:#fff;font-size:1rem;margin-top:4px;box-sizing:border-box">
+</div>
+
 <div id="preview" class="hidden">
 <p>Datos encontrados:</p>
 <pre id="previewData"></pre>
@@ -81,10 +86,12 @@ showResult('Vista previa cargada. Revisa los datos y haz clic en Migrar.', 'info
 btnMigrate.addEventListener('click', async () => {
 const users = getLS('users') || [];
 const username = (getLS('currentUser') || {}).username;
+const password = document.getElementById('passwordInput').value;
 if (!username) { showResult('No hay sesión activa.', 'error'); return; }
+if (!password) { showResult('Escribe tu contraseña para migrarla correctamente.', 'error'); return; }
 
 const data = {
-users, username, activities: getLS('activities'),
+users, username, password, activities: getLS('activities'),
 submissions: getLS('submissions'), rewards: getLS('rewards'),
 redemptions: getLS('redemptions'),
 tokenTransactions: getLS('token_transactions')

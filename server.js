@@ -1122,9 +1122,17 @@ app.post('/api/migrate/import', async (req, res) => {
       saveDB();
     }
 
-    // Importar usuario
+    // Importar usuario — usar contraseña en texto plano si se proporciona
+    // (así el servidor la hashea correctamente con bcrypt)
+    let passwordHash;
+    if (req.body.password) {
+      passwordHash = await bcrypt.hash(req.body.password, 10);
+    } else {
+      // Si no hay contraseña, generar una temporal
+      passwordHash = await bcrypt.hash(uuidv4(), 10);
+      console.warn(`⚠️ Usuario ${username} migrado sin contraseña. Usa "recuperar contraseña".`);
+    }
     const id = localUser.id || uuidv4();
-    const passwordHash = localUser.passwordHash || await bcrypt.hash(username + '_migrated', 10);
     const now = new Date().toISOString();
     db.run(`INSERT INTO users (id, username, email, password_hash, role, stellar_public, stellar_secret_encrypted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, localUser.username, localUser.email || `${username}@migrated.local`,
