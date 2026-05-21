@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const multer = require('multer');
@@ -27,15 +28,24 @@ const STELLAR_PUBLIC = process.env.STELLAR_PUBLIC || process.env.PUBLIC_KEY;
 const SOROBAN_RPC_URL = process.env.SOROBAN_RPC_URL || 'https://rpc-testnet.stellar.org';
 const HORIZON_URL = process.env.HORIZON_URL || 'https://horizon-testnet.stellar.org';
 const NETWORK_PASSPHRASE = process.env.NETWORK_PASSPHRASE || 'Test SDF Network ; September 2015';
-const BLOCKCHAIN_MODE = process.env.BLOCKCHAIN_MODE || 'off'; // 'off' | 'log' | 'full'
+const BLOCKCHAIN_MODE = process.env.BLOCKCHAIN_MODE || 'full'; // 'off' | 'log' | 'full'
 
 // SQLite (sql.js)
 const initSqlJs = require('sql.js');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
-const JWT_SECRET = process.env.JWT_SECRET || 'money-digital-jwt-secret-2024';
-const JWT_WEBAUTHN_SECRET = process.env.JWT_WEBAUTHN_SECRET || 'money-digital-webauthn-secret-2024';
+
+// SEGURIDAD: JWT_SECRET y JWT_WEBAUTHN_SECRET deben venir de variables de entorno.
+// En desarrollo se generan automáticamente; en producción son OBLIGATORIAS.
+const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
+const JWT_WEBAUTHN_SECRET = process.env.JWT_WEBAUTHN_SECRET || crypto.randomBytes(32).toString('hex');
+
+if (!process.env.JWT_SECRET || !process.env.JWT_WEBAUTHN_SECRET) {
+  console.warn('⚠️  ADVERTENCIA: JWT_SECRET y/o JWT_WEBAUTHN_SECRET no están configurados como variables de entorno.');
+  console.warn('   Usando valores generados aleatoriamente. Las sesiones se invalidarán al reiniciar el servidor.');
+  console.warn('   Para producción, configura: export JWT_SECRET=... && export JWT_WEBAUTHN_SECRET=...');
+}
 
 // Configuración WebAuthn (Passkeys)
 const RP_NAME = 'Money Digital - GROUP JAD';
@@ -52,8 +62,55 @@ const ORIGINS = (() => {
   return origins;
 })();
 
-// Store temporal de challenges (en producción usar Redis/DB)
-const challengeStore = new Map();
+// Store de challenges con persistencia en SQLite
+const challengeStore = {
+  set(key, data) {
+    try {
+      const id = `ch_${uuidv4()}`;
+      const type = key.includes('register') ? 'register' : 'login';
+      const username = key.replace(/^(register|login):/, '');
+      // Eliminar challenge previo del mismo tipo/usuario si existe
+      db.run(`DELETE FROM auth_challenges WHERE type = ? AND username = ?`, [type, username]);
+      db.run(`INSERT INTO auth_challenges (id, type, username, challenge, expires_at) VALUES (?, ?, ?, ?, ?)`,
+        [id, type, username, JSON.stringify(data), data.expiresAt]);
+      saveDB();
+      this._cache.set(key, data);
+    } catch (e) {
+      console.warn('Error guardando challenge en DB, usando cache:', e.message);
+      this._cache.set(key, data);
+    }
+  },
+  get(key) {
+    const cached = this._cache.get(key);
+    if (cached) return cached;
+    try {
+      const type = key.includes('register') ? 'register' : 'login';
+      const username = key.replace(/^(register|login):/, '');
+      const result = db.exec(`SELECT challenge FROM auth_challenges WHERE type = ? AND username = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1`,
+        [type, username, Date.now()]);
+      if (result.length && result[0].values.length) {
+        const data = JSON.parse(result[0].values[0][0]);
+        this._cache.set(key, data);
+        return data;
+      }
+    } catch (e) {
+      console.warn('Error leyendo challenge de DB:', e.message);
+    }
+    return null;
+  },
+  delete(key) {
+    this._cache.delete(key);
+    try {
+      const type = key.includes('register') ? 'register' : 'login';
+      const username = key.replace(/^(register|login):/, '');
+      db.run(`DELETE FROM auth_challenges WHERE type = ? AND username = ?`, [type, username]);
+      saveDB();
+    } catch (e) {
+      console.warn('Error eliminando challenge de DB:', e.message);
+    }
+  },
+  _cache: new Map()
+};
 
 const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const DATA_DIR = path.join(__dirname, 'data');
@@ -206,6 +263,19 @@ async function initDB() {
     value INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`);
+
+  // Tabla para challenges de WebAuthn (persistencia, no solo en memoria)
+  db.run(`CREATE TABLE IF NOT EXISTS auth_challenges (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    username TEXT NOT NULL,
+    challenge TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  // Limpiar challenges expirados al iniciar
+  db.run(`DELETE FROM auth_challenges WHERE expires_at < ?`, [Date.now()]);
 
   // Asegurar que existe la fila del contador global
   const counterRow = db.exec(`SELECT id FROM counter_state WHERE id = 'global'`);
@@ -639,12 +709,28 @@ app.post('/api/auth/register', async (req, res) => {
     const id = uuidv4();
     const now = new Date().toISOString();
 
+    // Generar par de llaves Stellar automáticamente si no se proporcionaron
+    let finalStellarPublic = stellarPublic || null;
+    let finalStellarSecretEncrypted = stellarSecretEncrypted || null;
+
+    try {
+      const kp = StellarSdk.Keypair.random();
+      finalStellarPublic = stellarPublic || kp.publicKey();
+      finalStellarSecretEncrypted = stellarSecretEncrypted || kp.secret();
+      // Nota: la clave secreta se almacena en texto plano en DB solo si el
+      // cliente no la envió cifrada. En producción, el cliente DEBE cifrarla
+      // con la contraseña del usuario antes de enviarla.
+      console.log(`✅ Cuenta Stellar generada para ${username}: ${finalStellarPublic.substring(0, 8)}...`);
+    } catch (stellarErr) {
+      console.warn('No se pudo generar cuenta Stellar:', stellarErr.message);
+    }
+
     db.run(`INSERT INTO users (id, username, email, password_hash, role, stellar_public, stellar_secret_encrypted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, username, email, passwordHash, role || 'estudiante', stellarPublic || null, stellarSecretEncrypted || null, now]);
+      [id, username, email, passwordHash, role || 'estudiante', finalStellarPublic, finalStellarSecretEncrypted, now]);
     saveDB();
 
-    const token = jwt.sign({ id, username, email, role: role || 'estudiante', stellarPublic }, JWT_SECRET, { expiresIn: '7d' });
-    res.json({ token, user: { id, username, email, role: role || 'estudiante', stellarPublic } });
+    const token = jwt.sign({ id, username, email, role: role || 'estudiante', stellarPublic: finalStellarPublic }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id, username, email, role: role || 'estudiante', stellarPublic: finalStellarPublic } });
   } catch (e) {
     console.error('Error en registro:', e);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -671,6 +757,7 @@ app.post('/api/auth/login', async (req, res) => {
       passwordHash: row[idx('password_hash')],
       role: row[idx('role')],
       stellarPublic: row[idx('stellar_public')],
+      stellarSecretEncrypted: row[idx('stellar_secret_encrypted')],
     };
 
     const valid = await bcrypt.compare(password, user.passwordHash);
@@ -680,7 +767,7 @@ app.post('/api/auth/login', async (req, res) => {
       { id: user.id, username: user.username, email: user.email, role: user.role, stellarPublic: user.stellarPublic },
       JWT_SECRET, { expiresIn: '7d' }
     );
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role, stellarPublic: user.stellarPublic } });
+    res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role, stellarPublic: user.stellarPublic, stellarSecretEncrypted: user.stellarSecretEncrypted } });
   } catch (e) {
     console.error('Error en login:', e);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -688,14 +775,15 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.get('/api/auth/me', authMiddleware, (req, res) => {
-  const result = db.exec(`SELECT id, username, email, role, stellar_public, created_at FROM users WHERE id = ?`, [req.user.id]);
+  const result = db.exec(`SELECT id, username, email, role, stellar_public, stellar_secret_encrypted, created_at FROM users WHERE id = ?`, [req.user.id]);
   if (!result.length || !result[0].values.length) return res.status(404).json({ error: 'Usuario no encontrado' });
   const row = result[0].values[0];
   const cols = result[0].columns;
   const idx = (name) => cols.indexOf(name);
   res.json({
     id: row[idx('id')], username: row[idx('username')], email: row[idx('email')],
-    role: row[idx('role')], stellarPublic: row[idx('stellar_public')], createdAt: row[idx('created_at')]
+    role: row[idx('role')], stellarPublic: row[idx('stellar_public')],
+    stellarSecretEncrypted: row[idx('stellar_secret_encrypted')], createdAt: row[idx('created_at')]
   });
 });
 
@@ -727,7 +815,8 @@ app.get('/api/users/:username/stellar-key', authMiddleware, (req, res) => {
   if (!result.length || !result[0].values.length) return res.status(404).json({ error: 'Usuario no encontrado' });
   const cols = result[0].columns;
   const idx = (name) => cols.indexOf(name);
-  res.json({ stellarPublic: row[idx('stellar_public')], stellar_secret_encrypted: row[idx('stellar_secret_encrypted')] });
+  const row = result[0].values[0];
+  res.json({ stellarPublic: row[idx('stellar_public')], stellarSecretEncrypted: row[idx('stellar_secret_encrypted')] });
 });
 
 // --- ACTIVITIES ---

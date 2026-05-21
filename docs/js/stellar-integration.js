@@ -60,13 +60,13 @@ class StellarIntegration {
         const txFromXdr = StellarSdk.TransactionBuilder.fromXDR(signedXdr, StellarSdk.Networks.TESTNET);
         const result = await server.submitTransaction(txFromXdr);
         return { success: true, hash: result.hash };
-      } else {
-        const stellarSecret = localStorage.getItem('stellarSecret');
-        if (!stellarSecret) throw new Error('No se puede firmar. Conecta Freighter.');
-        const keypair = StellarSdk.Keypair.fromSecret(stellarSecret);
+      } else if (window.currentSessionSecret) {
+        const keypair = StellarSdk.Keypair.fromSecret(window.currentSessionSecret);
         transaction.sign(keypair);
         const result = await server.submitTransaction(transaction);
         return { success: true, hash: result.hash };
+      } else {
+        throw new Error('No se puede firmar. Conecta Freighter o importa tu clave en la Wallet.');
       }
     } catch (error) {
       console.error('Error en transferencia:', error);

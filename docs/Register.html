@@ -211,18 +211,31 @@
           console.warn('No se pudo crear cuenta Stellar:', stellarError);
         }
 
-        if (stellarSecret) {
+        // Cifrar clave secreta con la contraseña antes de enviarla
+        let stellarSecretEncrypted = null;
+        let stellarPublicToSend = stellarPublic;
+
+        if (stellarSecret && password) {
           try {
-            localStorage.setItem('wallet_secret_' + username, stellarSecret);
-            localStorage.setItem('wallet_public_' + username, stellarPublic);
-          } catch (e) {}
+            const encrypted = await encryptSecret(stellarSecret, password);
+            stellarSecretEncrypted = JSON.stringify(encrypted);
+          } catch (encError) {
+            console.warn('Error cifrando clave secreta:', encError);
+          }
         }
+
+        // NUNCA almacenar la clave secreta en texto plano en localStorage
+        // La única copia persistente debe estar cifrada en el servidor
+        try {
+          localStorage.setItem('wallet_public_' + username, stellarPublic);
+        } catch (e) {}
 
         // Intentar registro por API backend
         try {
           const result = await apiClient.register({
             username, email, password, role,
-            stellarPublic: stellarPublic || undefined
+            stellarPublic: stellarPublicToSend || undefined,
+            stellarSecretEncrypted: stellarSecretEncrypted || undefined
           });
 
           if (result.token) {
@@ -237,26 +250,19 @@
           console.warn('API no disponible, guardando localmente:', apiErr.message);
         }
 
-        // Fallback: guardar en localStorage
+        // Fallback: guardar en localStorage (SOLO cifrado, NUNCA texto plano)
         const encoder = new TextEncoder();
         const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(password));
         const hash = Array.prototype.map.call(new Uint8Array(hashBuf), x => ('00' + x.toString(16)).slice(-2)).join('');
 
         const newUser = {
           username, email, passwordHash: hash, role,
-          stellarPublic, stellarSecret,
+          stellarPublic, stellarSecret: stellarSecretEncrypted,
           createdAt: new Date().toISOString()
         };
 
-        if (stellarSecret && password) {
-          try {
-            const encrypted = await encryptSecret(stellarSecret, password);
-            newUser.encryptedSecret = encrypted.encrypted;
-            newUser.encSalt = encrypted.salt;
-            newUser.encIv = encrypted.iv;
-          } catch (encError) {
-            console.warn('Error cifrando clave secreta:', encError);
-          }
+        if (stellarSecretEncrypted) {
+          newUser.encryptedSecret = stellarSecretEncrypted;
         }
 
         const users = JSON.parse(localStorage.getItem('users') || '[]');

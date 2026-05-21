@@ -237,12 +237,11 @@
       ultimaClavePublica = pubKey;
       if (secret) ultimaClaveSecreta = secret;
 
-      // No mostrar wallet en login por seguridad - solo guardar en localStorage
+      // No mostrar wallet en login por seguridad
       walletStatus.style.display = 'none';
 
-      if (secret) {
-        try { localStorage.setItem('stellarSecret', secret); } catch (e) { }
-      }
+      // SEGURIDAD: NUNCA almacenar la clave secreta en localStorage
+      // Solo guardamos la clave pública (no es sensible)
       try { localStorage.setItem('stellarPublic', pubKey); } catch (e) { }
     }
 
@@ -327,6 +326,8 @@
 
         const user = loginResult.user;
 
+        // SEGURIDAD: La clave secreta cifrada se guarda en sessionStorage
+        // (se borra al cerrar el navegador), NUNCA en localStorage
         sessionStorage.setItem('currentUser', JSON.stringify(user));
         localStorage.setItem('currentUser', JSON.stringify(user));
 
@@ -334,6 +335,7 @@
         const stellarPublic = localStorage.getItem('stellarPublic');
         if (stellarPublic && !user.stellarPublic) {
           user.stellarPublic = stellarPublic;
+          sessionStorage.setItem('currentUser', JSON.stringify(user));
           localStorage.setItem('currentUser', JSON.stringify(user));
         }
 

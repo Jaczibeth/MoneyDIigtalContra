@@ -63,6 +63,15 @@ class ApiClient {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       this.setToken(json.token);
+      // Guardar stellarPublic del servidor si el servidor lo generó
+      if (json.user && json.user.stellarPublic) {
+        const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+        currentUser.stellarPublic = json.user.stellarPublic;
+        if (json.user.stellarSecretEncrypted) {
+          currentUser.stellarSecretEncrypted = json.user.stellarSecretEncrypted;
+        }
+        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+      }
       return json;
     }
     const users = JSON.parse(localStorage.getItem('users') || '[]');
@@ -76,6 +85,7 @@ class ApiClient {
       id: Date.now().toString(), username: data.username, email: data.email,
       passwordHash: hash, role: data.role || 'estudiante',
       stellarPublic: data.stellarPublic || null,
+      stellarSecretEncrypted: data.stellarSecretEncrypted || null,
       createdAt: new Date().toISOString()
     };
     users.push(user);
@@ -108,7 +118,14 @@ class ApiClient {
     const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(password));
     const hash = Array.prototype.map.call(new Uint8Array(hashBuf), x => ('00' + x.toString(16)).slice(-2)).join('');
     if (user.passwordHash !== hash) throw new Error('Credenciales inválidas. Verifica tu contraseña.');
-    return { token: null, user: { id: user.id, username: user.username, email: user.email, role: user.role, stellarPublic: user.stellarPublic } };
+    return {
+      token: null,
+      user: {
+        id: user.id, username: user.username, email: user.email,
+        role: user.role, stellarPublic: user.stellarPublic,
+        stellarSecretEncrypted: user.stellarSecretEncrypted || user.encryptedSecret || null
+      }
+    };
   }
 
   async getMe() {

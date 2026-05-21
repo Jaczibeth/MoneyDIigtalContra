@@ -141,23 +141,14 @@
             const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
             const username = currentUser.username || 'unknown';
             const savedPublic = localStorage.getItem(`wallet_public_${username}`);
-            const savedSecret = localStorage.getItem(`wallet_secret_${username}`);
             const savedFreighter = localStorage.getItem(`wallet_freighter_${username}`);
 
             if (currentUser.stellarPublic) {
                 currentPublicKey = currentUser.stellarPublic;
-                if (currentUser.stellarSecret) {
-                    currentSecretKey = currentUser.stellarSecret;
-                    localStorage.setItem(`wallet_secret_${username}`, currentUser.stellarSecret);
-                } else if (savedSecret) {
-                    currentSecretKey = savedSecret;
-                }
                 showWalletView(currentPublicKey);
             } else if (savedPublic) {
                 currentPublicKey = savedPublic;
-                currentSecretKey = savedSecret;
                 currentUser.stellarPublic = savedPublic;
-                currentUser.stellarSecret = savedSecret;
                 sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
                 localStorage.setItem('currentUser', JSON.stringify(currentUser));
                 showWalletView(savedPublic);
@@ -207,7 +198,6 @@
                 const username = currentUser.username || 'unknown';
                 localStorage.setItem(`wallet_public_${username}`, publicKey);
                 localStorage.setItem(`wallet_freighter_${username}`, 'true');
-                localStorage.removeItem(`wallet_secret_${username}`);
 
                 showWalletView(publicKey);
                 if (!silent) showStatus('Conectado exitosamente con Freighter', 'success');
@@ -231,15 +221,19 @@
                 currentSecretKey = secret;
                 usingFreighter = false;
 
-                // Persistir
+                // SEGURIDAD: Solo persistimos la clave pública (no sensible)
+                // La clave secreta SOLO está en memoria durante la sesión
+                window.currentSessionSecret = secret; // Para stellar-integration.js
                 const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
                 const username = currentUser.username || 'unknown';
                 localStorage.setItem(`wallet_public_${username}`, currentPublicKey);
-                localStorage.setItem(`wallet_secret_${username}`, currentSecretKey);
                 localStorage.setItem(`wallet_freighter_${username}`, 'false');
 
+                // No almacenar wallet_secret_<username> en localStorage
+                // Si el usuario recarga la página, deberá reconectar manualmente o usar Freighter
+
                 showWalletView(currentPublicKey);
-                showStatus('Wallet conectada manualmente', 'success');
+                showStatus('Wallet conectada manualmente (clave en memoria, no persistida)', 'success');
             } catch (e) {
                 showStatus('Error de clave: ' + e.message, 'error');
             }
@@ -250,11 +244,11 @@
             currentPublicKey = null;
             currentSecretKey = null;
             usingFreighter = false;
+            window.currentSessionSecret = null;
 
             const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
             const username = currentUser.username || 'unknown';
             localStorage.removeItem(`wallet_public_${username}`);
-            localStorage.removeItem(`wallet_secret_${username}`);
             localStorage.removeItem(`wallet_freighter_${username}`);
 
             document.getElementById('walletLoginSection').classList.remove('hidden');

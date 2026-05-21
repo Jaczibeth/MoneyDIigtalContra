@@ -10,10 +10,6 @@ class WalletManager {
         this.usingFreighter = false;
         this.networkPassphrase = StellarSdk.Networks.TESTNET;
         this.server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
-        
-        // Claves por defecto del usuario (si se proporcionan)
-        this.defaultSecretKey = 'SD4ZN2WZKRGHJXKOA4TZ3LDW4JY43LT6RU4YSD6PVJ7IRMLDW4EPOPET';
-        this.defaultPublicKey = 'GAX6QLY4HV23XBE3E7WBMUXKJ3Y7BS6CWF6JBE7U5TEOFEK5P6H2QYYD';
     }
 
     /**
@@ -91,13 +87,6 @@ class WalletManager {
     }
 
     /**
-     * Conecta usando las claves por defecto del usuario
-     */
-    async connectWithDefaultKeys() {
-        return await this.connectWithSecretKey(this.defaultSecretKey);
-    }
-
-    /**
      * Carga la wallet desde localStorage
      */
     loadFromStorage() {
@@ -112,10 +101,8 @@ class WalletManager {
             const currentUser = JSON.parse(localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser') || '{}');
             const username = currentUser.username;
             if (username) {
-                const savedSecret = localStorage.getItem('wallet_secret_' + username);
-                if (savedSecret && !this.secretKey) {
-                    this.secretKey = savedSecret;
-                }
+                // SEGURIDAD: Ya no almacenamos wallet_secret_ en localStorage
+                // Solo recuperamos la clave pública
                 const savedPublic = localStorage.getItem('wallet_public_' + username);
                 if (savedPublic && !this.publicKey) {
                     this.publicKey = savedPublic;
