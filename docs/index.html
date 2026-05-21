@@ -306,8 +306,13 @@
         try {
           loginResult = await apiClient.login(userVal, passVal);
         } catch (apiErr) {
-          // Si el error es de conexión, mostrar el mensaje directo
-          if (apiErr.message.includes('conectar al servidor') || apiErr.message.includes('No se puede conectar')) {
+          // Si el backend respondió con un error del servidor (cred inválidas, etc.)
+          // mostrar ese error directamente y NO caer al offline
+          const isNetworkError = apiErr.message.includes('Failed to fetch') ||
+                                 apiErr.message.includes('NetworkError') ||
+                                 apiErr.message.includes('conectar al servidor') ||
+                                 apiErr.message.includes('No se puede conectar');
+          if (!isNetworkError) {
             throw apiErr;
           }
 
