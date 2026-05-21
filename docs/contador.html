@@ -237,10 +237,24 @@
     function apiURL(path) { return API_BASE + path; }
 
     // ============================================================
-    // STATE
+    // STATE - Detectar sesión activa (biométrica o por contraseña)
     // ============================================================
     let currentUsername = localStorage.getItem('bio_username') || null;
     let bioToken = localStorage.getItem('bio_token') || null;
+    // Si no hay sesión biométrica, buscar sesión de contraseña en sessionStorage
+    if (!bioToken && !currentUsername) {
+      const sessionToken = sessionStorage.getItem('auth_token');
+      const sessionUser = sessionStorage.getItem('currentUser');
+      if (sessionToken && sessionUser) {
+        try {
+          const user = JSON.parse(sessionUser);
+          bioToken = sessionToken;
+          currentUsername = user.username || null;
+        } catch (e) {
+          // Ignorar error
+        }
+      }
+    }
     let counterValue = 0;
     let txHistory = JSON.parse(localStorage.getItem('bio_tx_history') || '[]');
 

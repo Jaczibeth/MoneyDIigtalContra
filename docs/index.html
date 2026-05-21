@@ -306,6 +306,11 @@
         try {
           loginResult = await apiClient.login(userVal, passVal);
         } catch (apiErr) {
+          // Si el error es de conexión, mostrar el mensaje directo
+          if (apiErr.message.includes('conectar al servidor') || apiErr.message.includes('No se puede conectar')) {
+            throw apiErr;
+          }
+
           console.warn('API no disponible, usando localStorage:', apiErr.message);
 
           // Fallback a localStorage

@@ -92,36 +92,36 @@ class ApiClient {
   }
 
   async login(username, password) {
-    // Siempre intentar con el backend primero
-    const backendAlive = this.backendAvailable || await this.isBackendAlive();
-    if (backendAlive) {
-      try {
-        const res = await fetch(`${this.baseURL}/api/auth/login`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password })
-        });
-        if (res.ok) {
-          const json = await res.json();
-          this.setToken(json.token);
-          // También guardar en sessionStorage para auth-manager
-          if (json.user) {
-            sessionStorage.setItem('currentUser', JSON.stringify(json.user));
-          }
-          return json;
+    // SIEMPRE intentar con el backend primero, sin verificar disponibilidad
+    try {
+      const res = await fetch(`${this.baseURL}/api/auth/login`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      if (res.ok) {
+        const json = await res.json();
+        this.setToken(json.token);
+        this.backendAvailable = true;
+        if (json.user) {
+          sessionStorage.setItem('currentUser', JSON.stringify(json.user));
         }
-        const err = await res.json();
-        throw new Error(err.error || 'Error del servidor');
-      } catch (e) {
-        if (e.message !== 'Error del servidor' && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
-          throw e;
-        }
-        console.log('Backend no disponible para login, usando offline');
+        return json;
       }
+      // El backend respondió con error (ej: 401 credenciales inválidas)
+      const err = await res.json();
+      throw new Error(err.error || 'Error del servidor');
+    } catch (e) {
+      // Si es un error de credenciales (no de red), relanzar inmediatamente
+      if (!e.message.includes('Failed to fetch') && !e.message.includes('NetworkError') && !e.message.includes('load') && e.message !== 'Error del servidor') {
+        throw e;
+      }
+      console.log('Backend no disponible para login, intentando offline');
     }
+
     // Fallback offline: solo funciona si hay usuarios en localStorage (mismo dispositivo)
     const users = JSON.parse(localStorage.getItem('users') || '[]');
     if (!users.length) {
-      throw new Error('No se puede conectar al servidor. Verifica tu conexión a internet.');
+      throw new Error('No se puede conectar al servidor. Verifica tu conexión a internet o intenta más tarde.');
     }
     const user = users.find(u => u.username === username);
     if (!user) throw new Error('Credenciales inválidas. ¿Ya te registraste?');

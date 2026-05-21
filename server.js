@@ -712,8 +712,8 @@ app.get('/api/counter', (req, res) => {
   }
 });
 
-// Incrementar contador (requiere auth biométrico)
-app.post('/api/counter/increment', biometricAuthMiddleware, async (req, res) => {
+// Incrementar contador (requiere auth - contraseña o biométrico)
+app.post('/api/counter/increment', anyAuthMiddleware, async (req, res) => {
   try {
     const result = db.exec(`SELECT value FROM counter_state WHERE id = 'global'`);
     let value = (result.length && result[0].values.length) ? parseInt(result[0].values[0][0]) : 0;
@@ -721,21 +721,20 @@ app.post('/api/counter/increment', biometricAuthMiddleware, async (req, res) => 
     db.run(`UPDATE counter_state SET value = ?, updated_at = datetime('now') WHERE id = 'global'`, [value]);
     saveDB();
 
-    // Registrar en blockchain Soroban (si hay secret configurado)
     let txHash = null;
     if (STELLAR_SECRET) {
       const sorobanResult = await sorobanInvoke('increment');
       txHash = sorobanResult.hash;
     }
 
-    res.json({ value, success: true, txHash, username: req.biometricUser.username });
+    res.json({ value, success: true, txHash, username: req.user.username });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// Decrementar contador (requiere auth biométrico)
-app.post('/api/counter/decrement', biometricAuthMiddleware, async (req, res) => {
+// Decrementar contador (requiere auth - contraseña o biométrico)
+app.post('/api/counter/decrement', anyAuthMiddleware, async (req, res) => {
   try {
     const result = db.exec(`SELECT value FROM counter_state WHERE id = 'global'`);
     let value = (result.length && result[0].values.length) ? parseInt(result[0].values[0][0]) : 0;
@@ -749,25 +748,25 @@ app.post('/api/counter/decrement', biometricAuthMiddleware, async (req, res) => 
       txHash = sorobanResult.hash;
     }
 
-    res.json({ value, success: true, txHash, username: req.biometricUser.username });
+    res.json({ value, success: true, txHash, username: req.user.username });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// Resetear contador (requiere auth biométrico)
-app.post('/api/counter/reset', biometricAuthMiddleware, async (req, res) => {
+// Resetear contador (requiere auth - contraseña o biométrico)
+app.post('/api/counter/reset', anyAuthMiddleware, async (req, res) => {
   try {
     db.run(`UPDATE counter_state SET value = 0, updated_at = datetime('now') WHERE id = 'global'`);
     saveDB();
 
     let txHash = null;
     if (STELLAR_SECRET) {
-      const sorobanResult = await sorobanInvoke('reset');
-      txHash = sorobanResult.hash;
+      const sorobanInvokeResult = await sorobanInvoke('reset');
+      txHash = sorobanInvokeResult.hash;
     }
 
-    res.json({ value: 0, success: true, txHash, username: req.biometricUser.username });
+    res.json({ value: 0, success: true, txHash, username: req.user.username });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
