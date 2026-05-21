@@ -6,6 +6,7 @@ const CONTRACT_ID = 'CBNEJ7M4BIAMX4URHV72DYQDS4KELL7EYJJQOHPQIOMFEIWFK64U7D3T';
 const HORIZON_URL = 'https://horizon-testnet.stellar.org';
 const SOROBAN_RPC_URL = 'https://rpc-testnet.stellar.org';
 const NETWORK_PASSPHRASE = 'Test SDF Network ; September 2015';
+let currentSessionSecret;
 
 class StellarIntegration {
   constructor() {
@@ -28,7 +29,7 @@ class StellarIntegration {
         console.warn('No se pudo obtener clave de Freighter:', e);
       }
     }
-    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
     return currentUser.stellarPublic || null;
   }
 
@@ -60,8 +61,8 @@ class StellarIntegration {
         const txFromXdr = StellarSdk.TransactionBuilder.fromXDR(signedXdr, StellarSdk.Networks.TESTNET);
         const result = await server.submitTransaction(txFromXdr);
         return { success: true, hash: result.hash };
-      } else if (window.currentSessionSecret) {
-        const keypair = StellarSdk.Keypair.fromSecret(window.currentSessionSecret);
+      } else if (currentSessionSecret) {
+        const keypair = StellarSdk.Keypair.fromSecret(currentSessionSecret);
         transaction.sign(keypair);
         const result = await server.submitTransaction(transaction);
         return { success: true, hash: result.hash };

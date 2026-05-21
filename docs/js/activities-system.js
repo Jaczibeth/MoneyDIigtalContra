@@ -92,21 +92,6 @@ class ActivitiesSystem {
     if (reviewData.status === 'approved' && activity) {
       const tokensToAward = activity.tokens || 0;
       submissions[index].tokensAwarded = tokensToAward;
-
-      try {
-        const txHash = await this.awardTokens(submission.studentUsername, tokensToAward, activity.id);
-        submissions[index].blockchainTxHash = txHash;
-        console.log(`${tokensToAward} tokens otorgados a ${submission.studentUsername}`);
-      } catch (err) {
-        console.error('Error otorgando tokens:', err);
-      }
-
-      try {
-        await apiClient.mintTokens(submission.studentUsername, tokensToAward,
-          `Tokens por actividad: ${activity.title}`);
-      } catch (e) {
-        console.warn('Error mintendo tokens via API:', e);
-      }
     }
 
     localStorage.setItem('submissions', JSON.stringify(submissions));
@@ -140,7 +125,7 @@ class ActivitiesSystem {
 
         if (teacherPublicKey && typeof window.freighterApi !== 'undefined') {
           try {
-            const hash = await SorobanContract.mintTokens(username, amount);
+            const hash = await SorobanContract.mintTokens(user.stellarPublic, amount);
             if (hash) {
               blockchainTxHash = hash;
               transaction.blockchainTxHash = hash;
@@ -188,29 +173,27 @@ class ActivitiesSystem {
   }
 
   async ensureStellarSdk() {
+    const promises = [];
     if (typeof StellarSdk === 'undefined') {
       const script = document.createElement('script');
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js';
       document.head.appendChild(script);
-      if (typeof SorobanContract === 'undefined') {
-        const s2 = document.createElement('script');
-        s2.src = 'js/stellar-integration.js';
-        document.head.appendChild(s2);
-      }
-      await new Promise((resolve, reject) => {
+      promises.push(new Promise((resolve, reject) => {
         script.onload = resolve;
         script.onerror = reject;
-        setTimeout(resolve, 5000);
-      });
+      }));
     }
     if (typeof SorobanContract === 'undefined') {
-      const script = document.createElement('script');
-      script.src = 'js/stellar-integration.js';
-      document.head.appendChild(script);
-      await new Promise(resolve => {
-        script.onload = resolve;
-        setTimeout(resolve, 3000);
-      });
+      const s2 = document.createElement('script');
+      s2.src = 'js/stellar-integration.js';
+      document.head.appendChild(s2);
+      promises.push(new Promise((resolve, reject) => {
+        s2.onload = resolve;
+        s2.onerror = reject;
+      }));
+    }
+    if (promises.length > 0) {
+      await Promise.all(promises);
     }
   }
 

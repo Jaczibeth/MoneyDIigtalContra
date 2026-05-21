@@ -98,7 +98,7 @@ class WalletManager {
                 this.usingFreighter = data.usingFreighter || false;
             }
 
-            const currentUser = JSON.parse(localStorage.getItem('currentUser') || sessionStorage.getItem('currentUser') || '{}');
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser') || '{}');
             const username = currentUser.username;
             if (username) {
                 // SEGURIDAD: Ya no almacenamos wallet_secret_ en localStorage
@@ -129,10 +129,10 @@ class WalletManager {
             localStorage.setItem('walletConnection', JSON.stringify(data));
             
             // También actualizar currentUser si existe
-            const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
             if (currentUser && this.publicKey) {
                 currentUser.stellarPublic = this.publicKey;
-                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
             }
         } catch (e) {
             console.warn('Error guardando wallet en storage:', e);

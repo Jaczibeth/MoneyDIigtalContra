@@ -138,7 +138,7 @@
         let usingFreighter = false;
 
         (function () {
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser') || '{}');
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
             const username = currentUser.username || 'unknown';
             const savedPublic = localStorage.getItem(`wallet_public_${username}`);
             const savedFreighter = localStorage.getItem(`wallet_freighter_${username}`);
@@ -152,43 +152,25 @@
                 sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
                 showWalletView(savedPublic);
             }
+
+            // Si el usuario ya tenía Freighter, reconectar automáticamente
+            if (savedFreighter === 'true') {
+                setTimeout(() => connectFreighter(true), 500);
+            }
         })();
 
         async function connectFreighter(silent = false) {
-            // Check if installed with Retry loop
-            let isInstalled = false;
-
-            for (let i = 0; i < 5; i++) {
-                if (window.freighterApi && typeof window.freighterApi.isConnected === 'function') {
-                    if (await window.freighterApi.isConnected()) {
-                        isInstalled = true;
-                        break;
-                    }
-                }
-                await new Promise(r => setTimeout(r, 200));
-            }
-
-            if (!isInstalled) {
-                // Fallback check
-                if (window.freighterApi) isInstalled = true;
-            }
-
-            if (!isInstalled) {
-                if (!silent) showStatus('Freighter no detectado. Si ya tienes la extensión, recarga la página e intenta de nuevo.', 'error');
+            if (!window.freighterApi) {
+                if (!silent) showStatus('Freighter no detectado. Instala la extensión y recarga la página.', 'error');
                 return;
             }
-
             try {
                 if (!silent) showStatus('Conectando con Freighter...', 'info');
-
                 const isAllowed = await window.freighterApi.setAllowed();
                 if (!isAllowed) throw new Error('Permiso denegado por el usuario');
-
                 const userInfo = await window.freighterApi.getUserInfo();
                 const publicKey = userInfo.publicKey;
-
                 if (!publicKey) throw new Error('No se obtuvo clave pública');
-
                 usingFreighter = true;
                 currentPublicKey = publicKey;
 

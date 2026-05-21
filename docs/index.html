@@ -265,7 +265,7 @@
 
     function updateFileUI(file) {
       if (!file) return;
-      imageUploadDiv.querySelector('.upload-text').innerHTML = `<strong>✓ ${file.name}</strong>`;
+      imageUploadDiv.querySelector('.upload-text').textContent = `✓ ${file.name}`;
       imageUploadDiv.style.borderColor = '#10b981';
       imageUploadDiv.style.background = 'rgba(16, 185, 129, 0.1)';
     }

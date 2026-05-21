@@ -62,7 +62,6 @@ class ApiClient {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error);
       this.setToken(json.token);
-      // Guardar stellarPublic del servidor si el servidor lo generó
       if (json.user && json.user.stellarPublic) {
         const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
         currentUser.stellarPublic = json.user.stellarPublic;
@@ -93,7 +92,6 @@ class ApiClient {
   }
 
   async login(username, password) {
-    // Intentar con backend primero
     if (this.backendAvailable || await this.isBackendAlive()) {
       try {
         const res = await fetch(`${this.baseURL}/api/auth/login`, {
@@ -105,11 +103,15 @@ class ApiClient {
           this.setToken(json.token);
           return json;
         }
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
       } catch (e) {
+        if (e.message !== 'Error del servidor' && !e.message.includes('Failed to fetch') && !e.message.includes('NetworkError')) {
+          throw e;
+        }
         console.log('Backend no disponible para login, usando offline');
       }
     }
-    // Fallback a localStorage
     const users = JSON.parse(localStorage.getItem('users') || '[]');
     const user = users.find(u => u.username === username);
     if (!user) throw new Error('Credenciales inválidas. ¿Ya te registraste?');
@@ -134,39 +136,55 @@ class ApiClient {
       return await res.json();
     }
     const users = JSON.parse(localStorage.getItem('users') || '[]');
-    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
     return currentUser.username ? currentUser : null;
   }
 
   async getUsers() {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/users`, { headers: this.getHeaders() });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     return JSON.parse(localStorage.getItem('users') || '[]').map(u => ({ id: u.id, username: u.username, email: u.email, role: u.role, stellarPublic: u.stellarPublic }));
   }
 
   async getStudents() {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/users/students`, { headers: this.getHeaders() });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     return JSON.parse(localStorage.getItem('users') || '[]').filter(u => u.role === 'estudiante').map(u => ({ id: u.id, username: u.username, email: u.email, stellarPublic: u.stellarPublic }));
   }
 
   async getActivities() {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/activities`, { headers: this.getHeaders() });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     return JSON.parse(localStorage.getItem('activities') || '[]').filter(a => a.status === 'active');
   }
 
   async createActivity(data) {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/activities`, {
         method: 'POST', headers: this.getHeaders(), body: JSON.stringify(data)
       });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     const activities = JSON.parse(localStorage.getItem('activities') || '[]');
@@ -177,8 +195,12 @@ class ApiClient {
   }
 
   async deleteActivity(id) {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/activities/${id}`, { method: 'DELETE', headers: this.getHeaders() });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     const activities = JSON.parse(localStorage.getItem('activities') || '[]');
@@ -189,8 +211,12 @@ class ApiClient {
 
   async getSubmissions(params = {}) {
     const query = new URLSearchParams(params).toString();
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/submissions?${query}`, { headers: this.getHeaders() });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     let subs = JSON.parse(localStorage.getItem('submissions') || '[]');
@@ -204,16 +230,20 @@ class ApiClient {
   }
 
   async submitActivity(formData) {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/submissions`, {
         method: 'POST', headers: { 'Authorization': `Bearer ${this.token}` }, body: formData
       });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     const activityId = formData.get('activityId');
     const comments = formData.get('comments');
     const file = formData.get('file');
-    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
     const submissions = JSON.parse(localStorage.getItem('submissions') || '[]');
     const submission = {
       id: Date.now().toString(), activityId, studentUsername: currentUser.username,
@@ -237,10 +267,14 @@ class ApiClient {
   }
 
   async reviewSubmission(id, data) {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/submissions/${id}/review`, {
         method: 'PUT', headers: this.getHeaders(), body: JSON.stringify(data)
       });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       const json = await res.json();
       if (json.blockchainTxHash) await this.storeBlockchainTx(json);
       return json;
@@ -258,8 +292,12 @@ class ApiClient {
   }
 
   async getTokens(username) {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/tokens/${username}`, { headers: this.getHeaders() });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     const stored = localStorage.getItem(`tokens_${username}`);
@@ -268,10 +306,14 @@ class ApiClient {
   }
 
   async mintTokens(username, amount, description) {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/tokens/mint`, {
         method: 'POST', headers: this.getHeaders(), body: JSON.stringify({ username, amount, description })
       });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     const tokens = JSON.parse(localStorage.getItem(`tokens_${username}`) || JSON.stringify({ balance: 0, transactions: [] }));
@@ -285,18 +327,26 @@ class ApiClient {
   }
 
   async getRewards() {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/rewards`, { headers: this.getHeaders() });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     return JSON.parse(localStorage.getItem('rewards') || '[]').filter(r => r.status === 'active');
   }
 
   async createReward(data) {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/rewards`, {
         method: 'POST', headers: this.getHeaders(), body: JSON.stringify(data)
       });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     const rewards = JSON.parse(localStorage.getItem('rewards') || '[]');
@@ -307,13 +357,17 @@ class ApiClient {
   }
 
   async redeemReward(rewardId) {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/rewards/${rewardId}/redeem`, {
         method: 'POST', headers: this.getHeaders()
       });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
-    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
+    const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
     const rewards = JSON.parse(localStorage.getItem('rewards') || '[]');
     const reward = rewards.find(r => r.id === rewardId);
     if (!reward) return { success: false, error: 'Recompensa no encontrada' };
@@ -329,8 +383,12 @@ class ApiClient {
   }
 
   async getStudentStats(username) {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/stats/student`, { headers: this.getHeaders() });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     const submissions = JSON.parse(localStorage.getItem('submissions') || '[]').filter(s => s.studentUsername === username);
@@ -350,8 +408,12 @@ class ApiClient {
   }
 
   async getTeacherStats(username) {
-    if (this.backendAvailable) {
+    if (this.backendAvailable || await this.isBackendAlive()) {
       const res = await fetch(`${this.baseURL}/api/stats/teacher`, { headers: this.getHeaders() });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error del servidor');
+      }
       return await res.json();
     }
     const activities = JSON.parse(localStorage.getItem('activities') || '[]').filter(a => a.createdBy === username);
@@ -368,7 +430,7 @@ class ApiClient {
   }
 
   async getFileUrl(filePath) {
-    if (this.backendAvailable && filePath && !filePath.startsWith('data:')) {
+    if ((this.backendAvailable || await this.isBackendAlive()) && filePath && !filePath.startsWith('data:')) {
       return `${this.baseURL}/api/files/${filePath}`;
     }
     return filePath;
