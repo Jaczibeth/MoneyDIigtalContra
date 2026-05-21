@@ -160,6 +160,14 @@ app.use((req, res, next) => {
 
 // Rate limiter simple en memoria para login/register
 const rateLimitStore = {};
+// Limpiar entradas antiguas cada 5 minutos
+setInterval(() => {
+  const cutoff = Date.now() - 120000;
+  for (const key of Object.keys(rateLimitStore)) {
+    rateLimitStore[key] = rateLimitStore[key].filter(t => t > cutoff);
+    if (rateLimitStore[key].length === 0) delete rateLimitStore[key];
+  }
+}, 300000);
 function rateLimit(ms, maxRequests) {
   return (req, res, next) => {
     const key = req.ip || req.connection.remoteAddress;
@@ -174,7 +182,7 @@ function rateLimit(ms, maxRequests) {
   };
 }
 
-app.use('/uploads', express.static(UPLOADS_DIR));
+app.use('/uploads', authMiddleware, express.static(UPLOADS_DIR));
 
 // Variable global de DB
 let db = null;
@@ -189,6 +197,8 @@ async function initDB() {
   } else {
     db = new SQL.Database();
   }
+
+  db.run('PRAGMA foreign_keys = ON');
 
   db.run(`CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
@@ -531,6 +541,11 @@ app.post('/api/auth/passkey/login/complete', async (req, res) => {
     const cols = credResult[0].columns;
     const row = credResult[0].values[0];
     const idx = (name) => cols.indexOf(name);
+    const credUsername = row[idx('username')];
+    // Verificar que la credencial pertenece al usuario que dice ser
+    if (credUsername !== username) {
+      return res.status(403).json({ error: 'Esta credencial no pertenece al usuario solicitado' });
+    }
     const storedCredential = {
       id: row[idx('credential_id')],
       publicKey: row[idx('public_key')],
@@ -725,6 +740,8 @@ app.post('/api/auth/register', rateLimit(60000, 5), async (req, res) => {
     if (username.length < 3) return res.status(400).json({ error: 'Usuario debe tener al menos 3 caracteres' });
     if (!email.includes('@')) return res.status(400).json({ error: 'Email inválido' });
     if (password.length < 6) return res.status(400).json({ error: 'Contraseña debe tener al menos 6 caracteres' });
+    const allowedRoles = ['estudiante', 'docente'];
+    const finalRole = allowedRoles.includes(role) ? role : 'estudiante';
 
     const existing = db.exec(`SELECT id FROM users WHERE username = ? OR email = ?`, [username, email]);
     if (existing.length > 0 && existing[0].values.length > 0) {
@@ -752,11 +769,11 @@ app.post('/api/auth/register', rateLimit(60000, 5), async (req, res) => {
     }
 
     db.run(`INSERT INTO users (id, username, email, password_hash, role, stellar_public, stellar_secret_encrypted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, username, email, passwordHash, role || 'estudiante', finalStellarPublic, finalStellarSecretEncrypted, now]);
+      [id, username, email, passwordHash, finalRole, finalStellarPublic, finalStellarSecretEncrypted, now]);
     saveDB();
 
-    const token = jwt.sign({ id, username, email, role: role || 'estudiante', stellarPublic: finalStellarPublic }, JWT_SECRET, { expiresIn: '24h' });
-    res.json({ token, user: { id, username, email, role: role || 'estudiante', stellarPublic: finalStellarPublic } });
+    const token = jwt.sign({ id, username, email, role: finalRole, stellarPublic: finalStellarPublic }, JWT_SECRET, { expiresIn: '24h' });
+    res.json({ token, user: { id, username, email, role: finalRole, stellarPublic: finalStellarPublic } });
   } catch (e) {
     console.error('Error en registro:', e);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -837,12 +854,21 @@ app.get('/api/users/students', authMiddleware, (req, res) => {
 });
 
 app.get('/api/users/:username/stellar-key', authMiddleware, (req, res) => {
+  const isOwner = req.params.username === req.user.username;
+  if (!isOwner && req.user.role !== 'docente') {
+    return res.status(403).json({ error: 'No puedes ver la clave de otro usuario' });
+  }
   const result = db.exec(`SELECT stellar_public, stellar_secret_encrypted FROM users WHERE username = ?`, [req.params.username]);
   if (!result.length || !result[0].values.length) return res.status(404).json({ error: 'Usuario no encontrado' });
   const cols = result[0].columns;
   const idx = (name) => cols.indexOf(name);
   const row = result[0].values[0];
-  res.json({ stellarPublic: row[idx('stellar_public')], stellarSecretEncrypted: row[idx('stellar_secret_encrypted')] });
+  if (isOwner) {
+    res.json({ stellarPublic: row[idx('stellar_public')], stellarSecretEncrypted: row[idx('stellar_secret_encrypted')] });
+  } else {
+    // docente viendo a otro usuario: solo clave pública
+    res.json({ stellarPublic: row[idx('stellar_public')] });
+  }
 });
 
 // --- ACTIVITIES ---
@@ -994,7 +1020,7 @@ app.get('/api/tokens/:username', authMiddleware, (req, res) => {
     amount: parseInt(row[0]), type: row[1], description: row[2], blockchainTxHash: row[3], timestamp: row[4]
   })) : [];
 
-  const balance = transactions.reduce((sum, tx) => sum + (tx.type === 'earned' ? tx.amount : tx.type === 'redeemed' ? -tx.amount : 0), 0);
+  const balance = transactions.reduce((sum, tx) => sum + tx.amount, 0);
 
   res.json({ username: req.params.username, balance, transactions });
 });
@@ -1052,7 +1078,7 @@ app.post('/api/rewards/:id/redeem', authMiddleware, (req, res) => {
   // Verificar balance
   const txResult = db.exec(`SELECT amount, type FROM token_transactions WHERE username = ?`, [req.user.username]);
   const transactions = txResult.length ? txResult[0].values.map(r => ({ amount: parseInt(r[0]), type: r[1] })) : [];
-  const balance = transactions.reduce((sum, tx) => sum + (tx.type === 'earned' ? tx.amount : tx.type === 'redeemed' ? -tx.amount : 0), 0);
+  const balance = transactions.reduce((sum, tx) => sum + tx.amount, 0);
 
   if (balance < cost) return res.status(400).json({ error: 'Tokens insuficientes' });
 
@@ -1071,10 +1097,13 @@ app.post('/api/rewards/:id/redeem', authMiddleware, (req, res) => {
 });
 
 // --- FILE DOWNLOAD ---
-app.get('/api/files/:filename', (req, res) => {
-  const filePath = path.join(UPLOADS_DIR, req.params.filename);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Archivo no encontrado' });
-  res.sendFile(filePath);
+app.get('/api/files/:filename', authMiddleware, (req, res) => {
+  const resolved = path.resolve(UPLOADS_DIR, req.params.filename);
+  if (!resolved.startsWith(path.resolve(UPLOADS_DIR))) {
+    return res.status(403).json({ error: 'Acceso denegado' });
+  }
+  if (!fs.existsSync(resolved)) return res.status(404).json({ error: 'Archivo no encontrado' });
+  res.sendFile(resolved);
 });
 
 // --- STATS ---
@@ -1096,7 +1125,7 @@ app.get('/api/stats/student', authMiddleware, (req, res) => {
 
   const txResult = db.exec(`SELECT amount, type FROM token_transactions WHERE username = ?`, [username]);
   const txs = txResult.length ? txResult[0].values.map(r => ({ amount: parseInt(r[0]), type: r[1] })) : [];
-  const tokensBalance = txs.reduce((sum, tx) => sum + (tx.type === 'earned' ? tx.amount : tx.type === 'redeemed' ? -tx.amount : 0), 0);
+  const tokensBalance = txs.reduce((sum, tx) => sum + tx.amount, 0);
 
   const progress = totalActivities > 0 ? Math.round((approved / totalActivities) * 100) : 0;
 
@@ -1118,143 +1147,6 @@ app.get('/api/stats/teacher', authMiddleware, (req, res) => {
   const totalStudents = studentsResult.length ? studentsResult[0].values.length : 0;
 
   res.json({ totalActivities, pendingReviews, totalTokensAwarded, totalStudents });
-});
-
-// ========================
-// MIGRACIÓN DESDE LOCALSTORAGE
-// ========================
-
-app.post('/api/migrate/import', async (req, res) => {
-  try {
-    const { users, activities, submissions, rewards, redemptions, tokenTransactions, username } = req.body;
-    if (!users || !username) {
-      return res.status(400).json({ error: 'Datos de usuario requeridos' });
-    }
-
-    const localUser = users.find(u => u.username === username);
-    if (!localUser) {
-      return res.status(404).json({ error: 'Usuario no encontrado en datos locales' });
-    }
-
-    // Verificar si el usuario ya existe en la DB
-    const existing = db.exec(`SELECT id FROM users WHERE username = ?`, [username]);
-    if (existing.length && existing[0].values.length) {
-      // Eliminar el usuario nuevo (creado desde Render) para reemplazarlo
-      db.run(`DELETE FROM token_transactions WHERE username = ?`, [username]);
-      db.run(`DELETE FROM submissions WHERE student_username = ?`, [username]);
-      db.run(`DELETE FROM passkeys WHERE username = ?`, [username]);
-      db.run(`DELETE FROM redemptions WHERE username = ?`, [username]);
-      db.run(`DELETE FROM users WHERE username = ?`, [username]);
-      saveDB();
-    }
-
-    // Importar usuario — usar contraseña en texto plano si se proporciona
-    // (así el servidor la hashea correctamente con bcrypt)
-    let passwordHash;
-    if (req.body.password) {
-      passwordHash = await bcrypt.hash(req.body.password, 10);
-    } else {
-      // Si no hay contraseña, generar una temporal
-      passwordHash = await bcrypt.hash(uuidv4(), 10);
-      console.warn(`⚠️ Usuario ${username} migrado sin contraseña. Usa "recuperar contraseña".`);
-    }
-    const id = localUser.id || uuidv4();
-    const now = new Date().toISOString();
-    db.run(`INSERT INTO users (id, username, email, password_hash, role, stellar_public, stellar_secret_encrypted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, localUser.username, localUser.email || `${username}@migrated.local`,
-       passwordHash, localUser.role || 'estudiante',
-       localUser.stellarPublic || null,
-       localUser.stellarSecretEncrypted || localUser.encryptedSecret || null,
-       localUser.createdAt || now]);
-    saveDB();
-
-    // Importar actividades
-    let importedActivities = 0;
-    if (Array.isArray(activities)) {
-      for (const act of activities) {
-        const exists = db.exec(`SELECT id FROM activities WHERE id = ?`, [act.id]);
-        if (!exists.length || !exists[0].values.length) {
-          db.run(`INSERT INTO activities (id, title, description, tokens, deadline, subject, instructions, created_by, created_at, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [act.id, act.title || 'Migrada', act.description || '', parseInt(act.tokens) || 0,
-             act.deadline || null, act.subject || null, act.instructions || null,
-             act.createdBy || act.created_by || username, act.createdAt || now, act.status || 'active']);
-          importedActivities++;
-        }
-      }
-      saveDB();
-    }
-
-    // Importar submissions
-    let importedSubmissions = 0;
-    if (Array.isArray(submissions)) {
-      for (const sub of submissions) {
-        const actId = sub.activityId || sub.activity_id;
-        db.run(`INSERT OR IGNORE INTO submissions (id, activity_id, student_username, file_path, file_name, file_type, file_size, comments, status, submitted_at, reviewed_at, reviewed_by, review_comment, tokens_awarded, blockchain_tx_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [sub.id, actId, sub.studentUsername || sub.student_username || username,
-           sub.filePath || sub.file_path || null, sub.fileName || sub.file_name || null,
-           sub.fileType || sub.file_type || null, parseInt(sub.fileSize || sub.file_size) || null,
-           sub.comments || null, sub.status || 'pending', sub.submittedAt || sub.submitted_at || now,
-           sub.reviewedAt || sub.reviewed_at || null, sub.reviewedBy || sub.reviewed_by || null,
-           sub.reviewComment || sub.review_comment || null, parseInt(sub.tokensAwarded || sub.tokens_awarded) || 0,
-           sub.blockchainTxHash || sub.blockchain_tx_hash || null]);
-        importedSubmissions++;
-      }
-      saveDB();
-    }
-
-    // Importar transacciones de tokens
-    let importedTxs = 0;
-    const txData = tokenTransactions || (localUser.tokens ? localUser.tokens.transactions : []);
-    if (Array.isArray(txData)) {
-      for (const tx of txData) {
-        db.run(`INSERT OR IGNORE INTO token_transactions (id, username, amount, type, activity_id, reward_id, description, blockchain_tx_hash, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [tx.id || uuidv4(), tx.username || username, parseInt(tx.amount) || 0,
-           tx.type || 'earned', tx.activityId || tx.activity_id || null,
-           tx.rewardId || tx.reward_id || null, tx.description || null,
-           tx.blockchainTxHash || tx.blockchain_tx_hash || null,
-           tx.timestamp || tx.createdAt || now]);
-        importedTxs++;
-      }
-      saveDB();
-    }
-
-    // Importar recompensas
-    if (Array.isArray(rewards)) {
-      for (const rew of rewards) {
-        const exists = db.exec(`SELECT id FROM rewards WHERE id = ?`, [rew.id]);
-        if (!exists.length || !exists[0].values.length) {
-          db.run(`INSERT INTO rewards (id, name, description, cost, image, created_by, created_at, status, redeemed_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [rew.id, rew.name, rew.description || '', parseInt(rew.cost) || 0,
-             rew.image || null, rew.createdBy || rew.created_by || username,
-             rew.createdAt || now, rew.status || 'active', parseInt(rew.redeemedCount || rew.redeemed_count) || 0]);
-        }
-      }
-      saveDB();
-    }
-
-    // Importar redemptions
-    if (Array.isArray(redemptions)) {
-      for (const red of redemptions) {
-        db.run(`INSERT OR IGNORE INTO redemptions (id, username, reward_id, reward_name, cost, timestamp) VALUES (?, ?, ?, ?, ?, ?)`,
-          [red.id, red.username || username, red.rewardId || red.reward_id,
-           red.rewardName || red.reward_name, parseInt(red.cost) || 0,
-           red.timestamp || now]);
-      }
-      saveDB();
-    }
-
-    res.json({
-      success: true,
-      message: `Migración completada para ${username}`,
-      imported: {
-        user: 1, activities: importedActivities,
-        submissions: importedSubmissions, transactions: importedTxs
-      }
-    });
-  } catch (e) {
-    console.error('Error en migración:', e);
-    res.status(500).json({ error: e.message });
-  }
 });
 
 // ========================
