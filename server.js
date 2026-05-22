@@ -594,7 +594,7 @@ app.post('/api/auth/passkey/register/begin', async (req, res) => {
       return res.status(404).json({ error: 'Usuario no encontrado. Regístrate primero en el sistema.' });
     }
 
-    // Verificar si ya tiene una passkey registrada
+    // Verificar si ya tiene una passkey registrada y excluirla para evitar duplicados
     const existingKeys = await dbExec(`SELECT credential_id, public_key, counter, transports FROM passkeys WHERE username = ?`, [username]);
     const existingCredentials = existingKeys.length ? existingKeys[0].values.map(row => ({
       id: row[0], publicKey: row[1], counter: parseInt(row[2] || 0), transports: row[3] ? JSON.parse(row[3]) : []
@@ -606,6 +606,14 @@ app.post('/api/auth/passkey/register/begin', async (req, res) => {
       userName: username,
       userDisplayName: username,
       attestationType: 'none',
+      excludeCredentials: existingCredentials.map(cred => ({
+        id: isoBase64URL.toBuffer(cred.id),
+        transports: cred.transports,
+      })),
+      authenticatorSelection: {
+        residentKey: 'required',
+        userVerification: 'preferred',
+      },
     });
 
     // Guardar challenge en store temporal
@@ -710,6 +718,11 @@ app.post('/api/auth/passkey/login/begin', async (req, res) => {
     const options = await generateAuthenticationOptions({
       rpID: RP_ID,
       userVerification: 'preferred',
+      allowCredentials: credentials.map(cred => ({
+        id: isoBase64URL.toBuffer(cred.id),
+        type: 'public-key',
+        transports: cred.transports,
+      })),
     });
 
     challengeStore.set(`login:${username}`, {
