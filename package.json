@@ -18,6 +18,7 @@
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "opencode-ai": "^1.4.3",
+    "pg": "^8.21.0",
     "sql.js": "^1.11.0",
     "uuid": "^10.0.0"
   },
