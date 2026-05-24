@@ -291,27 +291,36 @@
         let usingFreighter = false;
 
         (function () {
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
-            const username = currentUser.username || 'unknown';
-            const savedPublic = localStorage.getItem(`wallet_public_${username}`);
-            const savedFreighter = localStorage.getItem(`wallet_freighter_${username}`);
+            try {
+                const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+                const username = currentUser.username || 'unknown';
+                const savedPublic = localStorage.getItem(`wallet_public_${username}`);
+                const savedFreighter = localStorage.getItem(`wallet_freighter_${username}`);
 
-            if (currentUser.stellarPublic) {
-                currentPublicKey = currentUser.stellarPublic;
-                showWalletView(currentPublicKey);
-            } else if (savedPublic) {
-                currentPublicKey = savedPublic;
-                currentUser.stellarPublic = savedPublic;
-                sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
-                showWalletView(savedPublic);
+                // Cargar clave secreta desde sesión si está disponible
+                if (currentUser.stellarSecretEncrypted) {
+                    currentSecretKey = currentUser.stellarSecretEncrypted;
+                }
+
+                if (currentUser.stellarPublic) {
+                    currentPublicKey = currentUser.stellarPublic;
+                    showWalletView(currentPublicKey);
+                } else if (savedPublic) {
+                    currentPublicKey = savedPublic;
+                    currentUser.stellarPublic = savedPublic;
+                    sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+                    showWalletView(savedPublic);
+                }
+
+                // Si el usuario ya tenía Freighter, reconectar automáticamente
+                if (savedFreighter === 'true') {
+                    setTimeout(() => connectFreighter(true), 500);
+                }
+            } catch (e) {
+                console.warn('Error en inicialización de Wallet:', e);
             }
 
-            // Si el usuario ya tenía Freighter, reconectar automáticamente
-            if (savedFreighter === 'true') {
-                setTimeout(() => connectFreighter(true), 500);
-            }
-
-            // Verificar estado de passkey
+            // Verificar estado de passkey (siempre ejecutar)
             setTimeout(() => checkPasskeyStatus(), 300);
         })();
 
@@ -429,9 +438,9 @@
                         <label class="text-xs text-gray-500 uppercase font-bold tracking-wider text-red-400">🚨 Llave Privada (Secreta)</label>
                         <div class="flex items-center gap-2 mt-1">
                             <code id="secretKeyDisplay" class="bg-black bg-opacity-50 p-3 rounded-lg flex-1 text-sm text-red-300 break-all border border-gray-800 transition-all filter blur-sm select-none">
-                                ${currentSecretKey || 'No disponible (Solo lectura / Freighter)'}
+                                ${currentSecretKey || 'No disponible'}
                             </code>
-                            <button id="toggleSecretBtn" onclick="toggleSecret()" class="p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition" title="Revelar">👁️</button>
+                            <button id="toggleSecretBtn" onclick="toggleSecret()" class="p-3 bg-gray-800 rounded-lg hover:bg-gray-700 transition" title="${currentSecretKey ? 'Revelar/Ocultar' : 'Cargar clave'}">${currentSecretKey ? '👁️' : '📂'}</button>
                         </div>
                         <p class="text-xs text-gray-500 mt-1">Nunca compartas esta llave con nadie. Da acceso total a tus fondos.</p>
                     </div>
@@ -448,9 +457,17 @@
 
         window.toggleSecret = function () {
             const display = document.getElementById('secretKeyDisplay');
-            if (display.innerText.includes('No disponible')) {
-                alert('No se tiene la clave secreta en esta sesión (quizás usas Freighter o no se importó).');
-                return;
+
+            if (!currentSecretKey) {
+                // Si no hay clave en memoria, intentar cargarla desde sessionStorage
+                const user = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
+                if (user.stellarSecretEncrypted && typeof user.stellarSecretEncrypted === 'string' && user.stellarSecretEncrypted.startsWith('S')) {
+                    currentSecretKey = user.stellarSecretEncrypted;
+                    display.textContent = currentSecretKey;
+                } else {
+                    alert('No se tiene la clave secreta en esta sesión (quizás usas Freighter o no se importó).');
+                    return;
+                }
             }
 
             if (display.classList.contains('blur-sm')) {
