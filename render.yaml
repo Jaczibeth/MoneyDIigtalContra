@@ -4,6 +4,7 @@ services:
     runtime: node
     region: oregon
     plan: free
+    branch: Daniel
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/counter
