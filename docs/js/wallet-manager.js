@@ -10,10 +10,6 @@ class WalletManager {
         this.usingFreighter = false;
         this.networkPassphrase = StellarSdk.Networks.TESTNET;
         this.server = new StellarSdk.Server('https://horizon-testnet.stellar.org');
-        
-        // Claves por defecto del usuario (si se proporcionan)
-        this.defaultSecretKey = 'SD4ZN2WZKRGHJXKOA4TZ3LDW4JY43LT6RU4YSD6PVJ7IRMLDW4EPOPET';
-        this.defaultPublicKey = 'GAX6QLY4HV23XBE3E7WBMUXKJ3Y7BS6CWF6JBE7U5TEOFEK5P6H2QYYD';
     }
 
     /**
@@ -91,13 +87,6 @@ class WalletManager {
     }
 
     /**
-     * Conecta usando las claves por defecto del usuario
-     */
-    async connectWithDefaultKeys() {
-        return await this.connectWithSecretKey(this.defaultSecretKey);
-    }
-
-    /**
      * Carga la wallet desde localStorage
      */
     loadFromStorage() {
@@ -107,9 +96,20 @@ class WalletManager {
                 const data = JSON.parse(stored);
                 this.publicKey = data.publicKey;
                 this.usingFreighter = data.usingFreighter || false;
-                // No cargamos secretKey desde storage por seguridad
-                return true;
             }
+
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser') || '{}');
+            const username = currentUser.username;
+            if (username) {
+                // SEGURIDAD: Ya no almacenamos wallet_secret_ en localStorage
+                // Solo recuperamos la clave pública
+                const savedPublic = localStorage.getItem('wallet_public_' + username);
+                if (savedPublic && !this.publicKey) {
+                    this.publicKey = savedPublic;
+                }
+            }
+
+            return !!this.publicKey;
         } catch (e) {
             console.warn('Error cargando wallet desde storage:', e);
         }
@@ -129,10 +129,10 @@ class WalletManager {
             localStorage.setItem('walletConnection', JSON.stringify(data));
             
             // También actualizar currentUser si existe
-            const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
             if (currentUser && this.publicKey) {
                 currentUser.stellarPublic = this.publicKey;
-                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
             }
         } catch (e) {
             console.warn('Error guardando wallet en storage:', e);

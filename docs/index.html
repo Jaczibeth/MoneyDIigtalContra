@@ -30,26 +30,24 @@
     <!-- Right Column: Login Card -->
     <div class="login-card">
       <div class="card-header">
-        <h2>Bienvenido</h2>
+        <h2>BIENVENIDO</h2>
         <p style="color: var(--text-secondary); margin-top: 5px;">Ingresa tus credenciales para continuar</p>
       </div>
 
-      <!-- Wallet Status Indication (Top of card if connected) -->
+      <!-- Wallet Status - Solo se muestra si hay sesión activa (no en login) -->
       <div id="walletStatus" class="web3-status" style="display: none; margin-bottom: 1.5rem;">
-        <span style="display:block; font-weight:bold; margin-bottom:4px">● Wallet Conectada</span>
-        <span id="walletAddress"></span>
       </div>
 
-      <form id="loginForm">
+      <form id="loginForm" method="post" action="/api/auth/login">
         <div class="input-group">
           <label for="username" class="input-label">Usuario o Email</label>
-          <input id="username" type="text" placeholder="nombre@ejemplo.com" class="input-field" required
+          <input id="username" name="username" type="text" placeholder="nombre@ejemplo.com" class="input-field" required
             autocomplete="username" />
         </div>
 
         <div class="input-group">
           <label for="loginPassword" class="input-label">Contraseña</label>
-          <input id="loginPassword" type="password" placeholder="••••••••" class="input-field" />
+          <input id="loginPassword" name="password" type="password" placeholder="••••••••" class="input-field" autocomplete="current-password" />
         </div>
 
         <div class="input-group">
@@ -68,6 +66,9 @@
 
         <button type="submit" id="loginBtn" class="btn btn-primary" style="margin-top: 1rem;">
           Iniciar Sesión &rarr;
+        </button>
+        <button type="button" id="biometricLoginBtn" class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%;">
+          <span id="biometricBtnText">🔐 Iniciar con Biometría</span>
         </button>
       </form>
 
@@ -116,7 +117,18 @@
     style="position: fixed; bottom: 20px; right: 20px; padding: 1rem 1.5rem; border-radius: 12px; background: white; color: black; box-shadow: 0 10px 25px rgba(0,0,0,0.2); transform: translateY(100px); opacity: 0; transition: all 0.5s ease; width: 300px; z-index: 100;">
   </div>
 
+  <script src="js/api-client.js"></script>
+  <script src="js/activities-system.js"></script>
   <script>
+    // Banner si está en surge.sh
+    if (window.location.hostname.includes('surge.sh')) {
+      const b = document.createElement('div');
+      b.style.cssText = 'background:#ff9800;color:#000;text-align:center;padding:12px 20px;font-size:14px;font-weight:500;position:fixed;top:0;left:0;right:0;z-index:9999';
+      b.innerHTML = '⚠️ Vista previa estática &mdash; Funcionalidad completa en <a href="https://money-digital.onrender.com" style="color:#fff;font-weight:700;text-decoration:underline">money-digital.onrender.com</a>';
+      document.body.prepend(b);
+      document.querySelector('.main-container').style.marginTop = '50px';
+    }
+
     // --- UTILITIES ---
     function showToast(message, type = 'info') {
       const el = document.getElementById('result');
@@ -136,8 +148,8 @@
       }, 4000);
     }
 
-    // --- STELLAR CONSTANTS & LOGIC ---
-    const CONTRACT_ID = 'CDS3VGIAZFIZUG3GL6LWAXLOXWCRIIBDPPRS4225LLLEHPGTFDNF4PQK';
+    // --- STELLAR CONSTANTS ---
+    // CONTRACT_ID principal en stellar-integration.js y app.js
     // Logic from previous file preserved
     (function cleanTestUsersImmediate() {
       try {
@@ -157,7 +169,6 @@
     const imageUploadDiv = document.getElementById('imageUpload');
     const fileInput = imageUploadDiv.querySelector('input[type="file"]');
     const walletStatus = document.getElementById('walletStatus');
-    const walletAddress = document.getElementById('walletAddress');
     const stellarAccountInfo = document.getElementById('stellarAccountInfo');
     const claveSecretaManualInput = document.getElementById('claveSecretaManual');
 
@@ -229,12 +240,11 @@
       ultimaClavePublica = pubKey;
       if (secret) ultimaClaveSecreta = secret;
 
-      walletStatus.style.display = 'block';
-      walletAddress.textContent = pubKey;
+      // No mostrar wallet en login por seguridad
+      walletStatus.style.display = 'none';
 
-      if (secret) {
-        try { localStorage.setItem('stellarSecret', secret); } catch (e) { }
-      }
+      // SEGURIDAD: NUNCA almacenar la clave secreta en localStorage
+      // Solo guardamos la clave pública (no es sensible)
       try { localStorage.setItem('stellarPublic', pubKey); } catch (e) { }
     }
 
@@ -258,7 +268,7 @@
 
     function updateFileUI(file) {
       if (!file) return;
-      imageUploadDiv.querySelector('.upload-text').innerHTML = `<strong>✓ ${file.name}</strong>`;
+      imageUploadDiv.querySelector('.upload-text').textContent = `✓ ${file.name}`;
       imageUploadDiv.style.borderColor = '#10b981';
       imageUploadDiv.style.background = 'rgba(16, 185, 129, 0.1)';
     }
@@ -280,7 +290,7 @@
       try { return JSON.parse(localStorage.getItem('users') || '[]'); } catch (e) { return []; }
     }
 
-    // 5. Submit Login
+    // 5. Submit Login (con API backend + fallback localStorage)
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const userVal = document.getElementById('username').value.trim();
@@ -288,30 +298,62 @@
 
       if (!passVal) { showToast('Falta contraseña', 'error'); return; }
 
-      const users = loadUsers();
-      const hashed = await hashPassword(passVal);
-      const user = users.find(u => (u.username === userVal || u.email === userVal) && u.passwordHash === hashed);
+      try {
+        showToast('Iniciando sesión...', 'info');
 
-      if (user) {
-        // Intentar descifrar la clave secreta si existe
-        if (user.encryptedSecret && user.encSalt && user.encIv) {
-          try {
-            showToast('Desencriptando wallet...', 'info');
-            const decryptedSecret = await decryptSecret(user.encryptedSecret, passVal, user.encSalt, user.encIv);
-            user.stellarSecret = decryptedSecret;
-          } catch (decError) {
-            console.warn('Error descifrando wallet:', decError);
-            // No bloqueamos el login, pero no tendrá la wallet cargada automáticamente
+        // Intentar con API backend primero
+        let loginResult;
+        try {
+          loginResult = await apiClient.login(userVal, passVal);
+        } catch (apiErr) {
+          // Si el backend respondió con un error del servidor (cred inválidas, etc.)
+          // mostrar ese error directamente y NO caer al offline
+          const isNetworkError = apiErr.message.includes('Failed to fetch') ||
+                                 apiErr.message.includes('NetworkError') ||
+                                 apiErr.message.includes('conectar al servidor') ||
+                                 apiErr.message.includes('No se puede conectar');
+          if (!isNetworkError) {
+            throw apiErr;
           }
+
+          console.warn('API no disponible, usando localStorage:', apiErr.message);
+
+          // Fallback a localStorage
+          const users = loadUsers();
+          const hashed = await hashPassword(passVal);
+          const user = users.find(u => (u.username === userVal || u.email === userVal) && u.passwordHash === hashed);
+
+          if (!user) throw new Error('Credenciales incorrectas');
+
+          if (user.encryptedSecret && user.encSalt && user.encIv) {
+            try {
+              const decryptedSecret = await decryptSecret(user.encryptedSecret, passVal, user.encSalt, user.encIv);
+              user.stellarSecret = decryptedSecret;
+            } catch (decError) {
+              console.warn('Error descifrando wallet:', decError);
+            }
+          }
+
+          loginResult = { user };
         }
 
+        const user = loginResult.user;
+
+        // SEGURIDAD: La clave secreta cifrada se guarda en sessionStorage
+        // (se borra al cerrar el navegador), NUNCA en localStorage
         sessionStorage.setItem('currentUser', JSON.stringify(user));
-        // If wallet was connected manually during this session, associate it? 
-        // For now, respect the flow.
+
+        // Si hay wallet manual, asociarla al usuario
+        const stellarPublic = localStorage.getItem('stellarPublic');
+        if (stellarPublic && !user.stellarPublic) {
+          user.stellarPublic = stellarPublic;
+          sessionStorage.setItem('currentUser', JSON.stringify(user));
+        }
+
         showToast(`Bienvenido ${user.username}`, 'success');
         setTimeout(() => window.location.href = "Inicio.html", 1000);
-      } else {
-        showToast('Credenciales incorrectas', 'error');
+      } catch (error) {
+        showToast(error.message || 'Credenciales incorrectas', 'error');
       }
     });
 
@@ -359,13 +401,106 @@
       );
     }
 
-    // Init
-    window.onload = () => {
-      const savedPub = localStorage.getItem('stellarPublic');
-      if (savedPub) {
-        setWalletState(savedPub, false);
+    // ============================================================
+    // LOGIN BIOMÉTRICO (Passkeys)
+    // ============================================================
+
+    // Funciones auxiliares WebAuthn
+    function buf2base64url(buf) {
+      const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : new Uint8Array(buf.buffer);
+      let binary = '';
+      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+
+    function base64url2buf(str) {
+      str = str.replace(/-/g, '+').replace(/_/g, '/');
+      while (str.length % 4) str += '=';
+      const binary = atob(str);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      return bytes.buffer;
+    }
+
+    function serializeCredential(cred) {
+      const out = { id: cred.id, rawId: buf2base64url(cred.rawId), response: {}, type: cred.type };
+      if (cred.response.clientDataJSON) out.response.clientDataJSON = buf2base64url(cred.response.clientDataJSON);
+      if (cred.response.attestationObject) out.response.attestationObject = buf2base64url(cred.response.attestationObject);
+      if (cred.response.authenticatorData) out.response.authenticatorData = buf2base64url(cred.response.authenticatorData);
+      if (cred.response.signature) out.response.signature = buf2base64url(cred.response.signature);
+      if (cred.response.userHandle) out.response.userHandle = buf2base64url(cred.response.userHandle);
+      if (cred.response.getTransports) out.response.transports = cred.response.getTransports();
+      return out;
+    }
+
+    function prepareRequestOpts(opts) {
+      return {
+        ...opts,
+        challenge: base64url2buf(opts.challenge),
+        allowCredentials: (opts.allowCredentials || []).map(c => ({ ...c, id: base64url2buf(c.id) }))
+      };
+    }
+
+    // Botón de login biométrico
+    document.getElementById('biometricLoginBtn').addEventListener('click', async () => {
+      const username = document.getElementById('username').value.trim();
+      if (!username) { showToast('Ingresa tu nombre de usuario primero', 'error'); return; }
+      if (!navigator.credentials?.get) {
+        showToast('Tu navegador no soporta biometría. Usa Chrome, Edge o Safari.', 'error');
+        return;
       }
-    };
+
+      const btnText = document.getElementById('biometricBtnText');
+      try {
+        btnText.textContent = '⏳ Conectando con servidor...';
+
+        const beginRes = await fetch(`/api/auth/passkey/login/begin`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+        if (!beginRes.ok) {
+          const err = await beginRes.json();
+          throw new Error(err.error || 'Error al iniciar sesión biométrica');
+        }
+        const requestOpts = await beginRes.json();
+
+        btnText.textContent = '⏳ Verificando biometría...';
+        const assertion = await navigator.credentials.get({
+          publicKey: prepareRequestOpts(requestOpts)
+        });
+
+        const completeRes = await fetch(`/api/auth/passkey/login/complete`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, credential: serializeCredential(assertion) })
+        });
+        if (!completeRes.ok) {
+          const err = await completeRes.json();
+          throw new Error(err.error || 'Error al verificar biometría');
+        }
+        const completeData = await completeRes.json();
+
+        // Guardar token y datos de sesión
+        sessionStorage.setItem('auth_token', completeData.token);
+        if (completeData.user) {
+          sessionStorage.setItem('currentUser', JSON.stringify(completeData.user));
+        }
+        // También en apiClient si ya se inicializó
+        if (typeof apiClient !== 'undefined') {
+          apiClient.setToken(completeData.token);
+        }
+
+        showToast(`Bienvenido ${username}`, 'success');
+        setTimeout(() => window.location.href = "Inicio.html", 1000);
+      } catch (e) {
+        btnText.textContent = '🔐 Iniciar con Biometría';
+        showToast(e.message || 'Error en autenticación biométrica', 'error');
+      }
+    });
+
+    // Init
+    window.onload = () => {};
   </script>
 </body>
 

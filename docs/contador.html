@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Contador Biométrico - Money Digital</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" />
+  <style>
+    :root {
+      --bg-dark: #0b0f19;
+      --card-dark: rgba(255,255,255,0.06);
+      --border-dark: rgba(255,255,255,0.12);
+      --neon-cyan: #00eaff;
+      --neon-purple: #b400ff;
+      --text-light: #e5e5e5;
+    }
+    body {
+      margin:0; background: var(--bg-dark);
+      font-family: 'Inter', sans-serif; color: var(--text-light); min-height: 100vh;
+    }
+    header {
+      background: rgba(255,255,255,0.05); border-bottom: 1px solid var(--border-dark);
+      padding: 20px 40px; backdrop-filter: blur(20px); position: sticky; top: 0; z-index: 100;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    header h1 {
+      font-family: 'Poppins', sans-serif; font-size: 1.4rem; font-weight: 700;
+      background: linear-gradient(90deg, var(--neon-cyan), var(--neon-purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin: 0;
+    }
+    nav a {
+      color: #bbb; padding: 10px 18px; border-radius: 10px; transition: 0.3s;
+      font-weight: 500; text-decoration: none;
+    }
+    nav a:hover, nav a.active {
+      background: rgba(0,255,255,0.1); color: var(--neon-cyan); box-shadow: 0 0 10px var(--neon-cyan);
+    }
+    .card {
+      background: var(--card-dark); border: 1px solid var(--border-dark);
+      border-radius: 18px; backdrop-filter: blur(12px); padding: 24px; transition: 0.3s;
+    }
+    .card:hover { transform: translateY(-4px); box-shadow: 0 0 25px rgba(0,255,255,0.1); }
+    .btn {
+      padding: 12px 24px; border-radius: 12px; border: none; cursor: pointer;
+      font-weight: 600; transition: 0.3s; font-size: 0.95rem;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple)); color: white;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 15px rgba(0,255,255,0.5); }
+    .btn-secondary { background: rgba(255,255,255,0.08); color: white; }
+    .btn-secondary:hover { background: rgba(255,255,255,0.15); }
+    .btn-danger { background: rgba(255,50,50,0.2); color: #ff6b6b; border: 1px solid rgba(255,50,50,0.3); }
+    .btn-danger:hover { background: rgba(255,50,50,0.3); }
+    .counter-value {
+      font-size: 6rem; font-weight: 700; font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      line-height: 1;
+    }
+    .status-badge {
+      display: inline-block; padding: 4px 12px; border-radius: 20px;
+      font-size: 0.8rem; font-weight: 600;
+    }
+    .status-connected { background: rgba(76,175,80,0.2); color: #4caf50; }
+    .status-disconnected { background: rgba(255,152,0,0.2); color: #ff9800; }
+    .tx-item {
+      display: flex; gap: 12px; align-items: center; padding: 12px;
+      border-radius: 10px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.03);
+      transition: 0.2s;
+    }
+    .tx-item:hover { transform: translateX(6px); background: rgba(0,229,255,0.02); }
+    .tx-icon {
+      width: 40px; height: 40px; display: grid; place-items: center;
+      border-radius: 10px; background: rgba(0,229,255,0.06); color: var(--neon-cyan); font-size: 16px;
+    }
+  </style>
+</head>
+<body>
+  <header class="flex justify-between items-center">
+    <h1>Money Digital - GROUP JAD</h1>
+    <nav class="flex gap-6">
+      <a href="Inicio.html">🏠 Inicio</a>
+      <a href="cursos.html">🎯 Actividades</a>
+      <a href="Moneda.html">🪙 Tokens</a>
+      <a href="contador.html" class="active">🔐 DApp</a>
+      <a href="certificado.html">🏆 Certificados</a>
+      <a href="Wallet.html">💎 Wallet</a>
+    </nav>
+  </header>
+
+  <div class="max-w-5xl mx-auto mt-10 px-6 pb-12">
+    <!-- Sección Superior -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <!-- Columna: Smart Wallet -->
+      <div class="md:col-span-1">
+        <div class="card h-full">
+          <div class="flex items-center gap-3 mb-6">
+            <div class="text-2xl">🔑</div>
+            <h2 class="text-xl font-bold">Smart Wallet</h2>
+          </div>
+
+          <!-- Estado -->
+          <div id="walletStatus" class="mb-4">
+            <span class="status-badge status-disconnected" id="connectionBadge">
+              <i class="fa-solid fa-circle"></i> Sin conectar
+            </span>
+          </div>
+
+          <div id="walletInfo" class="hidden space-y-2 mb-4 p-4 rounded-lg" style="background: rgba(255,255,255,0.03);">
+            <p class="text-sm"><span class="text-gray-500">👤 Usuario:</span> <span id="walletUsername" class="font-semibold">—</span></p>
+            <p class="text-sm"><span class="text-gray-500">🏦 Wallet ID:</span> <span id="walletId" class="font-mono text-xs text-cyan-400">—</span></p>
+            <p class="text-sm"><span class="text-gray-500">⏳ Sesión:</span> <span class="text-gray-400">24 horas</span></p>
+          </div>
+
+          <!-- Acciones -->
+          <div id="walletActions">
+            <div class="space-y-3">
+              <div>
+                <label class="block text-sm text-gray-400 mb-2">Nombre de usuario</label>
+                <input type="text" id="usernameInput" class="w-full p-3 rounded-lg text-sm"
+                  style="background: rgba(255,255,255,0.08); border: 1px solid var(--border-dark); color: white;"
+                  placeholder="Tu usuario en Money Digital" />
+                <p class="text-xs text-gray-500 mt-1">Debes estar registrado en el sistema primero</p>
+              </div>
+              <button id="registerBtn" class="btn btn-primary w-full">
+                <i class="fa-solid fa-fingerprint"></i> Registrar con Passkey
+              </button>
+              <div class="text-center text-sm text-gray-500">— o si ya tienes cuenta —</div>
+              <button id="loginBtn" class="btn btn-secondary w-full">
+                <i class="fa-solid fa-key"></i> Conectar con Passkey
+              </button>
+            </div>
+          </div>
+
+          <div id="walletConnected" class="hidden space-y-3">
+            <div class="p-4 rounded-lg text-center" style="background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.2);">
+              <p class="text-green-400 font-semibold text-sm">✅ Conectado biométricamente</p>
+            </div>
+            <button id="logoutBtn" class="btn btn-danger w-full">
+              <i class="fa-solid fa-sign-out-alt"></i> Cerrar Sesión
+            </button>
+          </div>
+
+          <div id="walletError" class="hidden mt-4 p-3 rounded-lg text-sm text-red-400 text-center" style="background: rgba(255,50,50,0.1);"></div>
+        </div>
+      </div>
+
+      <!-- Columna: Contador -->
+      <div class="md:col-span-2">
+        <div class="card text-center h-full flex flex-col">
+          <h2 class="text-xl font-bold mb-2">📊 Contador en Blockchain</h2>
+          <p class="text-gray-400 text-sm mb-6">Controla el contador usando tu huella digital o Face ID</p>
+
+          <div id="counterLocked" class="flex-1 flex items-center justify-center">
+            <div class="text-center">
+              <div class="text-5xl mb-4">🔒</div>
+              <p class="text-gray-400">Conecta tu Smart Wallet para interactuar con el contador</p>
+              <p class="text-gray-500 text-sm mt-2">Usa biometría (huella / Face ID / PIN)</p>
+            </div>
+          </div>
+
+          <div id="counterActive" class="hidden flex-1 flex flex-col items-center justify-center">
+            <div class="counter-value" id="counterDisplay">0</div>
+            <p class="text-gray-500 text-sm mt-2">valor actual en blockchain</p>
+
+            <div class="flex gap-6 mt-8 items-center">
+              <button id="decrementBtn" class="btn btn-secondary w-16 h-16 rounded-full text-2xl flex items-center justify-center" title="Decrementar">−</button>
+              <button id="resetBtn" class="btn btn-secondary px-4 py-2 text-sm" title="Reiniciar">↺ Reset</button>
+              <button id="incrementBtn" class="btn btn-primary w-16 h-16 rounded-full text-2xl flex items-center justify-center" title="Incrementar">+</button>
+            </div>
+
+            <div id="counterError" class="hidden mt-4 p-3 rounded-lg text-sm text-red-400" style="background: rgba(255,50,50,0.1);"></div>
+          </div>
+        </div>
+
+        <!-- Info: qué ocurre al pulsar -->
+        <div class="card mt-4">
+          <details>
+            <summary class="cursor-pointer text-sm text-gray-400 font-semibold">📚 ¿Qué ocurre al pulsar + o −?</summary>
+            <div class="mt-4 space-y-2 text-sm text-gray-500">
+              <p>1️⃣ La API verifica tu Bearer Token (middleware biométrico)</p>
+              <p>2️⃣ El servidor obtiene el número de secuencia de la cuenta Stellar</p>
+              <p>3️⃣ Construye y simula la transacción Soroban para calcular el fee</p>
+              <p>4️⃣ Firma con la SECRET_KEY del servidor y envía a la red</p>
+              <p>5️⃣ Retorna el nuevo valor + txHash</p>
+              <p class="text-xs text-cyan-400 mt-2">🔐 Autenticación biométrica via WebAuthn / Passkeys</p>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+
+    <!-- Historial de Transacciones -->
+    <div class="card">
+      <h2 class="text-lg font-bold mb-4">📜 Historial de Transacciones</h2>
+      <div id="txHistory" class="space-y-2">
+        <div class="text-center text-gray-500 text-sm py-8">
+          <p>Las transacciones aparecerán aquí</p>
+          <p class="text-xs mt-1">Cada operación queda registrada</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ============================================================
+    // WEB AUTHN + CONTADOR via BACKEND API
+    // ============================================================
+
+    // ============================================================
+    // HELPERS: ArrayBuffer <-> base64url
+    // ============================================================
+    function buf2base64url(buf) {
+      return btoa(String.fromCharCode(...new Uint8Array(buf)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    function base64url2buf(str) {
+      str = str.replace(/-/g, '+').replace(/_/g, '/');
+      while (str.length % 4) str += '=';
+      return Uint8Array.from(atob(str), c => c.charCodeAt(0));
+    }
+
+    // ============================================================
+    // API CONFIG
+    // ============================================================
+    const API_BASE = (() => {
+      const h = window.location.hostname;
+      if (h === 'localhost' || h === '127.0.0.1') return '';
+      if (h.includes('surge.sh')) return 'https://money-digital.onrender.com';
+      return '';
+    })();
+    const IS_SURGE = window.location.hostname.includes('surge.sh');
+
+    function apiURL(path) { return API_BASE + path; }
+
+    // ============================================================
+    // STATE - Detectar sesión activa (biométrica o por contraseña)
+    // ============================================================
+    let currentUsername = localStorage.getItem('bio_username') || null;
+    let bioToken = localStorage.getItem('bio_token') || null;
+    let isPasswordSession = false; // Flag para saber si es token de contraseña
+    // Si no hay sesión biométrica, buscar sesión de contraseña en sessionStorage
+    if (!bioToken && !currentUsername) {
+      const sessionToken = sessionStorage.getItem('auth_token');
+      const sessionUser = sessionStorage.getItem('currentUser');
+      if (sessionToken && sessionUser) {
+        try {
+          const user = JSON.parse(sessionUser);
+          bioToken = sessionToken;
+          currentUsername = user.username || null;
+          isPasswordSession = true;
+        } catch (e) {
+          // Ignorar error
+        }
+      }
+    }
+    let counterValue = 0;
+    let txHistory = JSON.parse(localStorage.getItem('bio_tx_history') || '[]');
+
+    // ============================================================
+    // DOM REFS
+    // ============================================================
+    const $ = id => document.getElementById(id);
+    const connectionBadge = $('connectionBadge');
+    const walletInfo = $('walletInfo');
+    const walletUsername = $('walletUsername');
+    const walletId = $('walletId');
+    const walletActions = $('walletActions');
+    const walletConnected = $('walletConnected');
+    const walletError = $('walletError');
+    const usernameInput = $('usernameInput');
+    const registerBtn = $('registerBtn');
+    const loginBtn = $('loginBtn');
+    const logoutBtn = $('logoutBtn');
+    const counterLocked = $('counterLocked');
+    const counterActive = $('counterActive');
+    const counterDisplay = $('counterDisplay');
+    const incrementBtn = $('incrementBtn');
+    const decrementBtn = $('decrementBtn');
+    const resetBtn = $('resetBtn');
+    const counterError = $('counterError');
+    const txHistoryEl = $('txHistory');
+
+    // ============================================================
+    // API: headers con token
+    // ============================================================
+    function authHeaders() {
+      const h = { 'Content-Type': 'application/json' };
+      if (bioToken) h['Authorization'] = 'Bearer ' + bioToken;
+      return h;
+    }
+
+    // ============================================================
+    // CONTADOR: leer desde backend
+    // ============================================================
+    async function fetchCounter() {
+      try {
+        const res = await fetch(apiURL('/api/counter'), { headers: { 'Content-Type': 'application/json' } });
+        if (res.ok) {
+          const data = await res.json();
+          counterValue = data.value;
+          counterDisplay.textContent = counterValue;
+        }
+      } catch (e) {
+        console.warn('Error leyendo contador:', e);
+      }
+    }
+
+    async function counterAction(action) {
+      if (!currentUsername || !bioToken) {
+        showError(counterError, 'Conecta tu Smart Wallet primero con biometría');
+        return;
+      }
+
+      const endpoint = '/api/counter/' + action;
+      try {
+        const res = await fetch(apiURL(endpoint), {
+          method: 'POST',
+          headers: authHeaders()
+        });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Error en operación');
+        }
+        const data = await res.json();
+        counterValue = data.value;
+        counterDisplay.textContent = counterValue;
+        // Registrar en historial local
+        const now = new Date().toLocaleString();
+        const txEntry = { action, value: counterValue, username: currentUsername, date: now };
+        if (data.txHash) txEntry.txHash = data.txHash;
+        txHistory.unshift(txEntry);
+        if (txHistory.length > 50) txHistory.pop();
+        localStorage.setItem('bio_tx_history', JSON.stringify(txHistory));
+        renderTxHistory();
+        counterError.classList.add('hidden');
+      } catch (e) {
+        showError(counterError, e.message);
+      }
+    }
+
+    // ============================================================
+    // UI
+    // ============================================================
+    function showError(el, msg) {
+      el.textContent = msg;
+      el.classList.remove('hidden');
+      setTimeout(() => el.classList.add('hidden'), 5000);
+    }
+
+    async function updateUI() {
+      if (currentUsername && bioToken) {
+        connectionBadge.className = 'status-badge status-connected';
+        connectionBadge.innerHTML = '<i class="fa-solid fa-circle"></i> Conectado';
+        walletInfo.classList.remove('hidden');
+        walletUsername.textContent = currentUsername;
+        walletId.textContent = currentUsername + ' • ' + (bioToken ? bioToken.substring(0, 12) + '...' : '—');
+        walletActions.classList.add('hidden');
+        walletConnected.classList.remove('hidden');
+        counterLocked.classList.add('hidden');
+        counterActive.classList.remove('hidden');
+        usernameInput.value = currentUsername;
+        await fetchCounter();
+      } else {
+        connectionBadge.className = 'status-badge status-disconnected';
+        connectionBadge.innerHTML = '<i class="fa-solid fa-circle"></i> Sin conectar';
+        walletInfo.classList.add('hidden');
+        walletActions.classList.remove('hidden');
+        walletConnected.classList.add('hidden');
+        counterLocked.classList.remove('hidden');
+        counterActive.classList.add('hidden');
+      }
+      renderTxHistory();
+    }
+
+    function renderTxHistory() {
+      if (!txHistory.length) {
+        txHistoryEl.innerHTML = `
+          <div class="text-center text-gray-500 text-sm py-8">
+            <p>Las transacciones aparecerán aquí</p>
+            <p class="text-xs mt-1">Cada operación queda registrada</p>
+          </div>`;
+        return;
+      }
+      txHistoryEl.innerHTML = txHistory.map(tx => {
+        const icon = tx.action === 'increment' ? 'fa-plus-circle' : tx.action === 'decrement' ? 'fa-minus-circle' : 'fa-undo-alt';
+        const color = tx.action === 'increment' ? 'text-green-400' : tx.action === 'decrement' ? 'text-red-400' : 'text-yellow-400';
+        const label = tx.action === 'increment' ? 'Incrementar' : tx.action === 'decrement' ? 'Decrementar' : 'Reset';
+        const explorerLink = tx.txHash
+          ? `<a href="https://stellar.expert/explorer/testnet/tx/${tx.txHash}" target="_blank" class="text-cyan-400 text-xs ml-2">🔗 TX</a>`
+          : '';
+        return `
+          <div class="tx-item">
+            <div class="tx-icon"><i class="fa-solid ${icon} ${color}"></i></div>
+            <div class="flex-1 min-w-0">
+              <div class="font-semibold text-sm">${label} ${explorerLink}</div>
+              <div class="text-xs text-gray-500">${tx.date} • ${tx.username}</div>
+            </div>
+            <div class="font-bold text-sm ${color}">${tx.value}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // ============================================================
+    // WEBAUTHN: Serializar credential para enviar al backend
+    // ============================================================
+    function serializeCredential(cred) {
+      const out = {
+        id: cred.id,
+        rawId: buf2base64url(cred.rawId),
+        response: {},
+        type: cred.type,
+      };
+      if (cred.response.clientDataJSON) out.response.clientDataJSON = buf2base64url(cred.response.clientDataJSON);
+      if (cred.response.attestationObject) out.response.attestationObject = buf2base64url(cred.response.attestationObject);
+      if (cred.response.authenticatorData) out.response.authenticatorData = buf2base64url(cred.response.authenticatorData);
+      if (cred.response.signature) out.response.signature = buf2base64url(cred.response.signature);
+      if (cred.response.userHandle) out.response.userHandle = buf2base64url(cred.response.userHandle);
+      if (cred.response.getTransports) out.response.transports = cred.response.getTransports();
+      return out;
+    }
+
+    // Preparar opciones de creación (convertir base64url -> ArrayBuffer)
+    function prepareCreationOpts(opts) {
+      return {
+        ...opts,
+        challenge: base64url2buf(opts.challenge),
+        user: { ...opts.user, id: base64url2buf(opts.user.id) },
+        excludeCredentials: (opts.excludeCredentials || []).map(c => ({
+          ...c, id: base64url2buf(c.id)
+        }))
+      };
+    }
+
+    // Preparar opciones de autenticación (convertir base64url -> ArrayBuffer)
+    function prepareRequestOpts(opts) {
+      return {
+        ...opts,
+        challenge: base64url2buf(opts.challenge),
+        allowCredentials: (opts.allowCredentials || []).map(c => ({
+          ...c, id: base64url2buf(c.id)
+        }))
+      };
+    }
+
+    // ============================================================
+    // REGISTRAR PASSKEY (via backend)
+    // ============================================================
+    async function handleRegister() {
+      const username = usernameInput.value.trim();
+      if (!username) { showError(walletError, 'Ingresa tu nombre de usuario'); return; }
+      if (!navigator.credentials?.create) {
+        showError(walletError, 'Tu navegador no soporta WebAuthn. Usa Chrome, Edge o Safari.');
+        return;
+      }
+
+      registerBtn.disabled = true;
+      registerBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando con servidor...';
+      walletError.classList.add('hidden');
+
+      try {
+        // 1. Solicitar challenge al backend
+        const beginRes = await fetch(apiURL('/api/auth/passkey/register/begin'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+        if (!beginRes.ok) {
+          const err = await beginRes.json();
+          throw new Error(err.error || 'Error al iniciar registro');
+        }
+        const creationOpts = await beginRes.json();
+
+        // 2. Pedir biometría al usuario
+        registerBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Esperando biometría...';
+        const credential = await navigator.credentials.create({
+          publicKey: prepareCreationOpts(creationOpts)
+        });
+
+        // 3. Enviar credencial al backend para verificar
+        const completeRes = await fetch(apiURL('/api/auth/passkey/register/complete'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, credential: serializeCredential(credential) })
+        });
+        if (!completeRes.ok) {
+          const err = await completeRes.json();
+          throw new Error(err.error || 'Error al completar registro');
+        }
+        const completeData = await completeRes.json();
+
+        // 4. Guardar token
+        bioToken = completeData.token;
+        currentUsername = username;
+        localStorage.setItem('bio_token', bioToken);
+        localStorage.setItem('bio_username', username);
+        // Compartir sesión con el resto del sistema
+        sessionStorage.setItem('auth_token', bioToken);
+        if (completeData.user) {
+          sessionStorage.setItem('currentUser', JSON.stringify(completeData.user));
+        } else {
+          sessionStorage.setItem('currentUser', JSON.stringify({ username, role: 'estudiante', email: '', stellarPublic: null }));
+        }
+        updateUI();
+      } catch (e) {
+        showError(walletError, e.message || 'Error al registrar con biometría');
+      } finally {
+        registerBtn.disabled = false;
+        registerBtn.innerHTML = '<i class="fa-solid fa-fingerprint"></i> Registrar con Passkey';
+      }
+    }
+
+    // ============================================================
+    // LOGIN PASSKEY (via backend)
+    // ============================================================
+    async function handleLogin() {
+      const username = usernameInput.value.trim();
+      if (!username) { showError(walletError, 'Ingresa tu nombre de usuario'); return; }
+      if (!navigator.credentials?.get) {
+        showError(walletError, 'Tu navegador no soporta WebAuthn.');
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando con servidor...';
+      walletError.classList.add('hidden');
+
+      try {
+        // 1. Solicitar challenge al backend
+        const beginRes = await fetch(apiURL('/api/auth/passkey/login/begin'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username })
+        });
+        if (!beginRes.ok) {
+          const err = await beginRes.json();
+          throw new Error(err.error || 'Error al iniciar sesión');
+        }
+        const requestOpts = await beginRes.json();
+
+        // 2. Pedir biometría
+        loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando biometría...';
+        const assertion = await navigator.credentials.get({
+          publicKey: prepareRequestOpts(requestOpts)
+        });
+
+        // 3. Enviar assertion al backend
+        const completeRes = await fetch(apiURL('/api/auth/passkey/login/complete'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, credential: serializeCredential(assertion) })
+        });
+        if (!completeRes.ok) {
+          const err = await completeRes.json();
+          throw new Error(err.error || 'Error al verificar biometría');
+        }
+        const completeData = await completeRes.json();
+
+        // 4. Guardar token
+        bioToken = completeData.token;
+        currentUsername = username;
+        localStorage.setItem('bio_token', bioToken);
+        localStorage.setItem('bio_username', username);
+        // Compartir sesión con el resto del sistema
+        sessionStorage.setItem('auth_token', bioToken);
+        if (completeData.user) {
+          sessionStorage.setItem('currentUser', JSON.stringify(completeData.user));
+        } else {
+          sessionStorage.setItem('currentUser', JSON.stringify({ username, role: 'estudiante', email: '', stellarPublic: null }));
+        }
+        updateUI();
+      } catch (e) {
+        showError(walletError, e.message || 'Error en verificación biométrica');
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.innerHTML = '<i class="fa-solid fa-key"></i> Conectar con Passkey';
+      }
+    }
+
+    // ============================================================
+    // LOGOUT
+    // ============================================================
+    async function handleLogout() {
+      if (bioToken) {
+        try {
+          await fetch(apiURL('/api/auth/passkey/logout'), {
+            method: 'POST',
+            headers: authHeaders()
+          });
+        } catch (e) { /* ignora error */ }
+      }
+      bioToken = null;
+      currentUsername = null;
+      localStorage.removeItem('bio_token');
+      localStorage.removeItem('bio_username');
+      sessionStorage.removeItem('auth_token');
+      sessionStorage.removeItem('currentUser');
+      updateUI();
+    }
+
+    // ============================================================
+    // EVENT LISTENERS
+    // ============================================================
+    registerBtn.addEventListener('click', handleRegister);
+    loginBtn.addEventListener('click', handleLogin);
+    logoutBtn.addEventListener('click', handleLogout);
+    incrementBtn.addEventListener('click', () => counterAction('increment'));
+    decrementBtn.addEventListener('click', () => counterAction('decrement'));
+    resetBtn.addEventListener('click', () => counterAction('reset'));
+    usernameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleRegister(); });
+
+    // ============================================================
+    // Mostrar banner en surge.sh
+    // ============================================================
+    if (IS_SURGE) {
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:#ff9800;color:#000;text-align:center;padding:12px 20px;font-size:14px;font-weight:500';
+      banner.innerHTML = '⚠️ Vista previa estática &mdash; La funcionalidad completa está en <a href="https://money-digital.onrender.com" style="color:#fff;font-weight:700;text-decoration:underline">money-digital.onrender.com</a>';
+      document.body.prepend(banner);
+    }
+
+    // ============================================================
+    // Verificar token al iniciar
+    // ============================================================
+    async function verifyToken() {
+      if (!bioToken) return false;
+      try {
+        const res = await fetch(apiURL('/api/auth/passkey/status'), { headers: authHeaders() });
+        if (res.ok) return true;
+      } catch (e) { /* ignora */ }
+      bioToken = null;
+      currentUsername = null;
+      localStorage.removeItem('bio_token');
+      localStorage.removeItem('bio_username');
+      return false;
+    }
+
+    // ============================================================
+    // INIT
+    // ============================================================
+    (async function init() {
+      if (bioToken && !isPasswordSession) {
+        const valid = await verifyToken();
+        if (!valid) updateUI();
+      }
+      updateUI();
+    })();
+  </script>
+</body>
+</html>

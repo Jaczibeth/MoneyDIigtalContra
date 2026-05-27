@@ -1,4 +1,50 @@
-# MONEY-DIGITAL
+# MONEY-DIGITAL - Contrato Inteligente Soroban
+
+## Contrato Inteligente Desplegado en Stellar Testnet
+
+- **Contract ID**: `CBNEJ7M4BIAMX4URHV72DYQDS4KELL7EYJJQOHPQIOMFEIWFK64U7D3T`
+- **Interfaz**: https://money-digital.surge.sh/index.html
+- **Explorador de cuenta**: https://stellar.expert/explorer/testnet/account/GAIH3ULLFQ4DGSECF2AR555KZ4KNDGEKN4AFI4SU2M7B43MGK3QJZNSR
+
+## Funcionalidades del Contrato
+
+### Púbicas:
+- `initialize(admin: Address)` - Inicializa el contrato con administrador
+- `get_admin() -> Address` - Retorna dirección del admin
+- `is_initialized() -> bool` - Verifica si está inicializado
+- `register_wallet(wallet, nombre, email) -> bool` - Registra wallet
+- `get_wallet_info(wallet) -> Option<Map>` - Obtiene info de wallet
+- `is_wallet_registered(wallet) -> bool` - Verifica registro
+- `get_balance(wallet) -> String` - Obtiene balance
+- `get_total_supply() -> String` - Obtiene supply total
+- `transfer(from, to, amount) -> bool` - Transfiere tokens
+- `mint(admin, wallet, amount) -> bool` - Crea tokens (solo admin)
+- `burn(admin, wallet, amount) -> bool` - Quema tokens (solo admin)
+- `get_transactions() -> Vec` - Obtiene historial
+- `get_transaction_count() -> u32` - Cantidad de transacciones
+
+### Controles de Seguridad:
+- Solo el admin puede ejecutar mint/burn
+- Validación de balances antes de transferencia
+- Validación de amounts positivos
+- Protección contra double-initialize
+
+## Pruebas Unitarias
+
+```bash
+cargo test -p money-digital
+```
+
+9 tests pasando:
+- test_initialize
+- test_register_wallet
+- test_get_balance
+- test_mint
+- test_transfer
+- test_burn
+- test_total_supply
+- test_transfer_insufficient_balance
+- test_mint_unauthorized
 
 ## Acuerdo de Compromiso del Equipo
 
@@ -41,7 +87,7 @@ El proyecto integra un sistema educativo (Academy) con un ecosistema de tokens d
 - Integración con Stellar Network para transacciones de recompensas
 
 #### Frontend (Interfaz Web)
-- **Index.html**: Sistema de autenticación e inicio de sesión con Freighter Wallet
+- **index.html**: Sistema de autenticación e inicio de sesión con Freighter Wallet
 - **Inicio.html**: Panel principal con dashboard de actividades extracurriculares y recompensas
 - **cursos.html**: Catálogo de actividades extracurriculares disponibles (hackathons, clubes, competencias, etc.)
 - **Wallet.html**: Gestión de wallet Stellar, consulta de recompensas acumuladas y transferencias
@@ -237,7 +283,7 @@ Para la Validación #3 del proyecto:
 │       ├── Cargo.toml
 │       └── Makefile
 ├── docs
-│   ├── Index.html              # Autenticación
+│   ├── index.html              # Autenticación
 │   ├── Inicio.html             # Panel principal
 │   ├── Wallet.html             # Gestión de wallet
 │   ├── Moneda.html             # Información de moneda
@@ -300,7 +346,7 @@ make deploy
 
 ### 7.3 Uso
 
-1. Abrir `docs/Index.html` en un navegador con Freighter Wallet instalado
+1. Abrir `docs/index.html` en un navegador con Freighter Wallet instalado
 2. Conectar la wallet a Stellar Testnet
 3. Registrar usuarios, crear cursos y realizar transacciones
 

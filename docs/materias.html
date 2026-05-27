@@ -14,6 +14,7 @@
     <link href="css/main.css" rel="stylesheet">
 
     <title>Materias - Money Digital | GROUP JAD</title>
+  <script src="js/api-client.js"></script>
 </head>
 
 <body>
@@ -25,6 +26,7 @@
             <a href="cursos.html">🎯 Actividades</a>
             <a href="materias.html" class="active">📖 Materias</a>
             <a href="niveles.html">📊 Mi Progreso</a>
+            <a href="contador.html">🔐 DApp</a>
             <a href="Wallet.html">💎 Wallet</a>
             <a href="certificado.html">🏆 Certificados</a>
             <a href="Usuarios.html">👥 Comunidad</a>
@@ -93,7 +95,7 @@
 
         (function init() {
             // Verificar sesión
-            const userStr = sessionStorage.getItem('currentUser');
+            const userStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
             if (!userStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
