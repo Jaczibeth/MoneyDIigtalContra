@@ -119,6 +119,7 @@
             box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
         }
     </style>
+  <script src="js/api-client.js"></script>
 </head>
 
 <body>
@@ -132,6 +133,7 @@
             <a href="actividades-estudiante.html" class="active">🎯 Mis Actividades</a>
             <a href="recompensas.html">🏆 Recompensas</a>
             <a href="historial-estudiante.html">📊 Mi Historial</a>
+            <a href="contador.html">🔐 DApp</a>
             <a href="Wallet.html">💎 Wallet</a>
         </nav>
     </header>
@@ -206,21 +208,17 @@
     <script src="js/file-upload.js?v=3"></script>
     <script src="js/stellar-integration.js?v=3"></script>
     <script>
-        // Verificación de sesión
         (function () {
-            const currentUserStr = sessionStorage.getItem('currentUser');
+            const currentUserStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
             if (!currentUserStr) {
-                // Fallback check to localStorage just in case, but prefer session
-                const localUser = localStorage.getItem('currentUser');
-                if (!localUser) {
-                    alert('Por favor, inicia sesión para acceder a esta página.');
-                    window.location.href = 'index.html';
-                    return;
-                }
-                sessionStorage.setItem('currentUser', localUser);
+                alert('Por favor, inicia sesión para acceder a esta página.');
+                window.location.href = 'index.html';
+                return;
             }
 
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(currentUserStr);
+            sessionStorage.setItem('currentUser', currentUserStr);
+
             if (currentUser.role === 'docente') {
                 window.location.href = 'gestion-actividades.html';
                 return;
@@ -236,7 +234,7 @@
                 return;
             }
 
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser') || '{}');
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser') || '{}');
             const username = currentUser.username;
             const activities = activitiesSystem.getActivities().filter(a => a.status === 'active');
             const submissions = activitiesSystem.getSubmissionsByStudent(username);
@@ -260,9 +258,9 @@
 
                 let statusText = 'Pendiente';
                 let statusClass = 'status-pending';
-                if (status === 'submitted' || status === 'pending') {
-                    statusText = 'Enviada';
-                    statusClass = 'status-submitted';
+                if (status === 'pending') {
+                    statusText = 'Pendiente';
+                    statusClass = 'status-pending';
                 } else if (status === 'approved') {
                     statusText = 'Aprobada';
                     statusClass = 'status-approved';
@@ -329,7 +327,7 @@
 
                 if (currentFilter === 'all') show = true;
                 else if (currentFilter === 'pending' && status === 'pending') show = true;
-                else if (currentFilter === 'submitted' && (status === 'submitted' || status === 'pending')) show = true;
+                else if (currentFilter === 'submitted' && (status === 'pending' || status === 'needs_correction')) show = true;
                 else if (currentFilter === 'approved' && status === 'approved') show = true;
 
                 card.style.display = show ? 'block' : 'none';
@@ -356,7 +354,7 @@
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || localStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser'));
             const fileInput = document.getElementById('evidenceFile');
             const comments = document.getElementById('evidenceComments').value;
 

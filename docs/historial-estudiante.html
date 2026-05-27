@@ -71,6 +71,7 @@
         .status-pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
         .status-needs_correction { background: rgba(255, 152, 0, 0.2); color: #ff9800; }
     </style>
+  <script src="js/api-client.js"></script>
 </head>
 <body>
     <header class="flex justify-between items-center">
@@ -82,6 +83,7 @@
             <a href="actividades-estudiante.html">🎯 Actividades</a>
             <a href="recompensas.html">🏆 Recompensas</a>
             <a href="historial-estudiante.html" class="active">📊 Mi Historial</a>
+            <a href="contador.html">🔐 DApp</a>
             <a href="Wallet.html">💎 Wallet</a>
         </nav>
     </header>
@@ -149,7 +151,7 @@
     <script>
         // Verificación de sesión
         (function() {
-            const currentUserStr = localStorage.getItem('currentUser');
+            const currentUserStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
@@ -171,7 +173,7 @@
                 return;
             }
 
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
             const submissions = activitiesSystem.getSubmissionsByStudent(currentUser.username);
             const userTokens = activitiesSystem.getUserTokens(currentUser.username);
             const redemptions = activitiesSystem.getRedemptions().filter(r => r.username === currentUser.username);

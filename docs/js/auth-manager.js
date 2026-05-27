@@ -14,7 +14,7 @@ class AuthManager {
      */
     loadUser() {
         try {
-            const userStr = localStorage.getItem('currentUser');
+            const userStr = sessionStorage.getItem('currentUser');
             if (userStr) {
                 this.currentUser = JSON.parse(userStr);
                 return this.currentUser;
@@ -92,7 +92,7 @@ class AuthManager {
             role: userData.role || 'estudiante',
             stellarPublic: userData.stellarPublic || null
         };
-        localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+        sessionStorage.setItem('currentUser', JSON.stringify(this.currentUser));
     }
 
     /**
@@ -100,7 +100,6 @@ class AuthManager {
      */
     logout() {
         this.currentUser = null;
-        localStorage.removeItem('currentUser');
     }
 
     /**
@@ -113,7 +112,7 @@ class AuthManager {
             ...this.currentUser,
             ...updates
         };
-        localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+        sessionStorage.setItem('currentUser', JSON.stringify(this.currentUser));
     }
 
     /**

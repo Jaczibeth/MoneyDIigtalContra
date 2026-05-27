@@ -209,6 +209,8 @@
         <nav>
             <a href="Inicio.html">🏠 Inicio</a>
             <a href="cursos.html">🎯 Actividades</a>
+            <a href="Moneda.html">🪙 Tokens</a>
+            <a href="contador.html">🔐 DApp</a>
             <a href="Wallet.html">💎 Wallet</a>
             <a href="certificado.html">🏆 Certificados</a>
             <a href="Usuarios.html">👥 Usuarios</a>
@@ -416,14 +418,13 @@
         en blockchain Stellar.
     </footer>
 
+    <script src="js/api-client.js"></script>
+    <script src="js/passkey-helper.js"></script>
     <script>
-        // Verificación de sesión y gestión de usuario
         (function () {
-            // Verificar si hay sesión activa
-            const currentUserStr = sessionStorage.getItem('currentUser');
+            const currentUserStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
 
             if (!currentUserStr) {
-                // No hay sesión, redirigir al login
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
                 return;
@@ -433,13 +434,11 @@
             try {
                 currentUser = JSON.parse(currentUserStr);
             } catch (e) {
-                console.error('Error parseando usuario:', e);
                 sessionStorage.removeItem('currentUser');
                 window.location.href = 'index.html';
                 return;
             }
 
-            // Mostrar información del usuario
             const userInfo = document.getElementById('userInfo');
             const welcomeMessage = document.getElementById('welcomeMessage');
             const role = currentUser.role || 'estudiante';
@@ -448,7 +447,7 @@
             if (userInfo) {
                 let infoText = `👤 ${username} | ${role === 'docente' ? '👨‍🏫 Docente' : '🎓 Estudiante'}`;
                 if (currentUser.stellarPublic) {
-                    infoText += ` | 🔑 ${currentUser.stellarPublic.substring(0, 4)}...${currentUser.stellarPublic.substring(52)}`;
+                    infoText += ` | 🔑 ${currentUser.stellarPublic.substring(0, 4)}...${currentUser.stellarPublic.substring(Math.max(currentUser.stellarPublic.length - 4, 52))}`;
                 }
                 userInfo.textContent = infoText;
             }
@@ -461,13 +460,12 @@
                 }
             }
 
-            // Cargar scripts del sistema de actividades
+            // Cargar scripts
             const script1 = document.createElement('script');
             script1.src = 'js/activities-system.js';
             document.head.appendChild(script1);
 
-            script1.onload = () => {
-                // Mostrar dashboard según el rol
+            script1.onload = async () => {
                 if (role === 'docente') {
                     document.getElementById('studentDashboard').classList.add('hidden');
                     document.getElementById('teacherDashboard').classList.remove('hidden');
@@ -477,9 +475,7 @@
                     document.getElementById('teacherRewardsCard').classList.remove('hidden');
                     document.getElementById('studentHistoryCard').classList.add('hidden');
                     document.getElementById('teacherHistoryCard').classList.remove('hidden');
-
-                    // Cargar estadísticas del docente
-                    loadTeacherStats();
+                    await loadTeacherStats();
                 } else {
                     document.getElementById('studentDashboard').classList.remove('hidden');
                     document.getElementById('teacherDashboard').classList.add('hidden');
@@ -489,46 +485,86 @@
                     document.getElementById('teacherRewardsCard').classList.add('hidden');
                     document.getElementById('studentHistoryCard').classList.remove('hidden');
                     document.getElementById('teacherHistoryCard').classList.add('hidden');
-
-                    // Cargar estadísticas del estudiante
-                    loadStudentStats();
+                    await loadStudentStats();
                 }
             };
 
-            function loadStudentStats() {
-                if (typeof activitiesSystem === 'undefined') return;
-
-                const stats = activitiesSystem.getStudentStats(username);
-                document.getElementById('studentPendingActivities').textContent = stats.totalActivities - stats.submitted;
-                document.getElementById('studentSubmittedActivities').textContent = stats.submitted;
-                document.getElementById('studentTokensBalance').textContent = stats.tokensBalance;
-                document.getElementById('studentApprovedActivities').textContent = stats.approved;
-
-                // Calcular progreso
-                const progress = stats.totalActivities > 0
-                    ? Math.round((stats.approved / stats.totalActivities) * 100)
-                    : 0;
-                document.getElementById('studentProgressPercent').textContent = progress + '%';
-                document.getElementById('studentProgressBar').style.width = progress + '%';
+            async function loadStudentStats() {
+                try {
+                    const stats = await apiClient.getStudentStats(username);
+                    document.getElementById('studentPendingActivities').textContent = stats.totalActivities - stats.approved;
+                    document.getElementById('studentSubmittedActivities').textContent = (stats.pendingReview || 0) + (stats.needsCorrection || 0);
+                    document.getElementById('studentTokensBalance').textContent = stats.tokensBalance;
+                    document.getElementById('studentApprovedActivities').textContent = stats.approved;
+                    const progress = stats.progress || (stats.totalActivities > 0 ? Math.round((stats.approved / stats.totalActivities) * 100) : 0);
+                    document.getElementById('studentProgressPercent').textContent = progress + '%';
+                    document.getElementById('studentProgressBar').style.width = progress + '%';
+                } catch (e) {
+                    if (typeof activitiesSystem !== 'undefined') {
+                        const stats = activitiesSystem.getStudentStats(username);
+                        document.getElementById('studentPendingActivities').textContent = stats.totalActivities - stats.approved;
+                        document.getElementById('studentSubmittedActivities').textContent = stats.pendingReview + stats.needsCorrection;
+                        document.getElementById('studentTokensBalance').textContent = stats.tokensBalance;
+                        document.getElementById('studentApprovedActivities').textContent = stats.approved;
+                        const progress = stats.totalActivities > 0 ? Math.round((stats.approved / stats.totalActivities) * 100) : 0;
+                        document.getElementById('studentProgressPercent').textContent = progress + '%';
+                        document.getElementById('studentProgressBar').style.width = progress + '%';
+                    }
+                }
             }
 
-            function loadTeacherStats() {
-                if (typeof activitiesSystem === 'undefined') return;
-
-                const stats = activitiesSystem.getTeacherStats(username);
-                document.getElementById('teacherActiveStudents').textContent = stats.totalStudents;
-                document.getElementById('teacherPendingReviews').textContent = stats.pendingReviews;
-                document.getElementById('teacherTokensAwarded').textContent = stats.totalTokensAwarded;
-                document.getElementById('teacherTotalActivities').textContent = stats.totalActivities;
+            async function loadTeacherStats() {
+                try {
+                    const stats = await apiClient.getTeacherStats(username);
+                    document.getElementById('teacherActiveStudents').textContent = stats.totalStudents;
+                    document.getElementById('teacherPendingReviews').textContent = stats.pendingReviews;
+                    document.getElementById('teacherTokensAwarded').textContent = stats.totalTokensAwarded;
+                    document.getElementById('teacherTotalActivities').textContent = stats.totalActivities;
+                } catch (e) {
+                    if (typeof activitiesSystem !== 'undefined') {
+                        const stats = activitiesSystem.getTeacherStats(username);
+                        document.getElementById('teacherActiveStudents').textContent = stats.totalStudents;
+                        document.getElementById('teacherPendingReviews').textContent = stats.pendingReviews;
+                        document.getElementById('teacherTokensAwarded').textContent = stats.totalTokensAwarded;
+                        document.getElementById('teacherTotalActivities').textContent = stats.totalActivities;
+                    }
+                }
             }
 
-            // Botón de cerrar sesión
+            // Verificar estado de passkey y mostrar info
+            (async () => {
+                try {
+                    const pkHelper = new PasskeyHelper(apiClient ? apiClient.baseURL : '');
+                    const hasPasskey = await pkHelper.hasPasskey(username);
+                    const passkeyInfo = document.createElement('div');
+                    passkeyInfo.className = 'text-xs mt-1';
+                    if (hasPasskey) {
+                        passkeyInfo.innerHTML = '✅ <span class="text-green-400">Passkey activa</span> · <a href="Wallet.html" class="text-cyan-400 hover:underline">Gestionar</a>';
+                    } else {
+                        passkeyInfo.innerHTML = '❌ <span class="text-yellow-400">Sin passkey</span> · <a href="Wallet.html" class="text-cyan-400 hover:underline">Configurar</a>';
+                    }
+                    if (userInfo) userInfo.appendChild(passkeyInfo);
+                } catch (e) {
+                    // Ignorar error
+                }
+            })();
+
             const logoutBtn = document.getElementById('logoutBtn');
             if (logoutBtn) {
-                logoutBtn.addEventListener('click', function (e) {
+                logoutBtn.addEventListener('click', async function (e) {
                     e.preventDefault();
                     if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                        try {
+                            await fetch('/api/auth/passkey/logout', {
+                                method: 'POST',
+                                headers: { 'Authorization': 'Bearer ' + sessionStorage.getItem('auth_token') }
+                            });
+                        } catch (e) { /* ignora */ }
                         sessionStorage.removeItem('currentUser');
+                        sessionStorage.removeItem('auth_token');
+                        localStorage.removeItem('bio_token');
+                        localStorage.removeItem('bio_username');
+                        apiClient.clearToken();
                         window.location.href = 'index.html';
                     }
                 });

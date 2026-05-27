@@ -70,7 +70,7 @@ function initPage(options = {}) {
                 if (!isValid) return;
             } else {
                 // Fallback sin auth-manager
-                const currentUserStr = localStorage.getItem('currentUser');
+                const currentUserStr = sessionStorage.getItem('currentUser');
                 if (!currentUserStr) {
                     alert('Por favor, inicia sesión para acceder a esta página.');
                     window.location.href = 'index.html';
@@ -85,7 +85,6 @@ function initPage(options = {}) {
                         return;
                     }
                 } catch (e) {
-                    localStorage.removeItem('currentUser');
                     window.location.href = 'index.html';
                     return;
                 }

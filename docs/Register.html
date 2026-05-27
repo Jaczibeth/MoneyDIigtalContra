@@ -68,25 +68,25 @@
 
       <div>
         <label class="text-gray-300 text-sm">Nombre de usuario</label>
-        <input id="r_username" type="text" required class="w-full input-dark p-3 rounded-lg" placeholder="Tu usuario">
+        <input id="r_username" name="username" type="text" required class="w-full input-dark p-3 rounded-lg" placeholder="Tu usuario" autocomplete="username">
       </div>
 
       <div>
         <label class="text-gray-300 text-sm">Correo electrónico</label>
-        <input id="r_email" type="email" required class="w-full input-dark p-3 rounded-lg"
-          placeholder="correo@ejemplo.com">
+        <input id="r_email" name="email" type="email" required class="w-full input-dark p-3 rounded-lg"
+          placeholder="correo@ejemplo.com" autocomplete="email">
       </div>
 
       <div>
         <label class="text-gray-300 text-sm">Contraseña</label>
-        <input id="r_password" type="password" required class="w-full input-dark p-3 rounded-lg"
-          placeholder="Contraseña">
+        <input id="r_password" name="new-password" type="password" required class="w-full input-dark p-3 rounded-lg"
+          placeholder="Contraseña" autocomplete="new-password">
       </div>
 
       <div>
         <label class="text-gray-300 text-sm">Confirmar contraseña</label>
-        <input id="r_password2" type="password" required class="w-full input-dark p-3 rounded-lg"
-          placeholder="Repite la contraseña">
+        <input id="r_password2" name="new-password-confirm" type="password" required class="w-full input-dark p-3 rounded-lg"
+          placeholder="Repite la contraseña" autocomplete="new-password">
       </div>
 
       <div>
@@ -120,20 +120,8 @@
     <div id="message" class="mt-4 text-sm p-3 rounded-lg"></div>
   </div>
 
+  <script src="js/api-client.js"></script>
   <script>
-    // Funciones auxiliares para hash de contraseña (igual que en index.html)
-    function buf2hex(buffer) {
-      return Array.prototype.map.call(new Uint8Array(buffer), x => ('00' + x.toString(16)).slice(-2)).join('');
-    }
-
-    async function hashPassword(password) {
-      const encoder = new TextEncoder();
-      const data = encoder.encode(password);
-      const hash = await crypto.subtle.digest('SHA-256', data);
-      return buf2hex(hash);
-    }
-
-    // Funciones para cifrar clave secreta (opcional)
     function arrayBufferToB64(buffer) {
       const bytes = new Uint8Array(buffer);
       let binary = '';
@@ -147,96 +135,36 @@
       try {
         const salt = crypto.getRandomValues(new Uint8Array(16));
         const iv = crypto.getRandomValues(new Uint8Array(12));
-
         const enc = new TextEncoder();
-        const keyMaterial = await crypto.subtle.importKey(
-          'raw',
-          enc.encode(password),
-          { name: 'PBKDF2' },
-          false,
-          ['deriveKey']
-        );
-
+        const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), { name: 'PBKDF2' }, false, ['deriveKey']);
         const key = await crypto.subtle.deriveKey(
-          {
-            name: 'PBKDF2',
-            salt: salt,
-            iterations: 100000,
-            hash: 'SHA-256'
-          },
-          keyMaterial,
-          { name: 'AES-GCM', length: 256 },
-          false,
-          ['encrypt', 'decrypt']
+          { name: 'PBKDF2', salt, iterations: 100000, hash: 'SHA-256' },
+          keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt']
         );
-
-        const encrypted = await crypto.subtle.encrypt(
-          { name: 'AES-GCM', iv: iv },
-          key,
-          enc.encode(secret)
-        );
-
-        return {
-          encrypted: arrayBufferToB64(encrypted),
-          salt: arrayBufferToB64(salt),
-          iv: arrayBufferToB64(iv)
-        };
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(secret));
+        return { encrypted: arrayBufferToB64(encrypted), salt: arrayBufferToB64(salt), iv: arrayBufferToB64(iv) };
       } catch (e) {
         console.error('Error cifrando secreto:', e);
         throw new Error('No se pudo cifrar la clave secreta');
       }
     }
 
-    function loadUsers() {
-      try {
-        return JSON.parse(localStorage.getItem('users') || '[]');
-      } catch (e) {
-        return [];
-      }
-    }
-
-    function saveUsers(users) {
-      try {
-        localStorage.setItem('users', JSON.stringify(users));
-        return true;
-      } catch (e) {
-        console.error('Error guardando usuarios:', e);
-        return false;
-      }
-    }
-
-    // Crear y financiar cuenta Stellar Testnet
     async function createAndFundStellarAccount() {
       try {
         const StellarSdk = window.StellarSdk;
-        if (!StellarSdk) {
-          throw new Error('Stellar SDK no está cargado');
-        }
-
-        // Generar par de claves
+        if (!StellarSdk) throw new Error('Stellar SDK no está cargado');
         const pair = StellarSdk.Keypair.random();
         const publicKey = pair.publicKey();
         const secretKey = pair.secret();
-
-        // Financiar con friendbot
-        const response = await fetch(`https://friendbot.stellar.org?addr=${encodeURIComponent(publicKey)}`);
-        const responseJSON = await response.json();
-
-        // Esperar un momento para que la cuenta se active
+        await fetch(`https://friendbot.stellar.org?addr=${encodeURIComponent(publicKey)}`);
         await new Promise(resolve => setTimeout(resolve, 2000));
-
-        return {
-          publicKey: publicKey,
-          secretKey: secretKey,
-          funded: true
-        };
+        return { publicKey, secretKey, funded: true };
       } catch (error) {
         console.error('Error creando cuenta Stellar:', error);
         throw error;
       }
     }
 
-    // Manejar el formulario de registro
     document.getElementById('registerForm').addEventListener('submit', async function (e) {
       e.preventDefault();
 
@@ -244,106 +172,110 @@
       messageDiv.className = 'mt-4 text-sm p-3 rounded-lg';
       messageDiv.textContent = '';
 
-      // Obtener valores del formulario
       const username = document.getElementById('r_username').value.trim();
       const email = document.getElementById('r_email').value.trim();
       const password = document.getElementById('r_password').value;
       const password2 = document.getElementById('r_password2').value;
-      const createStellar = true; // Siempre obligatorio
 
-      // Validaciones
       if (!username || username.length < 3) {
         messageDiv.textContent = '❌ El nombre de usuario debe tener al menos 3 caracteres';
-        messageDiv.className += ' bg-red-900 text-red-200';
-        return;
+        messageDiv.className += ' bg-red-900 text-red-200'; return;
       }
-
       if (!email || !email.includes('@')) {
         messageDiv.textContent = '❌ Ingresa un correo electrónico válido';
-        messageDiv.className += ' bg-red-900 text-red-200';
-        return;
+        messageDiv.className += ' bg-red-900 text-red-200'; return;
       }
-
       if (!password || password.length < 6) {
         messageDiv.textContent = '❌ La contraseña debe tener al menos 6 caracteres';
-        messageDiv.className += ' bg-red-900 text-red-200';
-        return;
+        messageDiv.className += ' bg-red-900 text-red-200'; return;
       }
-
       if (password !== password2) {
         messageDiv.textContent = '❌ Las contraseñas no coinciden';
-        messageDiv.className += ' bg-red-900 text-red-200';
-        return;
+        messageDiv.className += ' bg-red-900 text-red-200'; return;
       }
 
-      // Verificar si el usuario ya existe
-      const users = loadUsers();
-      const userExists = users.find(u => u.username === username || u.email === email);
-      if (userExists) {
-        messageDiv.textContent = '❌ El usuario o correo ya está registrado';
-        messageDiv.className += ' bg-red-900 text-red-200';
-        return;
-      }
-
-      // Mostrar mensaje de procesamiento
       messageDiv.textContent = '⏳ Registrando usuario...';
       messageDiv.className += ' bg-blue-900 text-blue-200';
 
       try {
-        // Hash de la contraseña
-        const passwordHash = await hashPassword(password);
-
-        // Obtener rol seleccionado
         const role = document.getElementById('r_role').value;
+        let stellarPublic = null;
+        let stellarSecret = null;
 
-        // Crear objeto de usuario
-        const newUser = {
-          username: username,
-          email: email,
-          passwordHash: passwordHash,
-          role: role, // 'estudiante' o 'docente'
-          createdAt: new Date().toISOString()
-        };
+        try {
+          messageDiv.textContent = '⏳ Creando cuenta Stellar...';
+          const stellarAccount = await createAndFundStellarAccount();
+          stellarPublic = stellarAccount.publicKey;
+          stellarSecret = stellarAccount.secretKey;
+        } catch (stellarError) {
+          console.warn('No se pudo crear cuenta Stellar:', stellarError);
+        }
 
-        // Crear cuenta Stellar si se solicitó
-        if (createStellar) {
+        // Cifrar clave secreta con la contraseña antes de enviarla
+        let stellarSecretEncrypted = null;
+        let stellarPublicToSend = stellarPublic;
+
+        if (stellarSecret && password) {
           try {
-            messageDiv.textContent = '⏳ Creando cuenta Stellar...';
-            const stellarAccount = await createAndFundStellarAccount();
-            newUser.stellarPublic = stellarAccount.publicKey;
-            newUser.stellarSecret = stellarAccount.secretKey; // Guardar para poder mostrarla al usuario como solicitado
-
-            // Cifrar la clave secreta con la contraseña del usuario (opcional para futuro)
-            try {
-              const encrypted = await encryptSecret(stellarAccount.secretKey, password);
-              newUser.encryptedSecret = encrypted.encrypted;
-              newUser.encSalt = encrypted.salt;
-              newUser.encIv = encrypted.iv;
-            } catch (encError) {
-              console.warn('No se pudo cifrar la clave secreta:', encError);
-            }
-          } catch (stellarError) {
-            console.error('Error creando cuenta Stellar:', stellarError);
-            messageDiv.textContent = '⚠️ Usuario registrado, pero no se pudo crear la cuenta Stellar. Puedes crearla después.';
-            messageDiv.className = 'mt-4 text-sm p-3 rounded-lg bg-yellow-900 text-yellow-200';
+            const encrypted = await encryptSecret(stellarSecret, password);
+            stellarSecretEncrypted = JSON.stringify(encrypted);
+          } catch (encError) {
+            console.warn('Error cifrando clave secreta:', encError);
           }
         }
 
-        // Guardar usuario
-        users.push(newUser);
-        if (saveUsers(users)) {
+        // NUNCA almacenar la clave secreta en texto plano en localStorage
+        // La única copia persistente debe estar cifrada en el servidor
+        try {
+          localStorage.setItem('wallet_public_' + username, stellarPublic);
+        } catch (e) {}
+
+        // Intentar registro por API backend
+        try {
+          const result = await apiClient.register({
+            username, email, password, role,
+            stellarPublic: stellarPublicToSend || undefined,
+            stellarSecretEncrypted: stellarSecretEncrypted || undefined
+          });
+
+          if (result.token) {
+            apiClient.setToken(result.token);
+          }
+
           messageDiv.textContent = '✅ Usuario registrado exitosamente! Redirigiendo...';
           messageDiv.className = 'mt-4 text-sm p-3 rounded-lg bg-green-900 text-green-200';
-
-          // Redirigir al login después de 2 segundos
-          setTimeout(() => {
-            window.location.href = 'index.html';
-          }, 2000);
-        } else {
-          throw new Error('No se pudo guardar el usuario');
+          setTimeout(() => window.location.href = 'index.html', 1500);
+          return;
+        } catch (apiErr) {
+          console.warn('API no disponible, guardando localmente:', apiErr.message);
         }
+
+        // Fallback: guardar en localStorage (SOLO cifrado, NUNCA texto plano)
+        const encoder = new TextEncoder();
+        const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(password));
+        const hash = Array.prototype.map.call(new Uint8Array(hashBuf), x => ('00' + x.toString(16)).slice(-2)).join('');
+
+        const newUser = {
+          username, email, passwordHash: hash, role,
+          stellarPublic, stellarSecret: stellarSecretEncrypted,
+          createdAt: new Date().toISOString()
+        };
+
+        if (stellarSecretEncrypted) {
+          newUser.encryptedSecret = stellarSecretEncrypted;
+        }
+
+        const users = JSON.parse(localStorage.getItem('users') || '[]');
+        if (users.find(u => u.username === username || u.email === email)) {
+          throw new Error('El usuario o correo ya está registrado');
+        }
+        users.push(newUser);
+        localStorage.setItem('users', JSON.stringify(users));
+
+        messageDiv.textContent = '✅ Usuario registrado exitosamente! Redirigiendo...';
+        messageDiv.className = 'mt-4 text-sm p-3 rounded-lg bg-green-900 text-green-200';
+        setTimeout(() => window.location.href = 'index.html', 1500);
       } catch (error) {
-        console.error('Error en registro:', error);
         messageDiv.textContent = '❌ Error al registrar: ' + error.message;
         messageDiv.className += ' bg-red-900 text-red-200';
       }

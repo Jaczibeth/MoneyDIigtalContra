@@ -89,6 +89,7 @@
             cursor: not-allowed;
         }
     </style>
+  <script src="js/api-client.js"></script>
 </head>
 <body>
     <header class="flex justify-between items-center">
@@ -100,6 +101,7 @@
             <a href="actividades-estudiante.html">🎯 Actividades</a>
             <a href="recompensas.html" class="active">🏆 Recompensas</a>
             <a href="historial-estudiante.html">📊 Mi Historial</a>
+            <a href="contador.html">🔐 DApp</a>
             <a href="Wallet.html">💎 Wallet</a>
         </nav>
     </header>
@@ -131,7 +133,7 @@
     <script>
         // Verificación de sesión
         (function() {
-            const currentUserStr = localStorage.getItem('currentUser');
+            const currentUserStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
             if (!currentUserStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';
@@ -151,7 +153,7 @@
                 return;
             }
 
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
             const userTokens = activitiesSystem.getUserTokens(currentUser.username);
             const rewards = activitiesSystem.getRewards().filter(r => r.status === 'active');
 
@@ -196,7 +198,7 @@
         }
 
         function redeemReward(rewardId) {
-            const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const currentUser = JSON.parse(sessionStorage.getItem('currentUser'));
             const reward = activitiesSystem.getRewards().find(r => r.id === rewardId);
             
             if (!reward) {

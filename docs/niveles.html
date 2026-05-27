@@ -13,6 +13,7 @@
         rel="stylesheet">
     <!-- Global Styles -->
     <link href="css/main.css" rel="stylesheet">
+  <script src="js/api-client.js"></script>
 </head>
 
 <body>
@@ -23,7 +24,8 @@
             <a href="Inicio.html">🏠 Inicio</a>
             <a href="cursos.html">🎯 Actividades</a>
             <a href="niveles.html" class="active">📊 Niveles</a>
-            <a href="materias.html">� Materias</a>
+            <a href="materias.html">📖 Materias</a>
+            <a href="contador.html">🔐 DApp</a>
             <a href="certificado.html">🏆 Certificados</a>
             <a href="Usuarios.html">👥 Comunidad</a>
             <a href="Wallet.html">💎 Wallet</a>
@@ -138,7 +140,7 @@
     <script>
         (function () {
             // Verificar sesión
-            const userStr = sessionStorage.getItem('currentUser');
+            const userStr = sessionStorage.getItem('currentUser') || sessionStorage.getItem('currentUser');
             if (!userStr) {
                 alert('Por favor, inicia sesión para acceder a esta página.');
                 window.location.href = 'index.html';

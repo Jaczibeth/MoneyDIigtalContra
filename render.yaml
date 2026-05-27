@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: money-digital
+    runtime: node
+    region: oregon
+    plan: free
+    branch: Daniel
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/counter
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_WEBAUTHN_SECRET
+        generateValue: true
+      - key: RP_ID
+        value: money-digital.onrender.com
+      - key: ORIGIN
+        value: https://money-digital.onrender.com
+      - key: ORIGINS
+        value: https://money-digital.onrender.com,https://money-digital.surge.sh
+      - key: CONTRACT_ID
+        value: CBNEJ7M4BIAMX4URHV72DYQDS4KELL7EYJJQOHPQIOMFEIWFK64U7D3T
+      - key: COUNTER_CONTRACT_ID
+        value: CBNEJ7M4BIAMX4URHV72DYQDS4KELL7EYJJQOHPQIOMFEIWFK64U7D3T
+      - key: STELLAR_PUBLIC
+        sync: false
+      - key: STELLAR_SECRET
+        sync: false
+      - key: BLOCKCHAIN_MODE
+        value: full
+      - key: SOROBAN_RPC_URL
+        value: https://rpc-testnet.stellar.org
+      - key: HORIZON_URL
+        value: https://horizon-testnet.stellar.org
+      - key: NETWORK_PASSPHRASE
+        value: Test SDF Network ; September 2015
+
+databases:
+  - name: money-digital-db
+    databaseName: money_digital
+    plan: free
+    region: oregon
+    postgresMajorVersion: 16
