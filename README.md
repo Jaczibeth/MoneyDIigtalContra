@@ -1,3 +1,351 @@
+# MONEY-DIGITAL 
+
+### Dinero Inteligente, Futuro Brillante
+
+![Soroban](https://img.shields.io/badge/Soroban-Stellar-blue)
+![Rust](https://img.shields.io/badge/Rust-Contracts-orange)
+![Freighter](https://img.shields.io/badge/Freighter-Wallet-green)
+![Status](https://img.shields.io/badge/Status-Completed-success)
+![License](https://img.shields.io/badge/License-MIT-purple)
+
+---
+
+#  Descripción General
+
+**MONEY-DIGITAL** es una plataforma descentralizada desarrollada sobre la blockchain de Stellar utilizando contratos inteligentes Soroban. El proyecto está enfocado en promover la participación de estudiantes en actividades extracurriculares mediante un sistema de recompensas digitales basado en tecnologías Web3.
+
+La plataforma integra autenticación biométrica mediante WebAuthn y Passkeys, conexión con Freighter Wallet y un ecosistema de recompensas digitales respaldado por blockchain, permitiendo gestionar actividades, certificados y tokens de manera segura, transparente y descentralizada.
+
+---
+
+#  Características Principales
+
+*  Autenticación biométrica con WebAuthn
+*  Integración con Passkeys
+*  Conexión con Freighter Wallet
+*  Contratos inteligentes Soroban
+*  Gestión de actividades extracurriculares
+*  Sistema de recompensas digitales
+*  Dashboard interactivo
+*  Certificados digitales
+*  Visualización de balances y transacciones
+*  Arquitectura modular escalable
+
+---
+
+# Arquitectura General del Sistema
+
+Money Digital implementa una arquitectura modular dividida en tres capas principales:
+
+## Frontend
+
+Encargado de la interacción con el usuario mediante interfaces HTML, CSS y JavaScript. Incluye dashboards, autenticación biométrica y conexión con Freighter Wallet.
+
+## Backend Blockchain
+
+Implementado mediante contratos inteligentes Soroban desarrollados en Rust, responsables de la lógica de negocio, distribución de recompensas y validación de transacciones.
+
+## Red Stellar
+
+Utilizada para registrar operaciones descentralizadas, balances y recompensas digitales utilizando tecnología blockchain.
+
+---
+
+#  Flujo General del Sistema
+
+1. El usuario inicia sesión mediante WebAuthn y Freighter Wallet.
+2. El sistema valida la autenticación biométrica.
+3. El usuario accede al dashboard principal.
+4. Participa en actividades extracurriculares.
+5. Los contratos inteligentes procesan recompensas digitales.
+6. Las transacciones son registradas en Stellar Testnet.
+
+---
+
+#  Contrato Inteligente Desplegado
+
+* **Contract ID**
+  `CBNEJ7M4BIAMX4URHV72DYQDS4KELL7EYJJQOHPQIOMFEIWFK64U7D3T`
+
+* **Interfaz Web**
+  https://money-digital.surge.sh/index.html
+
+* **Explorador Stellar Expert**
+  https://stellar.expert/explorer/testnet/account/GAIH3ULLFQ4DGSECF2AR555KZ4KNDGEKN4AFI4SU2M7B43MGK3QJZNSR
+
+---
+
+#  Tecnologías Utilizadas
+
+| Tecnología       | Uso                      |
+| ---------------- | ------------------------ |
+| HTML5            | Estructura de interfaces |
+| CSS3             | Diseño responsivo        |
+| JavaScript       | Lógica frontend          |
+| Node.js          | Backend                  |
+| Express.js       | APIs                     |
+| Rust             | Contratos inteligentes   |
+| Soroban          | Smart Contracts          |
+| Stellar Testnet  | Blockchain               |
+| Freighter Wallet | Wallet Web3              |
+| WebAuthn         | Autenticación biométrica |
+| Passkeys         | Login seguro             |
+| Git & GitHub     | Control de versiones     |
+
+---
+
+#  Estructura del Proyecto
+
+```bash
+.
+├── contracts
+│   └── hello-world (money-digital)
+│       ├── src
+│       │   ├── lib.rs
+│       │   └── test.rs
+│       ├── Cargo.toml
+│       └── Makefile
+│
+├── docs
+│   ├── index.html
+│   ├── Inicio.html
+│   ├── Wallet.html
+│   ├── Moneda.html
+│   ├── cursos.html
+│   ├── materias.html
+│   ├── niveles.html
+│   ├── certificado.html
+│   ├── Usuarios.html
+│   ├── Register.html
+│   └── app.js
+│
+├── Cargo.toml
+├── package.json
+└── README.md
+```
+
+---
+
+# Funcionalidades del Contrato Inteligente
+
+## Funciones Públicas
+
+* `initialize(admin)`
+* `get_admin()`
+* `register_wallet(wallet, nombre, email)`
+* `get_wallet_info(wallet)`
+* `get_balance(wallet)`
+* `transfer(from, to, amount)`
+* `mint(admin, wallet, amount)`
+* `burn(admin, wallet, amount)`
+* `get_transactions()`
+
+---
+
+# Seguridad Implementada
+
+* Validación biométrica mediante WebAuthn
+* Protección contra phishing
+* Validación de balances
+* Protección contra double initialize
+* Restricción de mint y burn solo para administrador
+* Firma de transacciones mediante Freighter Wallet
+
+---
+
+#  Pruebas Unitarias
+
+Ejecutar pruebas:
+
+```bash
+cargo test -p money-digital
+```
+
+## Tests implementados
+
+* test_initialize
+* test_register_wallet
+* test_get_balance
+* test_mint
+* test_transfer
+* test_burn
+* test_total_supply
+* test_transfer_insufficient_balance
+* test_mint_unauthorized
+
+---
+
+#  Instalación y Configuración
+
+## Requisitos Previos
+
+* Rust
+* Node.js
+* npm
+* Soroban CLI
+* Freighter Wallet
+
+---
+
+## Instalación
+
+### 1. Clonar repositorio
+
+```bash
+git clone https://github.com/SistemasTecTlaxiaco/Money-Digital.git
+cd Money-Digital
+```
+
+### 2. Instalar dependencias
+
+```bash
+npm install
+```
+
+### 3. Instalar target de Soroban
+
+```bash
+rustup target add wasm32v1-none
+```
+
+### 4. Compilar contrato
+
+```bash
+cd contracts/hello-world
+make build
+```
+
+### 5. Desplegar contrato
+
+```bash
+make deploy
+```
+
+---
+
+# Integración con Stellar
+
+* Stellar Testnet
+* Soroban RPC
+* Freighter Wallet API
+* Firma de transacciones
+* Consulta de balances
+* Gestión de tokens digitales
+
+---
+
+# Demo del Proyecto
+
+## Funcionalidades Demostradas
+
+* Inicio de sesión biométrico
+* Uso de Passkeys
+* Integración Freighter Wallet
+* Dashboard interactivo
+* Gestión de actividades extracurriculares
+* Sistema de recompensas digitales
+* Contratos inteligentes funcionando en Soroban
+
+---
+
+# Flujo de Demostración
+
+1. Conexión con Freighter Wallet.
+2. Inicio de sesión biométrico.
+3. Acceso al dashboard.
+4. Participación en actividades.
+5. Asignación de recompensas digitales.
+6. Visualización de balances blockchain.
+
+---
+
+# Escalabilidad y Futuro
+
+Money Digital fue desarrollado con una arquitectura escalable que permitirá futuras mejoras como:
+
+* Integración con NFTs
+* Sistema avanzado de certificados digitales
+* Compatibilidad móvil
+* Integración con más wallets
+* Dashboard analítico
+* Deploy en Stellar Mainnet
+* Gamificación educativa
+
+---
+
+#  Gestión del Proyecto
+
+El proyecto fue desarrollado utilizando metodologías ágiles y gestión de tareas mediante GitHub Issues y eduScrum.
+
+## Actividades Gestionadas
+
+* Desarrollo frontend
+* Contratos inteligentes
+* Integración blockchain
+* WebAuthn
+* Testing
+* UX/UI
+* Documentación
+
+---
+
+#  Equipo de Desarrollo
+
+## Líder del Proyecto
+
+* Jaczibeth
+
+## Revisión de Código
+
+* Vanessacruzortiz
+
+## Desarrollo
+
+* Equipo Frontend y Backend
+* Daniel Velasco Lopez
+* Rufino Mendoza Vasquez
+---
+
+#  Conventional Commits
+
+El proyecto implementa convenciones de commits para mantener organización del repositorio:
+
+```bash
+feat: integración de Freighter Wallet
+fix: corrección de autenticación biométrica
+docs: actualización del README
+style: mejoras visuales del dashboard
+refactor: optimización de contratos Soroban
+```
+
+---
+
+#  Licencia
+
+Proyecto académico desarrollado para prácticas de aplicaciones descentralizadas utilizando Stellar y Soroban.
+
+---
+
+#  Contacto
+
+## Repositorio Oficial
+
+https://github.com/SistemasTecTlaxiaco/Money-Digital
+
+## Issues y Soporte
+
+Utilizar GitHub Issues para reportes y sugerencias.
+
+---
+
+#  Estado del Proyecto
+
+**Versión:** 3.0
+**Estado:** Completado y Funcional
+**Red:** Stellar Testnet
+**Última actualización:** Mayo 2026
+
+
 # MONEY-DIGITAL - Contrato Inteligente Soroban
 
 ## Contrato Inteligente Desplegado en Stellar Testnet
