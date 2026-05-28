@@ -65,6 +65,16 @@ const ORIGINS = (() => {
   origins.push('https://money-digital.surge.sh');
   return origins;
 })();
+// Obtener RP_ID dinámico basado en el host de la solicitud (para soportar múltiples entornos)
+function getRPID(req) {
+  if (process.env.RP_ID) return process.env.RP_ID;
+  const host = req?.headers?.host || 'localhost';
+  // En producción (Render), usar el RP_ID configurado
+  if (isRender && process.env.RENDER_EXTERNAL_HOSTNAME) return process.env.RENDER_EXTERNAL_HOSTNAME;
+  if (isRailway && process.env.RAILWAY_PUBLIC_DOMAIN) return process.env.RAILWAY_PUBLIC_DOMAIN;
+  // Extraer solo el hostname (sin puerto) para usar como RP_ID
+  return host.split(':')[0];
+}
 
 // Store de challenges con persistencia en SQLite
 const challengeStore = {
@@ -600,9 +610,10 @@ app.post('/api/auth/passkey/register/begin', async (req, res) => {
       id: row[0], publicKey: row[1], counter: parseInt(row[2] || 0), transports: row[3] ? JSON.parse(row[3]) : []
     })) : [];
 
+    const effectiveRPID = getRPID(req);
     const options = await generateRegistrationOptions({
       rpName: RP_NAME,
-      rpID: RP_ID,
+      rpID: effectiveRPID,
       userName: username,
       userDisplayName: username,
       attestationType: 'none',
@@ -613,6 +624,8 @@ app.post('/api/auth/passkey/register/begin', async (req, res) => {
       authenticatorSelection: {
         residentKey: 'required',
         userVerification: 'required',
+        // Sin authenticatorAttachment para que funcione en múltiples dispositivos
+        // (platform = huella/Face ID del dispositivo, cross-platform = YubiKey, etc.)
       },
     });
 
@@ -644,11 +657,12 @@ app.post('/api/auth/passkey/register/complete', async (req, res) => {
       return res.status(400).json({ error: 'Challenge expirado. Intenta de nuevo.' });
     }
 
+    const effectiveRPID = getRPID(req);
     const verification = await verifyRegistrationResponse({
       response: credential,
       expectedChallenge: storedData.challenge,
       expectedOrigin: ORIGINS,
-      expectedRPID: RP_ID,
+      expectedRPID: effectiveRPID,
     });
 
     if (!verification.verified || !verification.registrationInfo) {
@@ -715,14 +729,14 @@ app.post('/api/auth/passkey/login/begin', async (req, res) => {
       transports: row[3] ? JSON.parse(row[3]) : [],
     }));
 
+    const effectiveRPID = getRPID(req);
+    // Enviamos allowCredentials vacío para que el navegador muestre TODAS
+    // las passkeys sincronizadas del usuario (iCloud, Google, MS Account).
+    // El servidor identificará la credencial en /login/complete.
     const options = await generateAuthenticationOptions({
-      rpID: RP_ID,
+      rpID: effectiveRPID,
       userVerification: 'required',
-      allowCredentials: credentials.map(cred => ({
-        id: isoBase64URL.toBuffer(cred.id),
-        type: 'public-key',
-        transports: cred.transports,
-      })),
+      allowCredentials: [],
     });
 
     challengeStore.set(`login:${username}`, {
@@ -774,11 +788,12 @@ app.post('/api/auth/passkey/login/complete', async (req, res) => {
       transports: row[idx('transports')] ? JSON.parse(row[idx('transports')]) : [],
     };
 
+    const effectiveRPID = getRPID(req);
     const verification = await verifyAuthenticationResponse({
       response: credential,
       expectedChallenge: storedData.challenge,
       expectedOrigin: ORIGINS,
-      expectedRPID: RP_ID,
+      expectedRPID: effectiveRPID,
       credential: {
         id: storedCredential.id,
         publicKey: isoBase64URL.toBuffer(storedCredential.publicKey),

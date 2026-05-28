@@ -6,6 +6,7 @@
   <title>Money Digital | Acceso Premium</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link href="css/fintech-premium.css" rel="stylesheet">
+  <link href="css/responsive.css" rel="stylesheet">
   <!-- Stellar SDK -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
 </head>
@@ -67,7 +68,7 @@
         <button type="submit" id="loginBtn" class="btn btn-primary" style="margin-top: 1rem;">
           Iniciar Sesión &rarr;
         </button>
-        <button type="button" id="biometricLoginBtn" class="btn btn-secondary" style="margin-top: 0.5rem; width: 100%;">
+        <button type="button" id="biometricLoginBtn" class="btn btn-secondary btn-responsive" style="margin-top: 0.5rem; width: 100%;">
           <span id="biometricBtnText">🔐 Iniciar con Biometría</span>
         </button>
       </form>
@@ -382,6 +383,12 @@
       const bioBtn = document.getElementById('biometricLoginBtn');
       const bioText = document.getElementById('biometricBtnText');
 
+      // Aplicar texto responsivo según dispositivo
+      const config = BiometricHelper.getResponsiveButtonConfig();
+      bioText.textContent = config.biometricText;
+      bioBtn.style.padding = config.buttonPadding;
+      bioBtn.style.fontSize = config.buttonFontSize;
+
       try {
         const status = await BiometricHelper.getSupportStatus();
         if (!status.platformBiometric) {
@@ -453,7 +460,7 @@
         showToast(`Bienvenido ${username}`, 'success');
         setTimeout(() => window.location.href = "Inicio.html", 1000);
       } catch (e) {
-        btnText.textContent = '🔐 Iniciar con Biometría';
+        btnText.textContent = BiometricHelper.getResponsiveButtonConfig().biometricText;
         if (e.name === 'NotAllowedError' || e.message?.includes('canceled') || e.message?.includes('cancelled')) {
           showToast('Verificación cancelada. Puedes usar tu contraseña.', 'error');
         } else {

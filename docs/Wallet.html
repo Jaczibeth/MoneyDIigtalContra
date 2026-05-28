@@ -13,6 +13,7 @@
         rel="stylesheet">
     <!-- Global Styles -->
     <link href="css/main.css" rel="stylesheet">
+    <link href="css/responsive.css" rel="stylesheet">
 
     <!-- Stellar & Freighter -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/stellar-sdk/11.2.2/stellar-sdk.min.js"></script>
@@ -342,8 +343,29 @@
         })();
 
         async function connectFreighter(silent = false) {
+            const isMobile = BiometricHelper.isMobile();
             if (!window.freighterApi) {
-                if (!silent) showStatus('Freighter no detectado. Instala la extensión y recarga la página.', 'error');
+                if (isMobile) {
+                    // Deep link a la app Freighter en móvil
+                    const confirmed = confirm('¿Tienes instalada la app Freighter? Abrir la aplicación.');
+                    if (confirmed) {
+                        window.location.href = BiometricHelper.getFreighterLink();
+                        // Si no se abre, mostrar enlace a la tienda
+                        setTimeout(() => {
+                            if (confirm('¿Quieres instalar Freighter desde la tienda de aplicaciones?')) {
+                                const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+                                window.open(
+                                    isIOS
+                                        ? 'https://apps.apple.com/app/freighter/id1600055214'
+                                        : 'https://play.google.com/store/apps/details?id=org.stellar.freighter',
+                                    '_blank'
+                                );
+                            }
+                        }, 2000);
+                    }
+                    return;
+                }
+                if (!silent) showStatus('Freighter no detectado. Descárgalo desde https://freighter.app/', 'error');
                 return;
             }
             try {
