@@ -486,13 +486,11 @@
         return;
       }
 
-      const supported = await BiometricHelper.isSupported();
-      if (!supported) return;
-
       const consent = await BiometricHelper.showConsentDialog(username);
       if (consent === true) {
         try {
           await pkHelper.registerPasskey(username);
+          localStorage.setItem('bio_username', username);
           showToast('✅ Passkey registrada. Ahora puedes iniciar sesión con biometría.', 'success');
         } catch (e) {
           showToast('No se pudo registrar la biometría: ' + e.message, 'error');

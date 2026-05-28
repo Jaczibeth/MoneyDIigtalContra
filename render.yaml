@@ -8,6 +8,10 @@ services:
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/counter
+    disk:
+      name: data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
     envVars:
       - key: JWT_SECRET
         generateValue: true
