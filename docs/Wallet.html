@@ -19,6 +19,7 @@
     <script src="https://unpkg.com/@stellar/freighter-api@4.1.0/dist/freighter-api.min.js"></script>
     <script src="js/api-client.js"></script>
     <script src="js/passkey-helper.js"></script>
+    <script src="js/biometric-helper.js"></script>
 </head>
 
 <body>
@@ -181,8 +182,9 @@
         // ============================================================
         // PASSKEY SECTION
         // ============================================================
-        const passkeyHelper = new PasskeyHelper(apiClient ? apiClient.baseURL : '');
-        let passkeyToken = sessionStorage.getItem('auth_token');
+    const passkeyHelper = new PasskeyHelper(apiClient ? apiClient.baseURL : '');
+    let passkeyToken = sessionStorage.getItem('auth_token');
+    let biometricSupported = false;
 
         async function checkPasskeyStatus() {
             const passkeyStatus = document.getElementById('passkeyStatus');
@@ -201,6 +203,13 @@
                 return;
             }
 
+            // Detectar soporte biométrico
+            try {
+                biometricSupported = await BiometricHelper.isSupported();
+            } catch (e) {
+                biometricSupported = false;
+            }
+
             passkeyLoading.classList.remove('hidden');
             try {
                 const hasPasskey = await passkeyHelper.hasPasskey(username);
@@ -208,12 +217,20 @@
                     passkeyHasKey.classList.remove('hidden');
                     passkeyNoKey.classList.add('hidden');
                     registerBtn.textContent = '🔄 Registrar Nueva Passkey';
+                    registerBtn.disabled = false;
+                } else if (!biometricSupported) {
+                    passkeyHasKey.classList.add('hidden');
+                    passkeyNoKey.classList.remove('hidden');
+                    registerBtn.textContent = '📱 Biometría no disponible';
+                    registerBtn.disabled = true;
+                    passkeyStatus.innerHTML = '⚠️ <span class="text-yellow-400">Este dispositivo no tiene biometría (huella/Face ID/PIN). Usa contraseña normal.</span>';
+                    passkeyStatus.classList.remove('hidden');
                 } else {
                     passkeyHasKey.classList.add('hidden');
                     passkeyNoKey.classList.remove('hidden');
                     registerBtn.textContent = '📱 Registrar Passkey';
+                    registerBtn.disabled = false;
                 }
-                registerBtn.disabled = false;
                 passkeyStatus.classList.add('hidden');
 
                 // Cargar lista

@@ -239,8 +239,16 @@
     // ============================================================
     // STATE - Detectar sesión activa (biométrica o por contraseña)
     // ============================================================
-    let currentUsername = localStorage.getItem('bio_username') || null;
-    let bioToken = localStorage.getItem('bio_token') || null;
+    let currentUsername = sessionStorage.getItem('bio_username') || localStorage.getItem('bio_username') || null;
+    let bioToken = sessionStorage.getItem('bio_token') || localStorage.getItem('bio_token') || null;
+    if (bioToken) {
+      sessionStorage.setItem('bio_token', bioToken);
+      localStorage.removeItem('bio_token');
+    }
+    if (currentUsername) {
+      sessionStorage.setItem('bio_username', currentUsername);
+      localStorage.removeItem('bio_username');
+    }
     let isPasswordSession = false; // Flag para saber si es token de contraseña
     // Si no hay sesión biométrica, buscar sesión de contraseña en sessionStorage
     if (!bioToken && !currentUsername) {
@@ -493,11 +501,11 @@
         }
         const completeData = await completeRes.json();
 
-        // 4. Guardar token
+        // 4. Guardar token (sessionStorage, se borra al cerrar el navegador)
         bioToken = completeData.token;
         currentUsername = username;
-        localStorage.setItem('bio_token', bioToken);
-        localStorage.setItem('bio_username', username);
+        sessionStorage.setItem('bio_token', bioToken);
+        sessionStorage.setItem('bio_username', username);
         // Compartir sesión con el resto del sistema
         sessionStorage.setItem('auth_token', bioToken);
         if (completeData.user) {
@@ -560,11 +568,11 @@
         }
         const completeData = await completeRes.json();
 
-        // 4. Guardar token
+        // 4. Guardar token (sessionStorage, se borra al cerrar el navegador)
         bioToken = completeData.token;
         currentUsername = username;
-        localStorage.setItem('bio_token', bioToken);
-        localStorage.setItem('bio_username', username);
+        sessionStorage.setItem('bio_token', bioToken);
+        sessionStorage.setItem('bio_username', username);
         // Compartir sesión con el resto del sistema
         sessionStorage.setItem('auth_token', bioToken);
         if (completeData.user) {
@@ -595,6 +603,8 @@
       }
       bioToken = null;
       currentUsername = null;
+      sessionStorage.removeItem('bio_token');
+      sessionStorage.removeItem('bio_username');
       localStorage.removeItem('bio_token');
       localStorage.removeItem('bio_username');
       sessionStorage.removeItem('auth_token');
@@ -634,6 +644,8 @@
       } catch (e) { /* ignora */ }
       bioToken = null;
       currentUsername = null;
+      sessionStorage.removeItem('bio_token');
+      sessionStorage.removeItem('bio_username');
       localStorage.removeItem('bio_token');
       localStorage.removeItem('bio_username');
       return false;

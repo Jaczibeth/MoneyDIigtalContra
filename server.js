@@ -612,7 +612,7 @@ app.post('/api/auth/passkey/register/begin', async (req, res) => {
       })),
       authenticatorSelection: {
         residentKey: 'required',
-        userVerification: 'preferred',
+        userVerification: 'required',
       },
     });
 
@@ -717,7 +717,7 @@ app.post('/api/auth/passkey/login/begin', async (req, res) => {
 
     const options = await generateAuthenticationOptions({
       rpID: RP_ID,
-      userVerification: 'preferred',
+      userVerification: 'required',
       allowCredentials: credentials.map(cred => ({
         id: isoBase64URL.toBuffer(cred.id),
         type: 'public-key',

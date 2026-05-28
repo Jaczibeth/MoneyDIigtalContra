@@ -119,6 +119,7 @@
 
   <script src="js/api-client.js"></script>
   <script src="js/activities-system.js"></script>
+  <script src="js/biometric-helper.js"></script>
   <script>
     // Banner si está en surge.sh
     if (window.location.hostname.includes('surge.sh')) {
@@ -290,73 +291,6 @@
       try { return JSON.parse(localStorage.getItem('users') || '[]'); } catch (e) { return []; }
     }
 
-    // 5. Submit Login (con API backend + fallback localStorage)
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const userVal = document.getElementById('username').value.trim();
-      const passVal = document.getElementById('loginPassword').value;
-
-      if (!passVal) { showToast('Falta contraseña', 'error'); return; }
-
-      try {
-        showToast('Iniciando sesión...', 'info');
-
-        // Intentar con API backend primero
-        let loginResult;
-        try {
-          loginResult = await apiClient.login(userVal, passVal);
-        } catch (apiErr) {
-          // Si el backend respondió con un error del servidor (cred inválidas, etc.)
-          // mostrar ese error directamente y NO caer al offline
-          const isNetworkError = apiErr.message.includes('Failed to fetch') ||
-                                 apiErr.message.includes('NetworkError') ||
-                                 apiErr.message.includes('conectar al servidor') ||
-                                 apiErr.message.includes('No se puede conectar');
-          if (!isNetworkError) {
-            throw apiErr;
-          }
-
-          console.warn('API no disponible, usando localStorage:', apiErr.message);
-
-          // Fallback a localStorage
-          const users = loadUsers();
-          const hashed = await hashPassword(passVal);
-          const user = users.find(u => (u.username === userVal || u.email === userVal) && u.passwordHash === hashed);
-
-          if (!user) throw new Error('Credenciales incorrectas');
-
-          if (user.encryptedSecret && user.encSalt && user.encIv) {
-            try {
-              const decryptedSecret = await decryptSecret(user.encryptedSecret, passVal, user.encSalt, user.encIv);
-              user.stellarSecret = decryptedSecret;
-            } catch (decError) {
-              console.warn('Error descifrando wallet:', decError);
-            }
-          }
-
-          loginResult = { user };
-        }
-
-        const user = loginResult.user;
-
-        // SEGURIDAD: La clave secreta cifrada se guarda en sessionStorage
-        // (se borra al cerrar el navegador), NUNCA en localStorage
-        sessionStorage.setItem('currentUser', JSON.stringify(user));
-
-        // Si hay wallet manual, asociarla al usuario
-        const stellarPublic = localStorage.getItem('stellarPublic');
-        if (stellarPublic && !user.stellarPublic) {
-          user.stellarPublic = stellarPublic;
-          sessionStorage.setItem('currentUser', JSON.stringify(user));
-        }
-
-        showToast(`Bienvenido ${user.username}`, 'success');
-        setTimeout(() => window.location.href = "Inicio.html", 1000);
-      } catch (error) {
-        showToast(error.message || 'Credenciales incorrectas', 'error');
-      }
-    });
-
     // --- DECRYPTION HELPERS ---
     async function decryptSecret(encryptedHex, password, saltHex, ivHex) {
       const encData = hex2buf(encryptedHex);
@@ -441,10 +375,37 @@
       };
     }
 
-    // Botón de login biométrico
-    document.getElementById('biometricLoginBtn').addEventListener('click', async () => {
+    // ============================================================
+    // DETECCIÓN DE SOPORTE BIOMÉTRICO
+    // ============================================================
+    (async function initBiometricUI() {
+      const bioBtn = document.getElementById('biometricLoginBtn');
+      const bioText = document.getElementById('biometricBtnText');
+
+      try {
+        const status = await BiometricHelper.getSupportStatus();
+        if (!status.platformBiometric) {
+          bioBtn.style.display = 'none';
+          const note = document.createElement('p');
+          note.style.cssText = 'color:#888;font-size:0.8rem;text-align:center;margin-top:0.5rem;';
+          note.textContent = '💡 La biometría no está disponible en este dispositivo. Usa tu contraseña.';
+          bioBtn.parentNode.insertBefore(note, bioBtn.nextSibling);
+        } else {
+          bioBtn.style.display = 'block';
+        }
+      } catch (e) {
+        console.warn('Error detectando soporte biométrico:', e);
+        bioBtn.style.display = 'none';
+      }
+    })();
+
+    // ============================================================
+    // LOGIN BIOMÉTRICO (Passkeys)
+    // ============================================================
+    async function handleBiometricLogin() {
       const username = document.getElementById('username').value.trim();
       if (!username) { showToast('Ingresa tu nombre de usuario primero', 'error'); return; }
+
       if (!navigator.credentials?.get) {
         showToast('Tu navegador no soporta biometría. Usa Chrome, Edge o Safari.', 'error');
         return;
@@ -481,12 +442,10 @@
         }
         const completeData = await completeRes.json();
 
-        // Guardar token y datos de sesión
         sessionStorage.setItem('auth_token', completeData.token);
         if (completeData.user) {
           sessionStorage.setItem('currentUser', JSON.stringify(completeData.user));
         }
-        // También en apiClient si ya se inicializó
         if (typeof apiClient !== 'undefined') {
           apiClient.setToken(completeData.token);
         }
@@ -495,7 +454,108 @@
         setTimeout(() => window.location.href = "Inicio.html", 1000);
       } catch (e) {
         btnText.textContent = '🔐 Iniciar con Biometría';
-        showToast(e.message || 'Error en autenticación biométrica', 'error');
+        if (e.name === 'NotAllowedError' || e.message?.includes('canceled') || e.message?.includes('cancelled')) {
+          showToast('Verificación cancelada. Puedes usar tu contraseña.', 'error');
+        } else {
+          showToast(e.message || 'Error en autenticación biométrica', 'error');
+        }
+      }
+    }
+
+    document.getElementById('biometricLoginBtn').addEventListener('click', handleBiometricLogin);
+
+    // ============================================================
+    // CONSENTIMIENTO POST-LOGIN CON CONTRASEÑA
+    // ============================================================
+    async function promptBiometricConsentAfterLogin(username) {
+      if (localStorage.getItem('bio_consent_skipped') === 'true') return;
+      if (localStorage.getItem('bio_username') === username) return;
+
+      const pkHelper = new PasskeyHelper(apiClient ? apiClient.baseURL : '');
+      try {
+        const hasPasskey = await pkHelper.hasPasskey(username);
+        if (hasPasskey) return;
+      } catch (e) {
+        return;
+      }
+
+      const supported = await BiometricHelper.isSupported();
+      if (!supported) return;
+
+      const consent = await BiometricHelper.showConsentDialog(username);
+      if (consent === true) {
+        try {
+          await pkHelper.registerPasskey(username);
+          showToast('✅ Passkey registrada. Ahora puedes iniciar sesión con biometría.', 'success');
+        } catch (e) {
+          showToast('No se pudo registrar la biometría: ' + e.message, 'error');
+        }
+      }
+    }
+
+    // Modificar el submit del login para agregar consentimiento
+    const originalSubmitHandler = document.getElementById('loginForm').onsubmit;
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      if (e.defaultPrevented) return;
+      e.preventDefault();
+      const userVal = document.getElementById('username').value.trim();
+      const passVal = document.getElementById('loginPassword').value;
+
+      if (!passVal) { showToast('Falta contraseña', 'error'); return; }
+
+      try {
+        showToast('Iniciando sesión...', 'info');
+
+        let loginResult;
+        try {
+          loginResult = await apiClient.login(userVal, passVal);
+        } catch (apiErr) {
+          const isNetworkError = apiErr.message.includes('Failed to fetch') ||
+                                 apiErr.message.includes('NetworkError') ||
+                                 apiErr.message.includes('conectar al servidor') ||
+                                 apiErr.message.includes('No se puede conectar');
+          if (!isNetworkError) {
+            throw apiErr;
+          }
+
+          console.warn('API no disponible, usando localStorage:', apiErr.message);
+
+          const users = loadUsers();
+          const hashed = await hashPassword(passVal);
+          const user = users.find(u => (u.username === userVal || u.email === userVal) && u.passwordHash === hashed);
+
+          if (!user) throw new Error('Credenciales incorrectas');
+
+          if (user.encryptedSecret && user.encSalt && user.encIv) {
+            try {
+              const decryptedSecret = await decryptSecret(user.encryptedSecret, passVal, user.encSalt, user.encIv);
+              user.stellarSecret = decryptedSecret;
+            } catch (decError) {
+              console.warn('Error descifrando wallet:', decError);
+            }
+          }
+
+          loginResult = { user };
+        }
+
+        const user = loginResult.user;
+
+        sessionStorage.setItem('currentUser', JSON.stringify(user));
+
+        const stellarPublic = localStorage.getItem('stellarPublic');
+        if (stellarPublic && !user.stellarPublic) {
+          user.stellarPublic = stellarPublic;
+          sessionStorage.setItem('currentUser', JSON.stringify(user));
+        }
+
+        showToast(`Bienvenido ${user.username}`, 'success');
+
+        // Preguntar si quiere activar biometría (después de login exitoso)
+        promptBiometricConsentAfterLogin(user.username);
+
+        setTimeout(() => window.location.href = "Inicio.html", 1200);
+      } catch (error) {
+        showToast(error.message || 'Credenciales incorrectas', 'error');
       }
     });
 
