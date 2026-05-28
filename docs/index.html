@@ -558,9 +558,14 @@
         showToast(`Bienvenido ${user.username}`, 'success');
 
         // Preguntar si quiere activar biometría (después de login exitoso)
-        promptBiometricConsentAfterLogin(user.username);
+        // Esperar a que termine el flujo de consentimiento/registro antes de redirigir
+        try {
+          await promptBiometricConsentAfterLogin(user.username);
+        } catch (e) {
+          console.warn('Error en flujo de consentimiento biométrico:', e);
+        }
 
-        setTimeout(() => window.location.href = "Inicio.html", 1200);
+        window.location.href = "Inicio.html";
       } catch (error) {
         showToast(error.message || 'Credenciales incorrectas', 'error');
       }
