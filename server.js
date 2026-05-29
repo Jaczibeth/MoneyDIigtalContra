@@ -1461,9 +1461,18 @@ app.post('/api/auth/register', rateLimit(60000, 5), async (req, res) => {
 
 app.post('/api/auth/login', rateLimit(60000, 10), async (req, res) => {
   try {
+    console.log('═══════════════════════════════════════');
+    console.log('🔐 LOGIN - Request recibido');
+    console.log('Headers:', JSON.stringify(req.headers, null, 2).substring(0, 500));
+    console.log('Body raw keys:', Object.keys(req.body));
+    console.log('Body raw:', JSON.stringify(req.body));
     const { username, password } = req.body;
-    console.log(`🔐 LOGIN solicitud para username="${username}"`);
-    if (!username || !password) return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+    console.log(`🔐 LOGIN username="${typeof username}" value="${username}"`);
+    console.log(`🔐 LOGIN password="${typeof password}" length="${password ? password.length : 'N/A'}"`);
+    if (!username || !password) {
+      console.warn(`❌ LOGIN campos vacíos: username="${typeof username}" password="${typeof password}"`);
+      return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+    }
 
     console.log(`🔍 LOGIN buscando usuario "${username}" en DB (modo: ${DATABASE_URL ? 'PostgreSQL' : 'SQLite'})...`);
     const result = await dbExec(`SELECT * FROM users WHERE username = ?`, [username]);
@@ -1852,9 +1861,20 @@ app.get('/api/stats/teacher', anyAuthMiddleware, (req, res) => {
 });
 
 // ========================
-// STATIC FILES (Frontend)
+// STATIC FILES (Frontend) - SIN CACHÉ para evitar JS viejo
 // ========================
-app.use(express.static(DOCS_DIR));
+app.use(express.static(DOCS_DIR, {
+  maxAge: 0,
+  etag: false,
+  lastModified: false,
+  setHeaders: (res, path) => {
+    if (path.endsWith('.js') || path.endsWith('.html') || path.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // Catch-all for SPA-style routing (except API)
 app.use((req, res, next) => {

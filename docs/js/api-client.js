@@ -89,14 +89,25 @@ class ApiClient {
   }
 
   async login(username, password) {
+    console.group('🔐 LOGIN DEBUG');
+    console.log('Username recibido:', JSON.stringify(username));
+    console.log('Password recibido:', password ? '(presente, length=' + password.length + ')' : '(vacío)');
+    console.log('baseURL:', this.baseURL);
+    const payload = JSON.stringify({ username, password });
+    console.log('Payload exacto enviado:', payload);
+    console.log('Endpoint:', `${this.baseURL}/api/auth/login`);
     // SIEMPRE intentar con el backend primero, sin verificar disponibilidad
     try {
       const res = await fetch(`${this.baseURL}/api/auth/login`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: payload
       });
+      console.log('Response status:', res.status, res.statusText);
       if (res.ok) {
         const json = await res.json();
+        console.log('Login exitoso, token recibido:', json.token ? json.token.substring(0, 20) + '...' : 'NO TOKEN');
+        console.log('User:', json.user);
+        console.groupEnd();
         this.setToken(json.token);
         this.backendAvailable = true;
         if (json.user) {
@@ -106,13 +117,19 @@ class ApiClient {
       }
       // El backend respondió con error (ej: 401 credenciales inválidas)
       const err = await res.json();
+      console.error('Error del backend:', err);
+      console.groupEnd();
       throw new Error(err.error || 'Error del servidor');
     } catch (e) {
+      console.error('Error en login:', e.message);
+      console.log('Tipo de error:', e.name, '- es error de red?', e.message.includes('Failed to fetch'));
       // Si es un error de credenciales (no de red), relanzar inmediatamente
-      if (!e.message.includes('Failed to fetch') && !e.message.includes('NetworkError') && !e.message.includes('load') && e.message !== 'Error del servidor') {
+      if (!e.message.includes('Failed to fetch') && !e.message.includes('NetworkError') && !e.message.includes('load') && e.message !== 'Error del servidor' && e.message !== 'No se puede conectar al servidor') {
+        console.groupEnd();
         throw e;
       }
       console.log('Backend no disponible para login, intentando offline');
+      console.groupEnd();
     }
 
     // Fallback offline: solo funciona si hay usuarios en localStorage (mismo dispositivo)
