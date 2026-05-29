@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>Autenticación QR - Money Digital</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #0b0f19; color: #e5e5e5;
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(0,255,255,0.12);
+      border-radius: 24px; padding: 32px 24px;
+      max-width: 400px; width: 100%; text-align: center;
+      backdrop-filter: blur(20px);
+    }
+    .icon {
+      font-size: 56px; margin-bottom: 16px;
+    }
+    h1 {
+      font-size: 1.4rem; font-weight: 700;
+      background: linear-gradient(135deg, #00eaff, #b400ff);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    p {
+      color: #aaa; font-size: 0.9rem; margin-bottom: 24px; line-height: 1.5;
+    }
+    .btn {
+      display: block; width: 100%; padding: 16px;
+      border: none; border-radius: 14px; font-size: 1rem;
+      font-weight: 600; cursor: pointer; transition: 0.3s;
+      margin-bottom: 12px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #00eaff, #8a00ff); color: white;
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 20px rgba(0,229,255,0.4); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-secondary {
+      background: rgba(255,255,255,0.08); color: white;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .status {
+      margin-top: 16px; padding: 12px; border-radius: 12px;
+      font-size: 0.85rem; min-height: 48px;
+    }
+    .status-loading { background: rgba(0,229,255,0.08); color: #00eaff; }
+    .status-success { background: rgba(76,175,80,0.12); color: #4caf50; }
+    .status-error { background: rgba(255,50,50,0.12); color: #ff6b6b; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="card" id="app">
+    <div class="icon" id="statusIcon">📱</div>
+    <h1>Autenticación Biométrica</h1>
+    <p id="statusText">Preparando autenticación segura...</p>
+    <div id="actions">
+      <button id="authBtn" class="btn btn-primary">
+        🔐 Autenticar con biometría
+      </button>
+      <button id="cancelBtn" class="btn btn-secondary">
+        Cancelar
+      </button>
+    </div>
+    <div id="statusMessage" class="status hidden"></div>
+    <p id="errorDetail" style="font-size:0.8rem;color:#888;margin-top:12px;"></p>
+  </div>
+
+  <script src="js/passkey-helper.js"></script>
+  <script src="js/biometric-helper.js"></script>
+  <script>
+    (async function() {
+      const $ = id => document.getElementById(id);
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get('s');
+      const rpId = params.get('r');
+
+      const statusIcon = $('statusIcon');
+      const statusText = $('statusText');
+      const actions = $('actions');
+      const statusMessage = $('statusMessage');
+      const errorDetail = $('errorDetail');
+      const authBtn = $('authBtn');
+      const cancelBtn = $('cancelBtn');
+
+      if (!sessionId) {
+        statusIcon.textContent = '❌';
+        statusText.textContent = 'Enlace inválido';
+        errorDetail.textContent = 'No se encontró el ID de sesión QR. Escanea el QR de nuevo.';
+        actions.classList.add('hidden');
+        return;
+      }
+
+      const passkeyHelper = new PasskeyHelper('');
+
+      const effectiveRpId = rpId || window.location.hostname;
+
+      async function showStatus(msg, type) {
+        statusMessage.textContent = msg;
+        statusMessage.className = 'status ' + type;
+        statusMessage.classList.remove('hidden');
+      }
+
+      function hideStatus() {
+        statusMessage.classList.add('hidden');
+      }
+
+      // 1. Escanear QR: notificar al desktop que el QR fue escaneado
+      async function scanQR() {
+        hideStatus();
+        statusText.textContent = 'Conectando con el servidor...';
+        authBtn.disabled = true;
+        authBtn.textContent = '⏳ Conectando...';
+
+        try {
+          const scanRes = await fetch('/api/auth/qr/scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId })
+          });
+
+          if (!scanRes.ok) {
+            const err = await scanRes.json();
+            throw new Error(err.error || 'Error al escanear QR');
+          }
+
+          const scanData = await scanRes.json();
+          statusText.textContent = '👤 ' + scanData.username + ' - verifica tu identidad';
+          authBtn.textContent = '🔐 Autenticar con biometría';
+          authBtn.disabled = false;
+
+          return scanData;
+        } catch (e) {
+          statusIcon.textContent = '❌';
+          statusText.textContent = 'Error de conexión';
+          await showStatus(e.message, 'status-error');
+          errorDetail.textContent = 'Verifica tu conexión a internet y que el QR no haya expirado.';
+          authBtn.textContent = '🔐 Autenticar con biometría';
+          authBtn.disabled = false;
+          throw e;
+        }
+      }
+
+      async function authenticate() {
+        hideStatus();
+        authBtn.disabled = true;
+        authBtn.textContent = '⏳ Solicitando biometría...';
+        statusText.textContent = 'Usa tu huella, Face ID o PIN';
+
+        try {
+          const scanData = await scanQR();
+          if (!scanData) return;
+
+          authBtn.textContent = '⏳ Esperando biometría...';
+          statusText.textContent = 'Coloca tu huella o usa Face ID';
+
+          const rpId = scanData.rpID || effectiveRpId;
+
+          const requestOpts = {
+            challenge: scanData.options.challenge,
+            rpId: rpId,
+            userVerification: scanData.options.userVerification || 'required',
+            allowCredentials: scanData.options.allowCredentials || [],
+            timeout: scanData.options.timeout || 120000,
+          };
+
+          const assertion = await navigator.credentials.get({
+            publicKey: passkeyHelper.prepareRequestOpts(requestOpts)
+          });
+
+          statusText.textContent = '⏳ Verificando credencial...';
+          authBtn.textContent = '⏳ Verificando...';
+
+          const authRes = await fetch('/api/auth/qr/authenticate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              sessionId,
+              credential: passkeyHelper.serializeCredential(assertion)
+            })
+          });
+
+          if (!authRes.ok) {
+            const err = await authRes.json();
+            throw new Error(err.error || 'Error de verificación');
+          }
+
+          const authData = await authRes.json();
+
+          statusIcon.textContent = '✅';
+          statusText.textContent = '¡Autenticación exitosa!';
+          await showStatus('Sesión iniciada como ' + authData.user.username, 'status-success');
+          errorDetail.textContent = 'Puedes cerrar esta página.';
+
+          if (authData.token) {
+            sessionStorage.setItem('auth_token', authData.token);
+            if (authData.user) {
+              sessionStorage.setItem('currentUser', JSON.stringify(authData.user));
+            }
+          }
+
+          authBtn.textContent = '✅ Completado';
+          actions.classList.add('hidden');
+          cancelBtn.textContent = 'Cerrar';
+          cancelBtn.onclick = () => window.close();
+
+          return authData;
+        } catch (e) {
+          statusIcon.textContent = '⚠️';
+          statusText.textContent = 'Verificación fallida';
+
+          if (e.name === 'NotAllowedError' || e.message?.includes('canceled') || e.message?.includes('cancelled')) {
+            await showStatus('Cancelaste la verificación. Puedes intentar de nuevo.', 'status-error');
+          } else if (e.message?.includes('Credencial no encontrada')) {
+            await showStatus('No tienes una passkey registrada. Regístrate primero en la plataforma.', 'status-error');
+            errorDetail.textContent = 'Ve a la plataforma, inicia sesión y registra tu huella o Face ID.';
+          } else {
+            await showStatus(e.message || 'Error en verificación biométrica', 'status-error');
+            errorDetail.textContent = 'Intenta de nuevo o usa otro método de autenticación.';
+          }
+
+          authBtn.textContent = '🔐 Intentar de nuevo';
+          authBtn.disabled = false;
+        }
+      }
+
+      // Event listeners
+      authBtn.addEventListener('click', authenticate);
+      cancelBtn.addEventListener('click', () => {
+        if (confirm('¿Cancelar la autenticación?')) {
+          window.close();
+        }
+      });
+
+      // Auto-iniciar detección
+      try {
+        const supported = await BiometricHelper.isSupported();
+        if (!supported) {
+          statusText.textContent = 'Biometría no disponible';
+          await showStatus('Este dispositivo no tiene huella/Face ID/PIN disponible.', 'status-error');
+          authBtn.disabled = true;
+          return;
+        }
+        statusText.textContent = 'Presiona el botón para autenticarte';
+        authBtn.textContent = '🔐 Autenticar con biometría';
+      } catch (e) {
+        console.warn('Error detectando soporte:', e);
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -8,20 +8,32 @@ class BiometricHelper {
     }
   }
 
+  static async isConditionalMediationAvailable() {
+    if (!window.PublicKeyCredential?.isConditionalMediationAvailable) return false;
+    try {
+      return await PublicKeyCredential.isConditionalMediationAvailable();
+    } catch {
+      return false;
+    }
+  }
+
   static canUseWebAuthn() {
     return !!(navigator.credentials && typeof navigator.credentials.create === 'function' && typeof navigator.credentials.get === 'function');
+  }
+
+  static canUseQRScanning() {
+    const ua = navigator.userAgent || '';
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile/i.test(ua);
+    return isMobile && this.canUseWebAuthn();
   }
 
   static async getSupportStatus() {
     const webAuthn = this.canUseWebAuthn();
     const platform = webAuthn ? await this.isSupported() : false;
-    return { webAuthn, platformBiometric: platform };
+    const conditional = webAuthn ? await this.isConditionalMediationAvailable() : false;
+    return { webAuthn, platformBiometric: platform, conditionalMediation: conditional };
   }
 
-  /**
-   * Detecta el tipo de dispositivo: 'mobile' | 'desktop'
-   * Almacena en sessionStorage para no recalcular en cada página.
-   */
   static detectDeviceType() {
     const cached = sessionStorage.getItem('deviceType');
     if (cached === 'mobile' || cached === 'desktop') return cached;
@@ -38,28 +50,26 @@ class BiometricHelper {
     return this.detectDeviceType() === 'mobile';
   }
 
-  /**
-   * Retorna configuración de botones adaptada al dispositivo.
-   */
+  static isIOS() {
+    const ua = navigator.userAgent || '';
+    return /iPhone|iPad|iPod/i.test(ua);
+  }
+
+  static isAndroid() {
+    const ua = navigator.userAgent || '';
+    return /Android/i.test(ua);
+  }
+
   static getResponsiveButtonConfig() {
     const isMobile = this.isMobile();
     return {
-      biometricText: isMobile ? '🔐 Huella' : '🔐 Desbloquear con biometría',
-      passwordText: isMobile ? '⌨️ Clave' : '⌨️ Usar contraseña de Freighter',
+      biometricText: isMobile ? '🔐 Huella o Face ID' : '🔐 Passkey',
+      qrText: isMobile ? '📷 Escanear QR' : '📱 Login con QR',
+      passwordText: isMobile ? '⌨️ Contraseña' : '⌨️ Usar contraseña',
       buttonPadding: isMobile ? '16px 20px' : '12px 20px',
       buttonFontSize: isMobile ? '1.05rem' : '0.95rem',
       isMobile,
     };
-  }
-
-  /**
-   * Freighter: deep link en móvil, extensión en desktop.
-   */
-  static getFreighterLink() {
-    if (this.isMobile()) {
-      return 'freighter://';
-    }
-    return 'https://freighter.app/';
   }
 
   static showConsentDialog(username) {

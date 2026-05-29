@@ -133,6 +133,9 @@
               <button id="loginBtn" class="btn btn-secondary w-full">
                 <i class="fa-solid fa-key"></i> Conectar con Passkey
               </button>
+              <button id="qrLoginBtn" class="btn btn-secondary w-full">
+                <i class="fa-solid fa-qrcode"></i> Login con QR (cross-device)
+              </button>
             </div>
           </div>
 
@@ -206,23 +209,17 @@
     </div>
   </div>
 
+  <script src="js/passkey-helper.js"></script>
+  <script src="js/biometric-helper.js"></script>
   <script>
     // ============================================================
     // WEB AUTHN + CONTADOR via BACKEND API
     // ============================================================
 
     // ============================================================
-    // HELPERS: ArrayBuffer <-> base64url
+    // PasskeyHelper instance
     // ============================================================
-    function buf2base64url(buf) {
-      return btoa(String.fromCharCode(...new Uint8Array(buf)))
-        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    }
-    function base64url2buf(str) {
-      str = str.replace(/-/g, '+').replace(/_/g, '/');
-      while (str.length % 4) str += '=';
-      return Uint8Array.from(atob(str), c => c.charCodeAt(0));
-    }
+    const passkeyHelper = new PasskeyHelper('');
 
     // ============================================================
     // API CONFIG
@@ -238,7 +235,7 @@
     function apiURL(path) { return API_BASE + path; }
 
     // ============================================================
-    // STATE - Detectar sesión activa (biométrica o por contraseña)
+    // STATE
     // ============================================================
     let currentUsername = sessionStorage.getItem('bio_username') || localStorage.getItem('bio_username') || null;
     let bioToken = sessionStorage.getItem('bio_token') || localStorage.getItem('bio_token') || null;
@@ -250,8 +247,7 @@
       sessionStorage.setItem('bio_username', currentUsername);
       localStorage.removeItem('bio_username');
     }
-    let isPasswordSession = false; // Flag para saber si es token de contraseña
-    // Si no hay sesión biométrica, buscar sesión de contraseña en sessionStorage
+    let isPasswordSession = false;
     if (!bioToken && !currentUsername) {
       const sessionToken = sessionStorage.getItem('auth_token');
       const sessionUser = sessionStorage.getItem('currentUser');
@@ -261,9 +257,7 @@
           bioToken = sessionToken;
           currentUsername = user.username || null;
           isPasswordSession = true;
-        } catch (e) {
-          // Ignorar error
-        }
+        } catch (e) {}
       }
     }
     let counterValue = 0;
@@ -283,6 +277,7 @@
     const usernameInput = $('usernameInput');
     const registerBtn = $('registerBtn');
     const loginBtn = $('loginBtn');
+    const qrLoginBtn = $('qrLoginBtn');
     const logoutBtn = $('logoutBtn');
     const counterLocked = $('counterLocked');
     const counterActive = $('counterActive');
@@ -323,7 +318,6 @@
         showError(counterError, 'Conecta tu Smart Wallet primero con biometría');
         return;
       }
-
       const endpoint = '/api/counter/' + action;
       try {
         const res = await fetch(apiURL(endpoint), {
@@ -337,7 +331,6 @@
         const data = await res.json();
         counterValue = data.value;
         counterDisplay.textContent = counterValue;
-        // Registrar en historial local
         const now = new Date().toLocaleString();
         const txEntry = { action, value: counterValue, username: currentUsername, date: now };
         if (data.txHash) txEntry.txHash = data.txHash;
@@ -415,99 +408,22 @@
     }
 
     // ============================================================
-    // WEBAUTHN: Serializar credential para enviar al backend
-    // ============================================================
-    function serializeCredential(cred) {
-      const out = {
-        id: cred.id,
-        rawId: buf2base64url(cred.rawId),
-        response: {},
-        type: cred.type,
-      };
-      if (cred.response.clientDataJSON) out.response.clientDataJSON = buf2base64url(cred.response.clientDataJSON);
-      if (cred.response.attestationObject) out.response.attestationObject = buf2base64url(cred.response.attestationObject);
-      if (cred.response.authenticatorData) out.response.authenticatorData = buf2base64url(cred.response.authenticatorData);
-      if (cred.response.signature) out.response.signature = buf2base64url(cred.response.signature);
-      if (cred.response.userHandle) out.response.userHandle = buf2base64url(cred.response.userHandle);
-      if (cred.response.getTransports) out.response.transports = cred.response.getTransports();
-      return out;
-    }
-
-    // Preparar opciones de creación (convertir base64url -> ArrayBuffer)
-    function prepareCreationOpts(opts) {
-      return {
-        ...opts,
-        challenge: base64url2buf(opts.challenge),
-        user: { ...opts.user, id: base64url2buf(opts.user.id) },
-        excludeCredentials: (opts.excludeCredentials || []).map(c => ({
-          ...c, id: base64url2buf(c.id)
-        }))
-      };
-    }
-
-    // Preparar opciones de autenticación (convertir base64url -> ArrayBuffer)
-    function prepareRequestOpts(opts) {
-      return {
-        ...opts,
-        challenge: base64url2buf(opts.challenge),
-        allowCredentials: (opts.allowCredentials || []).map(c => ({
-          ...c, id: base64url2buf(c.id)
-        }))
-      };
-    }
-
-    // ============================================================
     // REGISTRAR PASSKEY (via backend)
     // ============================================================
     async function handleRegister() {
       const username = usernameInput.value.trim();
       if (!username) { showError(walletError, 'Ingresa tu nombre de usuario'); return; }
-      if (!navigator.credentials?.create) {
-        showError(walletError, 'Tu navegador no soporta WebAuthn. Usa Chrome, Edge o Safari.');
-        return;
-      }
 
       registerBtn.disabled = true;
-      registerBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando con servidor...';
+      registerBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
       walletError.classList.add('hidden');
 
       try {
-        // 1. Solicitar challenge al backend
-        const beginRes = await fetch(apiURL('/api/auth/passkey/register/begin'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username })
-        });
-        if (!beginRes.ok) {
-          const err = await beginRes.json();
-          throw new Error(err.error || 'Error al iniciar registro');
-        }
-        const creationOpts = await beginRes.json();
-
-        // 2. Pedir biometría al usuario
-        registerBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Esperando biometría...';
-        const credential = await navigator.credentials.create({
-          publicKey: prepareCreationOpts(creationOpts)
-        });
-
-        // 3. Enviar credencial al backend para verificar
-        const completeRes = await fetch(apiURL('/api/auth/passkey/register/complete'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, credential: serializeCredential(credential) })
-        });
-        if (!completeRes.ok) {
-          const err = await completeRes.json();
-          throw new Error(err.error || 'Error al completar registro');
-        }
-        const completeData = await completeRes.json();
-
-        // 4. Guardar token (sessionStorage, se borra al cerrar el navegador)
+        const completeData = await passkeyHelper.registerPasskey(username);
         bioToken = completeData.token;
         currentUsername = username;
         sessionStorage.setItem('bio_token', bioToken);
         sessionStorage.setItem('bio_username', username);
-        // Compartir sesión con el resto del sistema
         sessionStorage.setItem('auth_token', bioToken);
         if (completeData.user) {
           sessionStorage.setItem('currentUser', JSON.stringify(completeData.user));
@@ -529,52 +445,17 @@
     async function handleLogin() {
       const username = usernameInput.value.trim();
       if (!username) { showError(walletError, 'Ingresa tu nombre de usuario'); return; }
-      if (!navigator.credentials?.get) {
-        showError(walletError, 'Tu navegador no soporta WebAuthn.');
-        return;
-      }
 
       loginBtn.disabled = true;
-      loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando con servidor...';
+      loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Conectando...';
       walletError.classList.add('hidden');
 
       try {
-        // 1. Solicitar challenge al backend
-        const beginRes = await fetch(apiURL('/api/auth/passkey/login/begin'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username })
-        });
-        if (!beginRes.ok) {
-          const err = await beginRes.json();
-          throw new Error(err.error || 'Error al iniciar sesión');
-        }
-        const requestOpts = await beginRes.json();
-
-        // 2. Pedir biometría
-        loginBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Verificando biometría...';
-        const assertion = await navigator.credentials.get({
-          publicKey: prepareRequestOpts(requestOpts)
-        });
-
-        // 3. Enviar assertion al backend
-        const completeRes = await fetch(apiURL('/api/auth/passkey/login/complete'), {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, credential: serializeCredential(assertion) })
-        });
-        if (!completeRes.ok) {
-          const err = await completeRes.json();
-          throw new Error(err.error || 'Error al verificar biometría');
-        }
-        const completeData = await completeRes.json();
-
-        // 4. Guardar token (sessionStorage, se borra al cerrar el navegador)
+        const completeData = await passkeyHelper.loginWithPasskey(username);
         bioToken = completeData.token;
         currentUsername = username;
         sessionStorage.setItem('bio_token', bioToken);
         sessionStorage.setItem('bio_username', username);
-        // Compartir sesión con el resto del sistema
         sessionStorage.setItem('auth_token', bioToken);
         if (completeData.user) {
           sessionStorage.setItem('currentUser', JSON.stringify(completeData.user));
@@ -587,6 +468,85 @@
       } finally {
         loginBtn.disabled = false;
         loginBtn.innerHTML = '<i class="fa-solid fa-key"></i> Conectar con Passkey';
+      }
+    }
+
+    // ============================================================
+    // QR CROSS-DEVICE LOGIN
+    // ============================================================
+    async function handleQRLogin() {
+      const username = usernameInput.value.trim();
+      if (!username) { showError(walletError, 'Ingresa tu nombre de usuario'); return; }
+
+      // Mostrar modal QR
+      const existing = document.getElementById('qrModalOverlay');
+      if (existing) existing.remove();
+
+      const overlay = document.createElement('div');
+      overlay.id = 'qrModalOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;padding:16px;';
+
+      overlay.innerHTML = `
+        <div style="background:#1a1a2e;border:1px solid rgba(0,255,255,0.2);border-radius:20px;padding:32px;max-width:400px;width:100%;text-align:center;">
+          <div style="font-size:40px;margin-bottom:12px;">📱</div>
+          <h2 style="color:#00eaff;font-size:1.3rem;margin-bottom:6px;font-weight:700;">Escanea con tu móvil</h2>
+          <p style="color:#aaa;font-size:0.85rem;margin-bottom:20px;">Autentícate con huella o Face ID desde tu celular</p>
+          <div id="qrCodeContainer" style="background:white;border-radius:12px;padding:16px;display:inline-block;margin-bottom:16px;">
+            <div style="width:250px;height:250px;display:flex;align-items:center;justify-content:center;color:#333;font-size:14px;">Generando QR...</div>
+          </div>
+          <div id="qrStatus" style="color:#ffa726;font-size:0.85rem;margin-bottom:16px;min-height:24px;">⏳ Esperando escaneo...</div>
+          <button id="qrCancelBtn" class="btn btn-secondary" style="padding:12px 24px;">Cancelar</button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      document.getElementById('qrCancelBtn').onclick = () => overlay.remove();
+
+      try {
+        const qrContainer = document.getElementById('qrCodeContainer');
+        const statusEl = document.getElementById('qrStatus');
+
+        const data = await passkeyHelper.generateQR(username, (status, result, error) => {
+          switch (status) {
+            case 'pending':
+              statusEl.textContent = '⏳ Esperando escaneo...';
+              break;
+            case 'scanned':
+              statusEl.textContent = '📱 QR escaneado. Autenticando...';
+              statusEl.style.color = '#4caf50';
+              break;
+            case 'authenticated':
+              if (result && result.token) {
+                bioToken = result.token;
+                sessionStorage.setItem('bio_token', bioToken);
+                sessionStorage.setItem('auth_token', bioToken);
+                if (result.user) sessionStorage.setItem('currentUser', JSON.stringify(result.user));
+              }
+              statusEl.textContent = '✅ Autenticación exitosa!';
+              statusEl.style.color = '#4caf50';
+              qrContainer.innerHTML = '<div style="font-size:48px;">✅</div>';
+              setTimeout(() => { overlay.remove(); updateUI(); }, 1000);
+              break;
+            case 'expired':
+              statusEl.textContent = '⏰ Tiempo agotado. Genera un nuevo QR.';
+              statusEl.style.color = '#ef4444';
+              break;
+            case 'failed':
+              statusEl.textContent = '❌ Error: ' + (error || 'Falló');
+              statusEl.style.color = '#ef4444';
+              break;
+            default:
+              statusEl.textContent = '⏳ ' + status + '...';
+          }
+        });
+
+        const img = document.createElement('img');
+        img.src = data.qrCode;
+        img.style.width = '250px';
+        img.style.height = '250px';
+        qrContainer.innerHTML = '';
+        qrContainer.appendChild(img);
+      } catch (e) {
+        document.getElementById('qrStatus').textContent = '❌ Error: ' + e.message;
       }
     }
 
@@ -618,6 +578,7 @@
     // ============================================================
     registerBtn.addEventListener('click', handleRegister);
     loginBtn.addEventListener('click', handleLogin);
+    if (qrLoginBtn) qrLoginBtn.addEventListener('click', handleQRLogin);
     logoutBtn.addEventListener('click', handleLogout);
     incrementBtn.addEventListener('click', () => counterAction('increment'));
     decrementBtn.addEventListener('click', () => counterAction('decrement'));

@@ -96,10 +96,41 @@ class AuthManager {
     }
 
     /**
+     * Inicia sesión con biométrica (Passkey)
+     */
+    async loginWithPasskey(username) {
+        try {
+            if (typeof PasskeyHelper === 'undefined') {
+                throw new Error('PasskeyHelper no disponible. Carga passkey-helper.js primero.');
+            }
+            const pkHelper = new PasskeyHelper(window.apiClient?.baseURL || '');
+            const result = await pkHelper.loginWithPasskey(username);
+            
+            if (result.token) {
+                sessionStorage.setItem('auth_token', result.token);
+                if (window.apiClient) window.apiClient.setToken(result.token);
+            }
+            
+            if (result.user) {
+                this.login(result.user);
+            }
+            
+            return result;
+        } catch (e) {
+            console.error('Error en login biométrico:', e);
+            throw e;
+        }
+    }
+
+    /**
      * Cierra sesión
      */
     logout() {
         this.currentUser = null;
+        sessionStorage.removeItem('auth_token');
+        sessionStorage.removeItem('bio_token');
+        sessionStorage.removeItem('bio_username');
+        if (window.apiClient) window.apiClient.clearToken();
     }
 
     /**

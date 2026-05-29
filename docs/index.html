@@ -68,9 +68,14 @@
         <button type="submit" id="loginBtn" class="btn btn-primary" style="margin-top: 1rem;">
           Iniciar Sesión &rarr;
         </button>
-        <button type="button" id="biometricLoginBtn" class="btn btn-secondary btn-responsive" style="margin-top: 0.5rem; width: 100%;">
-          <span id="biometricBtnText">🔐 Iniciar con Biometría</span>
-        </button>
+        <div style="display:flex;gap:8px;margin-top:0.5rem;">
+          <button type="button" id="biometricLoginBtn" class="btn btn-secondary btn-responsive" style="flex:1;">
+            <span id="biometricBtnText">🔐 Passkey</span>
+          </button>
+          <button type="button" id="qrLoginBtn" class="btn btn-secondary btn-responsive" style="flex:1;">
+            📱 QR
+          </button>
+        </div>
       </form>
 
       <!-- Advanced / Web3 Section -->
@@ -121,6 +126,7 @@
   <script src="js/api-client.js"></script>
   <script src="js/activities-system.js"></script>
   <script src="js/biometric-helper.js"></script>
+  <script src="js/passkey-helper.js"></script>
   <script>
     // Banner si está en surge.sh
     if (window.location.hostname.includes('surge.sh')) {
@@ -337,44 +343,9 @@
     }
 
     // ============================================================
-    // LOGIN BIOMÉTRICO (Passkeys)
+    // PASSKEY HELPER INSTANCE
     // ============================================================
-
-    // Funciones auxiliares WebAuthn
-    function buf2base64url(buf) {
-      const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : new Uint8Array(buf.buffer);
-      let binary = '';
-      for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-    }
-
-    function base64url2buf(str) {
-      str = str.replace(/-/g, '+').replace(/_/g, '/');
-      while (str.length % 4) str += '=';
-      const binary = atob(str);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      return bytes.buffer;
-    }
-
-    function serializeCredential(cred) {
-      const out = { id: cred.id, rawId: buf2base64url(cred.rawId), response: {}, type: cred.type };
-      if (cred.response.clientDataJSON) out.response.clientDataJSON = buf2base64url(cred.response.clientDataJSON);
-      if (cred.response.attestationObject) out.response.attestationObject = buf2base64url(cred.response.attestationObject);
-      if (cred.response.authenticatorData) out.response.authenticatorData = buf2base64url(cred.response.authenticatorData);
-      if (cred.response.signature) out.response.signature = buf2base64url(cred.response.signature);
-      if (cred.response.userHandle) out.response.userHandle = buf2base64url(cred.response.userHandle);
-      if (cred.response.getTransports) out.response.transports = cred.response.getTransports();
-      return out;
-    }
-
-    function prepareRequestOpts(opts) {
-      return {
-        ...opts,
-        challenge: base64url2buf(opts.challenge),
-        allowCredentials: (opts.allowCredentials || []).map(c => ({ ...c, id: base64url2buf(c.id) }))
-      };
-    }
+    const passkeyHelper = new PasskeyHelper(apiClient ? apiClient.baseURL : '');
 
     // ============================================================
     // DETECCIÓN DE SOPORTE BIOMÉTRICO
@@ -382,21 +353,22 @@
     (async function initBiometricUI() {
       const bioBtn = document.getElementById('biometricLoginBtn');
       const bioText = document.getElementById('biometricBtnText');
+      const qrBtn = document.getElementById('qrLoginBtn');
 
-      // Aplicar texto responsivo según dispositivo
       const config = BiometricHelper.getResponsiveButtonConfig();
       bioText.textContent = config.biometricText;
       bioBtn.style.padding = config.buttonPadding;
       bioBtn.style.fontSize = config.buttonFontSize;
 
+      if (qrBtn) {
+        qrBtn.textContent = '📱 ' + (BiometricHelper.isMobile() ? 'Escanear QR' : 'Login con QR');
+      }
+
       try {
         const status = await BiometricHelper.getSupportStatus();
         if (!status.platformBiometric) {
           bioBtn.style.display = 'none';
-          const note = document.createElement('p');
-          note.style.cssText = 'color:#888;font-size:0.8rem;text-align:center;margin-top:0.5rem;';
-          note.textContent = '💡 La biometría no está disponible en este dispositivo. Usa tu contraseña.';
-          bioBtn.parentNode.insertBefore(note, bioBtn.nextSibling);
+          if (qrBtn) { qrBtn.style.flex = '1'; }
         } else {
           bioBtn.style.display = 'block';
         }
@@ -413,56 +385,25 @@
       const username = document.getElementById('username').value.trim();
       if (!username) { showToast('Ingresa tu nombre de usuario primero', 'error'); return; }
 
-      if (!navigator.credentials?.get) {
-        showToast('Tu navegador no soporta biometría. Usa Chrome, Edge o Safari.', 'error');
-        return;
-      }
-
       const btnText = document.getElementById('biometricBtnText');
       try {
-        btnText.textContent = '⏳ Conectando con servidor...';
+        btnText.textContent = '⏳ Verificando...';
+        const result = await passkeyHelper.loginWithPasskey(username);
 
-        const beginRes = await fetch(`/api/auth/passkey/login/begin`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username })
-        });
-        if (!beginRes.ok) {
-          const err = await beginRes.json();
-          throw new Error(err.error || 'Error al iniciar sesión biométrica');
-        }
-        const requestOpts = await beginRes.json();
-
-        btnText.textContent = '⏳ Verificando biometría...';
-        const assertion = await navigator.credentials.get({
-          publicKey: prepareRequestOpts(requestOpts)
-        });
-
-        const completeRes = await fetch(`/api/auth/passkey/login/complete`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, credential: serializeCredential(assertion) })
-        });
-        if (!completeRes.ok) {
-          const err = await completeRes.json();
-          throw new Error(err.error || 'Error al verificar biometría');
-        }
-        const completeData = await completeRes.json();
-
-        sessionStorage.setItem('auth_token', completeData.token);
-        if (completeData.user) {
-          sessionStorage.setItem('currentUser', JSON.stringify(completeData.user));
+        sessionStorage.setItem('auth_token', result.token);
+        if (result.user) {
+          sessionStorage.setItem('currentUser', JSON.stringify(result.user));
         }
         if (typeof apiClient !== 'undefined') {
-          apiClient.setToken(completeData.token);
+          apiClient.setToken(result.token);
         }
 
         showToast(`Bienvenido ${username}`, 'success');
         setTimeout(() => window.location.href = "Inicio.html", 1000);
       } catch (e) {
         btnText.textContent = BiometricHelper.getResponsiveButtonConfig().biometricText;
-        if (e.name === 'NotAllowedError' || e.message?.includes('canceled') || e.message?.includes('cancelled')) {
-          showToast('Verificación cancelada. Puedes usar tu contraseña.', 'error');
+        if (e.message?.includes('Cancelaste')) {
+          showToast('Verificación cancelada. Usa tu contraseña.', 'error');
         } else {
           showToast(e.message || 'Error en autenticación biométrica', 'error');
         }
@@ -472,15 +413,111 @@
     document.getElementById('biometricLoginBtn').addEventListener('click', handleBiometricLogin);
 
     // ============================================================
+    // LOGIN CROSS-DEVICE VIA QR
+    // ============================================================
+    async function handleQRLogin() {
+      const username = document.getElementById('username').value.trim();
+      if (!username) { showToast('Ingresa tu nombre de usuario primero', 'error'); return; }
+
+      // Mostrar modal QR
+      const existing = document.getElementById('qrModalOverlay');
+      if (existing) existing.remove();
+
+      const overlay = document.createElement('div');
+      overlay.id = 'qrModalOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:99999;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;padding:16px;';
+
+      overlay.innerHTML = `
+        <div style="background:#1a1a2e;border:1px solid rgba(0,255,255,0.2);border-radius:20px;padding:32px;max-width:400px;width:100%;text-align:center;">
+          <div style="font-size:40px;margin-bottom:12px;">📱</div>
+          <h2 style="color:#00eaff;font-size:1.3rem;margin-bottom:6px;font-weight:700;">Escanea con tu móvil</h2>
+          <p style="color:#aaa;font-size:0.85rem;margin-bottom:20px;">
+            Usa la cámara de tu celular para escanear el código QR y autenticarte con huella o Face ID.
+          </p>
+          <div id="qrCodeContainer" style="background:white;border-radius:12px;padding:16px;display:inline-block;margin-bottom:16px;">
+            <div style="width:250px;height:250px;display:flex;align-items:center;justify-content:center;color:#333;font-size:14px;">Generando QR...</div>
+          </div>
+          <div id="qrStatus" style="color:#ffa726;font-size:0.85rem;margin-bottom:16px;min-height:24px;">
+            ⏳ Esperando escaneo...
+          </div>
+          <button id="qrCancelBtn" style="padding:12px 24px;border-radius:12px;background:rgba(255,255,255,0.08);color:white;border:1px solid rgba(255,255,255,0.15);cursor:pointer;font-weight:600;font-size:0.9rem;">Cancelar</button>
+        </div>
+      `;
+
+      document.body.appendChild(overlay);
+      document.getElementById('qrCancelBtn').onclick = () => overlay.remove();
+
+      try {
+        const data = await passkeyHelper.generateQR(username, (status, result, error) => {
+          const statusEl = document.getElementById('qrStatus');
+          const qrContainer = document.getElementById('qrCodeContainer');
+
+          switch (status) {
+            case 'pending':
+              statusEl.textContent = '⏳ Esperando que escanees el QR...';
+              break;
+            case 'scanned':
+              statusEl.textContent = '📱 QR escaneado. Autenticando...';
+              statusEl.style.color = '#4caf50';
+              break;
+            case 'authenticated':
+              if (result && result.token) {
+                sessionStorage.setItem('auth_token', result.token);
+                if (result.user) {
+                  sessionStorage.setItem('currentUser', JSON.stringify(result.user));
+                }
+                apiClient.setToken(result.token);
+              }
+              statusEl.textContent = '✅ ¡Autenticación exitosa! Redirigiendo...';
+              statusEl.style.color = '#4caf50';
+              qrContainer.innerHTML = '<div style="font-size:48px;">✅</div>';
+              setTimeout(() => {
+                overlay.remove();
+                window.location.href = "Inicio.html";
+              }, 1500);
+              break;
+            case 'expired':
+              statusEl.textContent = '⏰ Tiempo agotado. Genera un nuevo QR.';
+              statusEl.style.color = '#ef4444';
+              break;
+            case 'failed':
+              statusEl.textContent = `❌ Error: ${error || 'Autenticación fallida'}`;
+              statusEl.style.color = '#ef4444';
+              break;
+            default:
+              statusEl.textContent = `⏳ ${status}...`;
+          }
+        });
+
+        // Mostrar QR generado
+        const qrContainer = document.getElementById('qrCodeContainer');
+        const img = document.createElement('img');
+        img.src = data.qrCode;
+        img.style.width = '250px';
+        img.style.height = '250px';
+        img.alt = 'Código QR de autenticación';
+        qrContainer.innerHTML = '';
+        qrContainer.appendChild(img);
+
+      } catch (e) {
+        const statusEl = document.getElementById('qrStatus');
+        statusEl.textContent = `❌ Error: ${e.message}`;
+        statusEl.style.color = '#ef4444';
+      }
+    }
+
+    const qrBtn = document.getElementById('qrLoginBtn');
+    if (qrBtn) qrBtn.addEventListener('click', handleQRLogin);
+
+    // ============================================================
     // CONSENTIMIENTO POST-LOGIN CON CONTRASEÑA
     // ============================================================
     async function promptBiometricConsentAfterLogin(username) {
       if (localStorage.getItem('bio_consent_skipped') === 'true') return;
       if (localStorage.getItem('bio_username') === username) return;
 
-      const pkHelper = new PasskeyHelper(apiClient ? apiClient.baseURL : '');
       try {
-        const hasPasskey = await pkHelper.hasPasskey(username);
+        const hasPasskey = await passkeyHelper.hasPasskey(username);
         if (hasPasskey) return;
       } catch (e) {
         return;
@@ -489,7 +526,11 @@
       const consent = await BiometricHelper.showConsentDialog(username);
       if (consent === true) {
         try {
-          await pkHelper.registerPasskey(username);
+          const result = await passkeyHelper.registerPasskey(username);
+          if (result && result.token) {
+            sessionStorage.setItem('auth_token', result.token);
+            apiClient.setToken(result.token);
+          }
           localStorage.setItem('bio_username', username);
           showToast('✅ Passkey registrada. Ahora puedes iniciar sesión con biometría.', 'success');
         } catch (e) {
