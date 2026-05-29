@@ -230,51 +230,22 @@
           localStorage.setItem('wallet_public_' + username, stellarPublic);
         } catch (e) {}
 
-        // Intentar registro por API backend
-        try {
-          const result = await apiClient.register({
-            username, email, password, role,
-            stellarPublic: stellarPublicToSend || undefined,
-            stellarSecretEncrypted: stellarSecretEncrypted || undefined
-          });
+        // Intentar registro por API backend (PRINCIPAL)
+        const result = await apiClient.register({
+          username, email, password, role,
+          stellarPublic: stellarPublicToSend || undefined,
+          stellarSecretEncrypted: stellarSecretEncrypted || undefined
+        });
 
-          if (result.token) {
-            apiClient.setToken(result.token);
-          }
-
-          messageDiv.textContent = '✅ Usuario registrado exitosamente! Redirigiendo...';
+        if (result.token) {
+          apiClient.setToken(result.token);
+          messageDiv.textContent = '✅ Usuario registrado exitosamente en el servidor! Redirigiendo...';
           messageDiv.className = 'mt-4 text-sm p-3 rounded-lg bg-green-900 text-green-200';
           setTimeout(() => window.location.href = 'index.html', 1500);
           return;
-        } catch (apiErr) {
-          console.warn('API no disponible, guardando localmente:', apiErr.message);
         }
 
-        // Fallback: guardar en localStorage (SOLO cifrado, NUNCA texto plano)
-        const encoder = new TextEncoder();
-        const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(password));
-        const hash = Array.prototype.map.call(new Uint8Array(hashBuf), x => ('00' + x.toString(16)).slice(-2)).join('');
-
-        const newUser = {
-          username, email, passwordHash: hash, role,
-          stellarPublic, stellarSecret: stellarSecretEncrypted,
-          createdAt: new Date().toISOString()
-        };
-
-        if (stellarSecretEncrypted) {
-          newUser.encryptedSecret = stellarSecretEncrypted;
-        }
-
-        const users = JSON.parse(localStorage.getItem('users') || '[]');
-        if (users.find(u => u.username === username || u.email === email)) {
-          throw new Error('El usuario o correo ya está registrado');
-        }
-        users.push(newUser);
-        localStorage.setItem('users', JSON.stringify(users));
-
-        messageDiv.textContent = '✅ Usuario registrado exitosamente! Redirigiendo...';
-        messageDiv.className = 'mt-4 text-sm p-3 rounded-lg bg-green-900 text-green-200';
-        setTimeout(() => window.location.href = 'index.html', 1500);
+        throw new Error('El servidor no devolvió un token de autenticación.');
       } catch (error) {
         messageDiv.textContent = '❌ Error al registrar: ' + error.message;
         messageDiv.className += ' bg-red-900 text-red-200';

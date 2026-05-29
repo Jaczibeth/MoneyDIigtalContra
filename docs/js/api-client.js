@@ -55,40 +55,37 @@ class ApiClient {
   }
 
   async register(data) {
-    if (this.backendAvailable || await this.isBackendAlive()) {
-      const res = await fetch(`${this.baseURL}/api/auth/register`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error);
-      this.setToken(json.token);
-      if (json.user && json.user.stellarPublic) {
-        const currentUser = JSON.parse(sessionStorage.getItem('currentUser') || '{}');
-        currentUser.stellarPublic = json.user.stellarPublic;
-        if (json.user.stellarSecretEncrypted) {
-          currentUser.stellarSecretEncrypted = json.user.stellarSecretEncrypted;
+    let lastError = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 2000 * attempt));
+        const res = await fetch(`${this.baseURL}/api/auth/register`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data)
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error);
+        this.setToken(json.token);
+        this.backendAvailable = true;
+        if (json.user) {
+          sessionStorage.setItem('currentUser', JSON.stringify(json.user));
         }
-        sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
+        return json;
+      } catch (e) {
+        const isNetworkError = e.message.includes('Failed to fetch') ||
+                               e.message.includes('NetworkError') ||
+                               e.message.includes('load') ||
+                               e.message.includes('ERR_CONNECTION') ||
+                               e.message.includes('ERR_NAME_NOT_RESOLVED') ||
+                               e.message.includes('timed out') ||
+                               e.message.includes('aborted') ||
+                               e.message.includes('network') ||
+                               e.name === 'TypeError';
+        if (!isNetworkError) throw e;
+        lastError = e;
+        console.warn(`Intento ${attempt + 1} falló (red), reintentando...`, e.message);
       }
-      return json;
     }
-    const users = JSON.parse(localStorage.getItem('users') || '[]');
-    if (users.find(u => u.username === data.username || u.email === data.email)) {
-      throw new Error('Usuario o email ya registrado');
-    }
-    const encoder = new TextEncoder();
-    const hashBuf = await crypto.subtle.digest('SHA-256', encoder.encode(data.password));
-    const hash = Array.prototype.map.call(new Uint8Array(hashBuf), x => ('00' + x.toString(16)).slice(-2)).join('');
-    const user = {
-      id: Date.now().toString(), username: data.username, email: data.email,
-      passwordHash: hash, role: data.role || 'estudiante',
-      stellarPublic: data.stellarPublic || null,
-      stellarSecretEncrypted: data.stellarSecretEncrypted || null,
-      createdAt: new Date().toISOString()
-    };
-    users.push(user);
-    localStorage.setItem('users', JSON.stringify(users));
-    return { token: null, user };
+    throw new Error('No se pudo conectar con el servidor después de varios intentos. Verifica tu conexión a internet o intenta más tarde. Detalles: ' + (lastError?.message || ''));
   }
 
   async login(username, password) {
