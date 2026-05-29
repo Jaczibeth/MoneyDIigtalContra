@@ -4,7 +4,7 @@ class PasskeyHelper {
   }
 
   buf2base64url(buf) {
-    const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : new Uint8Array(buf.buffer);
+    const bytes = buf instanceof Uint8Array ? buf : new Uint8Array(buf);
     let binary = '';
     for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
     return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -16,7 +16,7 @@ class PasskeyHelper {
     const binary = atob(str);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    return bytes.buffer;
+    return bytes;
   }
 
   serializeCredential(cred) {
@@ -26,7 +26,11 @@ class PasskeyHelper {
     if (cred.response.authenticatorData) out.response.authenticatorData = this.buf2base64url(cred.response.authenticatorData);
     if (cred.response.signature) out.response.signature = this.buf2base64url(cred.response.signature);
     if (cred.response.userHandle) out.response.userHandle = this.buf2base64url(cred.response.userHandle);
-    if (cred.response.getTransports) out.response.transports = cred.response.getTransports();
+    if (cred.response.getTransports) {
+      out.response.transports = cred.response.getTransports();
+    } else if (cred.response.transports) {
+      out.response.transports = Array.isArray(cred.response.transports) ? cred.response.transports : [];
+    }
     return out;
   }
 
@@ -52,6 +56,16 @@ class PasskeyHelper {
       throw new Error('Tu navegador no soporta WebAuthn. Usa Chrome, Edge o Safari.');
     }
 
+    // Verificar disponibilidad biométrica
+    try {
+      const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+      if (!available) {
+        throw new Error('Este dispositivo no tiene biometría disponible (huella/Face ID/PIN).');
+      }
+    } catch (e) {
+      if (e.message.includes('no tiene biometría')) throw e;
+    }
+
     const beginRes = await fetch(`${this.apiBase}/api/auth/passkey/register/begin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -63,9 +77,20 @@ class PasskeyHelper {
     }
     const creationOpts = await beginRes.json();
 
-    const credential = await navigator.credentials.create({
-      publicKey: this.prepareCreationOpts(creationOpts)
-    });
+    let credential;
+    try {
+      credential = await navigator.credentials.create({
+        publicKey: this.prepareCreationOpts(creationOpts)
+      });
+    } catch (e) {
+      if (e.name === 'NotAllowedError') {
+        throw new Error('Cancelaste la verificación biométrica. Puedes intentar de nuevo.');
+      }
+      if (e.name === 'NotSupportedError') {
+        throw new Error('Tu dispositivo no soporta este tipo de autenticación. Usa un dispositivo más reciente.');
+      }
+      throw new Error(`Error biométrico: ${e.message}`);
+    }
 
     const completeRes = await fetch(`${this.apiBase}/api/auth/passkey/register/complete`, {
       method: 'POST',
@@ -95,14 +120,81 @@ class PasskeyHelper {
     }
     const requestOpts = await beginRes.json();
 
-    const assertion = await navigator.credentials.get({
-      publicKey: this.prepareRequestOpts(requestOpts)
-    });
+    let assertion;
+    try {
+      assertion = await navigator.credentials.get({
+        publicKey: this.prepareRequestOpts(requestOpts)
+      });
+    } catch (e) {
+      if (e.name === 'NotAllowedError') {
+        throw new Error('Cancelaste la verificación biométrica.');
+      }
+      if (e.name === 'SecurityError') {
+        throw new Error('Error de seguridad: el RP_ID no coincide con el origen de la página.');
+      }
+      throw new Error(`Error al verificar biometría: ${e.message}`);
+    }
 
     const completeRes = await fetch(`${this.apiBase}/api/auth/passkey/login/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, credential: this.serializeCredential(assertion) })
+    });
+    if (!completeRes.ok) {
+      const err = await completeRes.json();
+      throw new Error(err.error || 'Error al verificar biometría');
+    }
+    return await completeRes.json();
+  }
+
+  // Login sin username (passkey discovery) - el navegador devuelve el userHandle
+  async loginWithDiscovery() {
+    if (!navigator.credentials?.get) {
+      throw new Error('Tu navegador no soporta WebAuthn.');
+    }
+
+    const beginRes = await fetch(`${this.apiBase}/api/auth/passkey/login/begin`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: '__discovery__' })
+    });
+    if (!beginRes.ok) {
+      const err = await beginRes.json();
+      throw new Error(err.error || 'Error al iniciar sesión');
+    }
+    const requestOpts = await beginRes.json();
+
+    let assertion;
+    try {
+      assertion = await navigator.credentials.get({
+        publicKey: this.prepareRequestOpts(requestOpts),
+        mediation: 'conditional' // Para usar autofill conditionally
+      });
+    } catch (e) {
+      if (e.name === 'NotAllowedError') {
+        throw new Error('Cancelaste la verificación.');
+      }
+      throw new Error(`Error: ${e.message}`);
+    }
+
+    // Extraer userHandle para identificar al usuario
+    let discoveredUsername = null;
+    if (assertion.response.userHandle) {
+      const decoder = new TextDecoder();
+      discoveredUsername = decoder.decode(
+        assertion.response.userHandle instanceof ArrayBuffer
+          ? new Uint8Array(assertion.response.userHandle)
+          : assertion.response.userHandle
+      );
+    }
+
+    const completeRes = await fetch(`${this.apiBase}/api/auth/passkey/login/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: discoveredUsername || '__discovery__',
+        credential: this.serializeCredential(assertion)
+      })
     });
     if (!completeRes.ok) {
       const err = await completeRes.json();
@@ -140,5 +232,58 @@ class PasskeyHelper {
       throw new Error(err.error || 'Error al eliminar passkey');
     }
     return await res.json();
+  }
+
+  // ============================================================
+  // QR CROSS-DEVICE AUTH
+  // ============================================================
+
+  async generateQR(username, onStatusChange) {
+    const res = await fetch(`${this.apiBase}/api/auth/qr/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username })
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Error al generar QR');
+    }
+    const data = await res.json();
+
+    // Iniciar polling del estado
+    this._pollQRStatus(data.sessionId, onStatusChange);
+    return data;
+  }
+
+  async _pollQRStatus(sessionId, onStatusChange) {
+    const maxPolls = 120; // 2 minutos máximo (cada 1s)
+    let pollCount = 0;
+
+    const poll = async () => {
+      if (pollCount >= maxPolls) {
+        onStatusChange?.('expired', null, 'Tiempo de espera agotado. Escanea el QR más rápido.');
+        return;
+      }
+      pollCount++;
+
+      try {
+        const res = await fetch(`${this.apiBase}/api/auth/qr/status/${sessionId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        onStatusChange?.(data.status, data, data.error);
+
+        if (data.status === 'authenticated' || data.status === 'expired' || data.status === 'failed') {
+          return; // Fin del polling
+        }
+
+        setTimeout(poll, 1000);
+      } catch (e) {
+        onStatusChange?.('error', null, e.message);
+        setTimeout(poll, 2000);
+      }
+    };
+
+    setTimeout(poll, 1000);
   }
 }
