@@ -17,6 +17,9 @@ const {
 } = require('@simplewebauthn/server');
 const { isoBase64URL, isoUint8Array } = require('@simplewebauthn/server/helpers');
 
+// QR para autenticación cross-device
+const QRCode = require('qrcode');
+
 // Stellar Soroban SDK
 const StellarSdk = require('@stellar/stellar-sdk');
 
@@ -40,57 +43,75 @@ if (!DATABASE_URL) {
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// SEGURIDAD: JWT_SECRET y JWT_WEBAUTHN_SECRET deben venir de variables de entorno.
-// En desarrollo se generan automáticamente; en producción son OBLIGATORIAS.
-const JWT_SECRET = process.env.JWT_SECRET || crypto.randomBytes(32).toString('hex');
-const JWT_WEBAUTHN_SECRET = process.env.JWT_WEBAUTHN_SECRET || crypto.randomBytes(32).toString('hex');
-
-if (!process.env.JWT_SECRET || !process.env.JWT_WEBAUTHN_SECRET) {
-  console.warn('⚠️  ADVERTENCIA: JWT_SECRET y/o JWT_WEBAUTHN_SECRET no están configurados como variables de entorno.');
-  console.warn('   Usando valores generados aleatoriamente. Las sesiones se invalidarán al reiniciar el servidor.');
-  console.warn('   Para producción, configura: export JWT_SECRET=... && export JWT_WEBAUTHN_SECRET=...');
-}
+let JWT_SECRET = process.env.JWT_SECRET;
+let JWT_WEBAUTHN_SECRET = process.env.JWT_WEBAUTHN_SECRET;
 
 // Configuración WebAuthn (Passkeys)
 const RP_NAME = 'Money Digital - GROUP JAD';
 const isRender = !!process.env.RENDER;
 const isRailway = !!process.env.RAILWAY;
 const RP_ID = process.env.RP_ID || process.env.RENDER_EXTERNAL_HOSTNAME || process.env.RAILWAY_PUBLIC_DOMAIN || 'localhost';
+
+// ORIGINS debe contener SOLO origins exactos que el navegador reportará
 const ORIGINS = (() => {
-  if (process.env.ORIGINS) return process.env.ORIGINS.split(',');
-  const origins = [`http://localhost:${PORT}`, 'http://localhost:3000', 'http://localhost:8080'];
+  if (process.env.ORIGINS) return process.env.ORIGINS.split(',').map(s => s.trim());
+  const origins = [];
+  // Desarrollo local
+  origins.push('http://localhost:8080');
+  origins.push('http://localhost:3000');
+  // Producción Render
   if (process.env.ORIGIN) origins.push(process.env.ORIGIN);
-  if (isRender && RP_ID) origins.push(`https://${RP_ID}`);
-  if (isRailway && process.env.RAILWAY_PUBLIC_DOMAIN) origins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+  if (isRender && process.env.RENDER_EXTERNAL_HOSTNAME) {
+    origins.push(`https://${process.env.RENDER_EXTERNAL_HOSTNAME}`);
+  }
+  if (isRailway && process.env.RAILWAY_PUBLIC_DOMAIN) {
+    origins.push(`https://${process.env.RAILWAY_PUBLIC_DOMAIN}`);
+  }
+  // Surge (solo frontend estático)
   origins.push('https://money-digital.surge.sh');
-  return origins;
+  return [...new Set(origins)];
 })();
 
-// Store de challenges con persistencia en SQLite
+function getRPID(req) {
+  if (process.env.RP_ID) return process.env.RP_ID;
+  const host = req?.headers?.host || 'localhost';
+  if (isRender && process.env.RENDER_EXTERNAL_HOSTNAME) return process.env.RENDER_EXTERNAL_HOSTNAME;
+  if (isRailway && process.env.RAILWAY_PUBLIC_DOMAIN) return process.env.RAILWAY_PUBLIC_DOMAIN;
+  return host.split(':')[0];
+}
+
+function getOrigin(req) {
+  const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost';
+  const fullHost = host.includes(':') ? host : (proto === 'https' ? host : host + (process.env.PORT ? `:${process.env.PORT}` : ''));
+  return `${proto}://${fullHost}`;
+}
+
+// Challenge lifetime: configurable, default 5 min para flujo cross-device con QR
+const CHALLENGE_TTL = (parseInt(process.env.CHALLENGE_TTL) || 5) * 60 * 1000;
+
 const challengeStore = {
-  set(key, data) {
+  async set(key, data) {
     try {
       const id = `ch_${uuidv4()}`;
-      const type = key.includes('register') ? 'register' : 'login';
-      const username = key.replace(/^(register|login):/, '');
-      // Eliminar challenge previo del mismo tipo/usuario si existe
-      db.run(`DELETE FROM auth_challenges WHERE type = ? AND username = ?`, [type, username]);
-      db.run(`INSERT INTO auth_challenges (id, type, username, challenge, expires_at) VALUES (?, ?, ?, ?, ?)`,
+      const type = key.includes('register') ? 'register' : key.includes('login') ? 'login' : 'qrauth';
+      const username = key.replace(/^(register|login|qrauth):/, '');
+      await dbRun(`DELETE FROM auth_challenges WHERE type = ? AND username = ?`, [type, username]);
+      await dbRun(`INSERT INTO auth_challenges (id, type, username, challenge, expires_at) VALUES (?, ?, ?, ?, ?)`,
         [id, type, username, JSON.stringify(data), data.expiresAt]);
-      saveDB();
       this._cache.set(key, data);
     } catch (e) {
       console.warn('Error guardando challenge en DB, usando cache:', e.message);
       this._cache.set(key, data);
     }
   },
-  get(key) {
+  async get(key) {
     const cached = this._cache.get(key);
     if (cached) return cached;
     try {
-      const type = key.includes('register') ? 'register' : 'login';
-      const username = key.replace(/^(register|login):/, '');
-      const result = db.exec(`SELECT challenge FROM auth_challenges WHERE type = ? AND username = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1`,
+      const type = key.includes('register') ? 'register' : key.includes('login') ? 'login' : 'qrauth';
+      const username = key.replace(/^(register|login|qrauth):/, '');
+      const result = await dbExec(`SELECT challenge FROM auth_challenges WHERE type = ? AND username = ? AND expires_at > ? ORDER BY created_at DESC LIMIT 1`,
         [type, username, Date.now()]);
       if (result.length && result[0].values.length) {
         const data = JSON.parse(result[0].values[0][0]);
@@ -102,13 +123,12 @@ const challengeStore = {
     }
     return null;
   },
-  delete(key) {
+  async delete(key) {
     this._cache.delete(key);
     try {
-      const type = key.includes('register') ? 'register' : 'login';
-      const username = key.replace(/^(register|login):/, '');
-      db.run(`DELETE FROM auth_challenges WHERE type = ? AND username = ?`, [type, username]);
-      saveDB();
+      const type = key.includes('register') ? 'register' : key.includes('login') ? 'login' : 'qrauth';
+      const username = key.replace(/^(register|login|qrauth):/, '');
+      await dbRun(`DELETE FROM auth_challenges WHERE type = ? AND username = ?`, [type, username]);
     } catch (e) {
       console.warn('Error eliminando challenge de DB:', e.message);
     }
@@ -120,11 +140,39 @@ const UPLOADS_DIR = path.join(__dirname, 'uploads');
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_PATH = path.join(DATA_DIR, 'database.sqlite');
 const DOCS_DIR = path.join(__dirname, 'docs');
+const SECRETS_FILE = path.join(DATA_DIR, 'jwt_secrets.json');
 
 // Asegurar directorios
 [DATA_DIR, UPLOADS_DIR].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
+
+function loadOrGenerateSecrets() {
+  if (JWT_SECRET && JWT_WEBAUTHN_SECRET) return;
+  try {
+    if (fs.existsSync(SECRETS_FILE)) {
+      const saved = JSON.parse(fs.readFileSync(SECRETS_FILE, 'utf8'));
+      if (saved.jwt && saved.webauthn) {
+        JWT_SECRET = saved.jwt;
+        JWT_WEBAUTHN_SECRET = saved.webauthn;
+        console.log('🔑 Secretos JWT cargados desde archivo persistente.');
+        return;
+      }
+    }
+  } catch (e) { /* ignorar */ }
+  const secrets = {
+    jwt: crypto.randomBytes(32).toString('hex'),
+    webauthn: crypto.randomBytes(32).toString('hex'),
+  };
+  try {
+    fs.writeFileSync(SECRETS_FILE, JSON.stringify(secrets, null, 2));
+    console.log('🔑 Secretos JWT generados y guardados permanentemente en data/jwt_secrets.json');
+    console.log('   Las sesiones persistirán entre reinicios del servidor.');
+  } catch (e) { /* ignorar */ }
+  JWT_SECRET = secrets.jwt;
+  JWT_WEBAUTHN_SECRET = secrets.webauthn;
+}
+loadOrGenerateSecrets();
 
 // Configurar multer para subida de archivos
 const storage = multer.diskStorage({
@@ -205,11 +253,82 @@ async function dbExec(sql, params) {
     const { Pool } = require('pg');
     if (!pgPool) pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
     const { sql: pgSql, params: pgParamsArr } = pgParams(sql, params);
-    const result = await pgPool.query(pgSql, pgParamsArr);
-    if (!result.rows.length) return [];
-    return [{ columns: Object.keys(result.rows[0]), values: result.rows.map(r => Object.values(r)) }];
+    try {
+      const result = await pgPool.query(pgSql, pgParamsArr);
+      if (!result.rows.length) return [];
+      return [{ columns: Object.keys(result.rows[0]), values: result.rows.map(r => Object.values(r)) }];
+    } catch (pgErr) {
+      console.error('ERROR en PostgreSQL, intentando SQLite como fallback:', pgErr.message);
+      await ensureSQLiteFallback();
+    }
   }
-  return db.exec(sql, params);
+  if (!db) await ensureSQLiteFallback();
+  // sql.js: db.exec() NO acepta parámetros, usar prepared statements
+  if (!params || params.length === 0) {
+    return db.exec(sql);
+  }
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+  const rows = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject());
+  }
+  stmt.free();
+  if (rows.length === 0) return [];
+  return [{ columns: Object.keys(rows[0]), values: rows.map(r => Object.values(r)) }];
+}
+
+async function ensureSQLiteFallback() {
+  if (!db) {
+    console.warn('⚠️ SQLite no estaba inicializado. Inicializando como fallback...');
+    const SQL = await initSqlJs();
+    db = new SQL.Database();
+    db.run('PRAGMA foreign_keys = ON');
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'estudiante',
+      stellar_public TEXT, stellar_secret_encrypted TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS passkeys (
+      id TEXT PRIMARY KEY, username TEXT NOT NULL, credential_id TEXT NOT NULL UNIQUE,
+      public_key TEXT NOT NULL, counter INTEGER NOT NULL DEFAULT 0, transports TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS auth_challenges (
+      id TEXT PRIMARY KEY, type TEXT NOT NULL, username TEXT NOT NULL,
+      challenge TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS activities (
+      id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT, tokens INTEGER NOT NULL DEFAULT 0,
+      deadline TEXT, subject TEXT, instructions TEXT, created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')), status TEXT NOT NULL DEFAULT 'active'
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS submissions (
+      id TEXT PRIMARY KEY, activity_id TEXT NOT NULL, student_username TEXT NOT NULL,
+      file_path TEXT, file_name TEXT, file_type TEXT, file_size INTEGER, comments TEXT,
+      status TEXT NOT NULL DEFAULT 'pending', submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
+      reviewed_at TEXT, reviewed_by TEXT, review_comment TEXT, tokens_awarded INTEGER DEFAULT 0,
+      blockchain_tx_hash TEXT
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS rewards (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, cost INTEGER NOT NULL,
+      image TEXT, created_by TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      status TEXT NOT NULL DEFAULT 'active', redeemed_count INTEGER DEFAULT 0
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS redemptions (
+      id TEXT PRIMARY KEY, username TEXT NOT NULL, reward_id TEXT NOT NULL,
+      reward_name TEXT NOT NULL, cost INTEGER NOT NULL, timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS token_transactions (
+      id TEXT PRIMARY KEY, username TEXT NOT NULL, amount INTEGER NOT NULL, type TEXT NOT NULL,
+      activity_id TEXT, reward_id TEXT, description TEXT, blockchain_tx_hash TEXT,
+      timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS counter_state (
+      id TEXT PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    console.log('✅ SQLite fallback inicializado correctamente');
+  }
 }
 
 async function dbRun(sql, params) {
@@ -217,277 +336,223 @@ async function dbRun(sql, params) {
     const { Pool } = require('pg');
     if (!pgPool) pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
     const { sql: pgSql, params: pgParamsArr } = pgParams(sql, params);
-    await pgPool.query(pgSql, pgParamsArr);
-    return;
+    try {
+      await pgPool.query(pgSql, pgParamsArr);
+      return;
+    } catch (pgErr) {
+      console.error('ERROR en dbRun PostgreSQL, usando SQLite como fallback:', pgErr.message);
+      await ensureSQLiteFallback();
+    }
   }
+  if (!db) await ensureSQLiteFallback();
   db.run(sql, params);
   saveDB();
+}
+
+// Inicializar base de datos SQLite (usada como fallback o principal)
+async function initSQLite() {
+  const SQL = await initSqlJs();
+  let buffer;
+  if (fs.existsSync(DB_PATH)) {
+    buffer = fs.readFileSync(DB_PATH);
+    db = new SQL.Database(buffer);
+    console.log(`📂 Base de datos SQLite cargada desde ${DB_PATH}`);
+  } else {
+    db = new SQL.Database();
+    console.log(`🆕 Base de datos SQLite creada en ${DB_PATH}`);
+  }
+
+  db.run('PRAGMA foreign_keys = ON');
+
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'estudiante',
+    stellar_public TEXT,
+    stellar_secret_encrypted TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS activities (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    tokens INTEGER NOT NULL DEFAULT 0,
+    deadline TEXT,
+    subject TEXT,
+    instructions TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    status TEXT NOT NULL DEFAULT 'active',
+    FOREIGN KEY (created_by) REFERENCES users(username)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS submissions (
+    id TEXT PRIMARY KEY,
+    activity_id TEXT NOT NULL,
+    student_username TEXT NOT NULL,
+    file_path TEXT,
+    file_name TEXT,
+    file_type TEXT,
+    file_size INTEGER,
+    comments TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
+    reviewed_at TEXT,
+    reviewed_by TEXT,
+    review_comment TEXT,
+    tokens_awarded INTEGER DEFAULT 0,
+    blockchain_tx_hash TEXT,
+    FOREIGN KEY (activity_id) REFERENCES activities(id),
+    FOREIGN KEY (student_username) REFERENCES users(username)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS rewards (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    cost INTEGER NOT NULL,
+    image TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    status TEXT NOT NULL DEFAULT 'active',
+    redeemed_count INTEGER DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS redemptions (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    reward_id TEXT NOT NULL,
+    reward_name TEXT NOT NULL,
+    cost INTEGER NOT NULL,
+    timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (username) REFERENCES users(username),
+    FOREIGN KEY (reward_id) REFERENCES rewards(id)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS token_transactions (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    activity_id TEXT,
+    reward_id TEXT,
+    description TEXT,
+    blockchain_tx_hash TEXT,
+    timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (username) REFERENCES users(username)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS passkeys (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    credential_id TEXT NOT NULL UNIQUE,
+    public_key TEXT NOT NULL,
+    counter INTEGER NOT NULL DEFAULT 0,
+    transports TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (username) REFERENCES users(username)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS counter_state (
+    id TEXT PRIMARY KEY,
+    value INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS auth_challenges (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    username TEXT NOT NULL,
+    challenge TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  db.run(`DELETE FROM auth_challenges WHERE expires_at < ?`, [Date.now()]);
+
+  const counterRow = db.exec(`SELECT id FROM counter_state WHERE id = 'global'`);
+  if (!counterRow.length || !counterRow[0].values.length) {
+    db.run(`INSERT INTO counter_state (id, value, updated_at) VALUES ('global', 0, datetime('now'))`);
+  }
+
+  saveDB();
+  console.log('✅ Base de datos SQLite inicializada correctamente');
 }
 
 // Inicializar base de datos
 async function initDB() {
   if (DATABASE_URL) {
-    // PostgreSQL en Render
-    const { Pool } = require('pg');
-    pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
-    
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'estudiante',
-        stellar_public TEXT,
-        stellar_secret_encrypted TEXT,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
+    console.log(`🗄️  Modo DB: PostgreSQL detectado (${DATABASE_URL.substring(0, 30)}...)`);
+    try {
+      const { Pool } = require('pg');
+      pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+      const testResult = await pgPool.query('SELECT NOW()');
+      console.log(`✅ Conexión PostgreSQL exitosa: ${testResult.rows[0].now}`);
 
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS activities (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT,
-        tokens INTEGER NOT NULL DEFAULT 0,
-        deadline TEXT,
-        subject TEXT,
-        instructions TEXT,
-        created_by TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW(),
-        status TEXT NOT NULL DEFAULT 'active'
-      )
-    `);
-
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS submissions (
-        id TEXT PRIMARY KEY,
-        activity_id TEXT NOT NULL,
-        student_username TEXT NOT NULL,
-        file_path TEXT,
-        file_name TEXT,
-        file_type TEXT,
-        file_size INTEGER,
-        comments TEXT,
-        status TEXT NOT NULL DEFAULT 'pending',
-        submitted_at TIMESTAMP DEFAULT NOW(),
-        reviewed_at TIMESTAMP,
-        reviewed_by TEXT,
-        review_comment TEXT,
-        tokens_awarded INTEGER DEFAULT 0,
+      // Crear tablas en PostgreSQL
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'estudiante',
+        stellar_public TEXT, stellar_secret_encrypted TEXT, created_at TIMESTAMP DEFAULT NOW()
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS activities (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT, tokens INTEGER NOT NULL DEFAULT 0,
+        deadline TEXT, subject TEXT, instructions TEXT, created_by TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(), status TEXT NOT NULL DEFAULT 'active'
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS submissions (
+        id TEXT PRIMARY KEY, activity_id TEXT NOT NULL, student_username TEXT NOT NULL,
+        file_path TEXT, file_name TEXT, file_type TEXT, file_size INTEGER, comments TEXT,
+        status TEXT NOT NULL DEFAULT 'pending', submitted_at TIMESTAMP DEFAULT NOW(),
+        reviewed_at TIMESTAMP, reviewed_by TEXT, review_comment TEXT, tokens_awarded INTEGER DEFAULT 0,
         blockchain_tx_hash TEXT
-      )
-    `);
-
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS rewards (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT,
-        cost INTEGER NOT NULL,
-        image TEXT,
-        created_by TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW(),
-        status TEXT NOT NULL DEFAULT 'active',
-        redeemed_count INTEGER DEFAULT 0
-      )
-    `);
-
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS redemptions (
-        id TEXT PRIMARY KEY,
-        username TEXT NOT NULL,
-        reward_id TEXT NOT NULL,
-        reward_name TEXT NOT NULL,
-        cost INTEGER NOT NULL,
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS rewards (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, cost INTEGER NOT NULL,
+        image TEXT, created_by TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW(),
+        status TEXT NOT NULL DEFAULT 'active', redeemed_count INTEGER DEFAULT 0
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS redemptions (
+        id TEXT PRIMARY KEY, username TEXT NOT NULL, reward_id TEXT NOT NULL,
+        reward_name TEXT NOT NULL, cost INTEGER NOT NULL, timestamp TIMESTAMP DEFAULT NOW()
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS token_transactions (
+        id TEXT PRIMARY KEY, username TEXT NOT NULL, amount INTEGER NOT NULL, type TEXT NOT NULL,
+        activity_id TEXT, reward_id TEXT, description TEXT, blockchain_tx_hash TEXT,
         timestamp TIMESTAMP DEFAULT NOW()
-      )
-    `);
-
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS token_transactions (
-        id TEXT PRIMARY KEY,
-        username TEXT NOT NULL,
-        amount INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        activity_id TEXT,
-        reward_id TEXT,
-        description TEXT,
-        blockchain_tx_hash TEXT,
-        timestamp TIMESTAMP DEFAULT NOW()
-      )
-    `);
-
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS passkeys (
-        id TEXT PRIMARY KEY,
-        username TEXT NOT NULL,
-        credential_id TEXT NOT NULL UNIQUE,
-        public_key TEXT NOT NULL,
-        counter INTEGER NOT NULL DEFAULT 0,
-        transports TEXT,
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS passkeys (
+        id TEXT PRIMARY KEY, username TEXT NOT NULL, credential_id TEXT NOT NULL UNIQUE,
+        public_key TEXT NOT NULL, counter INTEGER NOT NULL DEFAULT 0, transports TEXT,
         created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS counter_state (
+        id TEXT PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0, updated_at TIMESTAMP DEFAULT NOW()
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS auth_challenges (
+        id TEXT PRIMARY KEY, type TEXT NOT NULL, username TEXT NOT NULL, challenge TEXT NOT NULL,
+        expires_at BIGINT NOT NULL, created_at TIMESTAMP DEFAULT NOW()
+      )`);
 
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS counter_state (
-        id TEXT PRIMARY KEY,
-        value INTEGER NOT NULL DEFAULT 0,
-        updated_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
+      await pgPool.query(`DELETE FROM auth_challenges WHERE expires_at < $1`, [Date.now()]);
+      const counterRow = await pgPool.query(`SELECT id FROM counter_state WHERE id = 'global'`);
+      if (!counterRow.rows.length) {
+        await pgPool.query(`INSERT INTO counter_state (id, value, updated_at) VALUES ('global', 0, NOW())`);
+      }
 
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS auth_challenges (
-        id TEXT PRIMARY KEY,
-        type TEXT NOT NULL,
-        username TEXT NOT NULL,
-        challenge TEXT NOT NULL,
-        expires_at BIGINT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-
-    // Limpiar challenges expirados
-    await pgPool.query(`DELETE FROM auth_challenges WHERE expires_at < $1`, [Date.now()]);
-
-    // Asegurar contador global
-    const counterRow = await pgPool.query(`SELECT id FROM counter_state WHERE id = 'global'`);
-    if (!counterRow.rows.length) {
-      await pgPool.query(`INSERT INTO counter_state (id, value, updated_at) VALUES ('global', 0, NOW())`);
+      console.log('✅ Base de datos PostgreSQL inicializada correctamente');
+    } catch (pgErr) {
+      console.error(`❌ Error con PostgreSQL: ${pgErr.message}`);
+      console.error(`   ⚠️  USANDO SQLITE COMO FALLBACK`);
+      pgPool = null;
+      await initSQLite();
     }
-
-    console.log('Base de datos PostgreSQL inicializada correctamente');
   } else {
-    // SQLite local
-    const SQL = await initSqlJs();
-    let buffer;
-    if (fs.existsSync(DB_PATH)) {
-      buffer = fs.readFileSync(DB_PATH);
-      db = new SQL.Database(buffer);
-    } else {
-      db = new SQL.Database();
-    }
-
-    db.run('PRAGMA foreign_keys = ON');
-
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'estudiante',
-      stellar_public TEXT,
-      stellar_secret_encrypted TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS activities (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT,
-      tokens INTEGER NOT NULL DEFAULT 0,
-      deadline TEXT,
-      subject TEXT,
-      instructions TEXT,
-      created_by TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      status TEXT NOT NULL DEFAULT 'active',
-      FOREIGN KEY (created_by) REFERENCES users(username)
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS submissions (
-      id TEXT PRIMARY KEY,
-      activity_id TEXT NOT NULL,
-      student_username TEXT NOT NULL,
-      file_path TEXT,
-      file_name TEXT,
-      file_type TEXT,
-      file_size INTEGER,
-      comments TEXT,
-      status TEXT NOT NULL DEFAULT 'pending',
-      submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
-      reviewed_at TEXT,
-      reviewed_by TEXT,
-      review_comment TEXT,
-      tokens_awarded INTEGER DEFAULT 0,
-      blockchain_tx_hash TEXT,
-      FOREIGN KEY (activity_id) REFERENCES activities(id),
-      FOREIGN KEY (student_username) REFERENCES users(username)
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS rewards (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      description TEXT,
-      cost INTEGER NOT NULL,
-      image TEXT,
-      created_by TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      status TEXT NOT NULL DEFAULT 'active',
-      redeemed_count INTEGER DEFAULT 0
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS redemptions (
-      id TEXT PRIMARY KEY,
-      username TEXT NOT NULL,
-      reward_id TEXT NOT NULL,
-      reward_name TEXT NOT NULL,
-      cost INTEGER NOT NULL,
-      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (username) REFERENCES users(username),
-      FOREIGN KEY (reward_id) REFERENCES rewards(id)
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS token_transactions (
-      id TEXT PRIMARY KEY,
-      username TEXT NOT NULL,
-      amount INTEGER NOT NULL,
-      type TEXT NOT NULL,
-      activity_id TEXT,
-      reward_id TEXT,
-      description TEXT,
-      blockchain_tx_hash TEXT,
-      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (username) REFERENCES users(username)
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS passkeys (
-      id TEXT PRIMARY KEY,
-      username TEXT NOT NULL,
-      credential_id TEXT NOT NULL UNIQUE,
-      public_key TEXT NOT NULL,
-      counter INTEGER NOT NULL DEFAULT 0,
-      transports TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (username) REFERENCES users(username)
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS counter_state (
-      id TEXT PRIMARY KEY,
-      value INTEGER NOT NULL DEFAULT 0,
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS auth_challenges (
-      id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,
-      username TEXT NOT NULL,
-      challenge TEXT NOT NULL,
-      expires_at INTEGER NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )`);
-
-    db.run(`DELETE FROM auth_challenges WHERE expires_at < ?`, [Date.now()]);
-
-    const counterRow = db.exec(`SELECT id FROM counter_state WHERE id = 'global'`);
-    if (!counterRow.length || !counterRow[0].values.length) {
-      db.run(`INSERT INTO counter_state (id, value, updated_at) VALUES ('global', 0, datetime('now'))`);
-    }
-
-    saveDB();
-    console.log('Base de datos SQLite inicializada correctamente');
+    console.log('🗄️  Modo DB: SQLite local');
+    await initSQLite();
   }
 }
 
@@ -579,7 +644,7 @@ async function anyAuthMiddleware(req, res, next) {
 }
 
 // ========================
-// WEBAUTHN (PASSKEYS) ROUTES
+// WEBAUTHN (PASSKEYS) + QR CROSS-DEVICE ROUTES
 // ========================
 
 // 1. Iniciar registro biométrico
@@ -588,45 +653,59 @@ app.post('/api/auth/passkey/register/begin', async (req, res) => {
     const { username } = req.body;
     if (!username) return res.status(400).json({ error: 'Username requerido' });
 
-    // Verificar que el usuario existe en el sistema
     const userResult = await dbExec(`SELECT id, username FROM users WHERE username = ?`, [username]);
     if (!userResult.length || !userResult[0].values.length) {
-      return res.status(404).json({ error: 'Usuario no encontrado. Regístrate primero en el sistema.' });
+      return res.status(404).json({ error: 'Usuario no encontrado. Regístrate primero.' });
     }
 
-    // Verificar si ya tiene una passkey registrada y excluirla para evitar duplicados
     const existingKeys = await dbExec(`SELECT credential_id, public_key, counter, transports FROM passkeys WHERE username = ?`, [username]);
-    const existingCredentials = existingKeys.length ? existingKeys[0].values.map(row => ({
-      id: row[0], publicKey: row[1], counter: parseInt(row[2] || 0), transports: row[3] ? JSON.parse(row[3]) : []
-    })) : [];
+
+    const existingCredentials = existingKeys.length && existingKeys[0].values.length
+      ? existingKeys[0].values.map(row => ({
+          id: row[0],
+          publicKey: row[1],
+          counter: parseInt(row[2] || 0),
+          transports: row[3] ? JSON.parse(row[3]) : []
+        }))
+      : [];
+
+    const effectiveRPID = getRPID(req);
+    const userIDBuffer = crypto.randomBytes(32);
+    const userID = isoBase64URL.fromBuffer(userIDBuffer);
 
     const options = await generateRegistrationOptions({
       rpName: RP_NAME,
-      rpID: RP_ID,
+      rpID: effectiveRPID,
       userName: username,
       userDisplayName: username,
+      user: {
+        id: userIDBuffer,
+        name: username,
+        displayName: username,
+      },
       attestationType: 'none',
       excludeCredentials: existingCredentials.map(cred => ({
-        id: isoBase64URL.toBuffer(cred.id),
+        id: cred.id,
         transports: cred.transports,
       })),
       authenticatorSelection: {
         residentKey: 'required',
-        userVerification: 'preferred',
+        userVerification: 'required',
+        requireResidentKey: true,
       },
     });
 
-    // Guardar challenge en store temporal
-    challengeStore.set(`register:${username}`, {
+    await challengeStore.set(`register:${username}`, {
       challenge: options.challenge,
       username,
-      expiresAt: Date.now() + 60000,
+      userID,
+      expiresAt: Date.now() + CHALLENGE_TTL,
     });
 
     res.json(options);
   } catch (e) {
     console.error('Error en register/begin:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: `Error al iniciar registro: ${e.message}` });
   }
 });
 
@@ -636,46 +715,51 @@ app.post('/api/auth/passkey/register/complete', async (req, res) => {
     const { username, credential } = req.body;
     if (!username || !credential) return res.status(400).json({ error: 'Username y credential requeridos' });
 
-    const storedData = challengeStore.get(`register:${username}`);
+    const storedData = await challengeStore.get(`register:${username}`);
     if (!storedData) return res.status(400).json({ error: 'Inicia el registro primero (/register/begin)' });
 
     if (Date.now() > storedData.expiresAt) {
-      challengeStore.delete(`register:${username}`);
+      await challengeStore.delete(`register:${username}`);
       return res.status(400).json({ error: 'Challenge expirado. Intenta de nuevo.' });
     }
+
+    const effectiveRPID = getRPID(req);
+    const effectiveOrigin = getOrigin(req);
 
     const verification = await verifyRegistrationResponse({
       response: credential,
       expectedChallenge: storedData.challenge,
       expectedOrigin: ORIGINS,
-      expectedRPID: RP_ID,
+      expectedRPID: effectiveRPID,
     });
 
     if (!verification.verified || !verification.registrationInfo) {
-      return res.status(400).json({ error: 'Verificación biométrica fallida' });
+      return res.status(400).json({ error: 'Verificación biométrica fallida. El navegador no pudo validar la credencial.' });
     }
 
     const { credentialPublicKey, credentialID, counter } = verification.registrationInfo;
 
-    // Guardar credencial en DB
     const id = uuidv4();
     const credentialIdBase64 = isoBase64URL.fromBuffer(credentialID);
     const publicKeyBase64 = isoBase64URL.fromBuffer(credentialPublicKey);
-    const transports = JSON.stringify(credential.response?.transports || []);
+
+    let transports = [];
+    if (credential.response && Array.isArray(credential.response.transports)) {
+      transports = credential.response.transports;
+    }
+    const transportsStr = JSON.stringify(transports);
 
     await dbRun(`INSERT INTO passkeys (id, username, credential_id, public_key, counter, transports) VALUES (?, ?, ?, ?, ?, ?)`,
-      [id, username, credentialIdBase64, publicKeyBase64, counter, transports]);
+      [id, username, credentialIdBase64, publicKeyBase64, counter, transportsStr]);
 
-    challengeStore.delete(`register:${username}`);
+    await challengeStore.delete(`register:${username}`);
 
-    // Emitir token JWT biométrico
     const token = jwt.sign(
-      { id: id, username, authMethod: 'passkey', credentialId: credentialIdBase64 },
+      { id, username, authMethod: 'passkey', credentialId: credentialIdBase64 },
       JWT_WEBAUTHN_SECRET,
       { expiresIn: '24h' }
     );
 
-    // Obtener datos del usuario
     const userResult = await dbExec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [username]);
 
     res.json({
@@ -687,54 +771,55 @@ app.post('/api/auth/passkey/register/complete', async (req, res) => {
         email: userResult[0].values[0][2],
         role: userResult[0].values[0][3],
         stellarPublic: userResult[0].values[0][4],
-      } : null,
+      } : { username },
       walletId: credentialIdBase64.substring(0, 12) + '...'
     });
   } catch (e) {
     console.error('Error en register/complete:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: `Error al completar registro: ${e.message}` });
   }
 });
 
-// 3. Iniciar login biométrico
 app.post('/api/auth/passkey/login/begin', async (req, res) => {
   try {
     const { username } = req.body;
     if (!username) return res.status(400).json({ error: 'Username requerido' });
 
-    // Buscar credenciales del usuario
-    const keyResult = await dbExec(`SELECT credential_id, public_key, counter, transports FROM passkeys WHERE username = ?`, [username]);
-    if (!keyResult.length || !keyResult[0].values.length) {
-      return res.status(404).json({ error: 'No hay passkey registrada para este usuario. Regístrate primero.' });
+    const effectiveRPID = getRPID(req);
+
+    const allowCredentials = [];
+    if (username !== '__discovery__') {
+      const existingKeys = await dbExec(`SELECT credential_id, transports FROM passkeys WHERE username = ?`, [username]);
+      if (existingKeys.length && existingKeys[0].values.length) {
+        existingKeys[0].values.forEach(row => {
+          allowCredentials.push({
+            id: row[0],
+            transports: row[1] ? JSON.parse(row[1]) : [],
+          });
+        });
+      }
     }
 
-    const credentials = keyResult[0].values.map(row => ({
-      id: row[0],
-      publicKey: row[1],
-      counter: parseInt(row[2] || 0),
-      transports: row[3] ? JSON.parse(row[3]) : [],
-    }));
+    const authOptions = {
+      rpID: effectiveRPID,
+      userVerification: 'required',
+    };
+    if (allowCredentials.length > 0) {
+      authOptions.allowCredentials = allowCredentials;
+    }
 
-    const options = await generateAuthenticationOptions({
-      rpID: RP_ID,
-      userVerification: 'preferred',
-      allowCredentials: credentials.map(cred => ({
-        id: isoBase64URL.toBuffer(cred.id),
-        type: 'public-key',
-        transports: cred.transports,
-      })),
-    });
+    const options = await generateAuthenticationOptions(authOptions);
 
-    challengeStore.set(`login:${username}`, {
+    await challengeStore.set(`login:${username}`, {
       challenge: options.challenge,
       username,
-      expiresAt: Date.now() + 60000,
+      expiresAt: Date.now() + CHALLENGE_TTL,
     });
 
     res.json(options);
   } catch (e) {
     console.error('Error en login/begin:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: `Error al iniciar sesión: ${e.message}` });
   }
 });
 
@@ -744,29 +829,45 @@ app.post('/api/auth/passkey/login/complete', async (req, res) => {
     const { username, credential } = req.body;
     if (!username || !credential) return res.status(400).json({ error: 'Username y credential requeridos' });
 
-    const storedData = challengeStore.get(`login:${username}`);
+    const storedData = await challengeStore.get(`login:${username}`);
     if (!storedData) return res.status(400).json({ error: 'Inicia sesión primero (/login/begin)' });
 
     if (Date.now() > storedData.expiresAt) {
-      challengeStore.delete(`login:${username}`);
+      await challengeStore.delete(`login:${username}`);
       return res.status(400).json({ error: 'Challenge expirado. Intenta de nuevo.' });
     }
 
-    // Buscar la credencial en DB por credential ID
     const credId = credential.id;
+
+    // Si el credential viene con userHandle, intentar identificar al usuario
+    let effectiveUsername = username;
+    if (credential.response?.userHandle) {
+      try {
+        const userHandleStr = credential.response.userHandle;
+        // Intentar buscar por credential ID primero (independiente del username enviado)
+        const userByCred = await dbExec(`SELECT username FROM passkeys WHERE credential_id = ?`, [credId]);
+        if (userByCred.length && userByCred[0].values.length) {
+          effectiveUsername = userByCred[0].values[0][0];
+        }
+      } catch (e) {
+        // Si falla, usar el username original
+      }
+    }
+
     const credResult = await dbExec(`SELECT * FROM passkeys WHERE credential_id = ?`, [credId]);
     if (!credResult.length || !credResult[0].values.length) {
-      return res.status(404).json({ error: 'Credencial no encontrada' });
+      return res.status(404).json({ error: 'Credencial no encontrada. ¿Registraste tu passkey primero?' });
     }
 
     const cols = credResult[0].columns;
     const row = credResult[0].values[0];
     const idx = (name) => cols.indexOf(name);
     const credUsername = row[idx('username')];
-    // Verificar que la credencial pertenece al usuario que dice ser
-    if (credUsername !== username) {
+
+    if (credUsername !== effectiveUsername) {
       return res.status(403).json({ error: 'Esta credencial no pertenece al usuario solicitado' });
     }
+
     const storedCredential = {
       id: row[idx('credential_id')],
       publicKey: row[idx('public_key')],
@@ -774,11 +875,13 @@ app.post('/api/auth/passkey/login/complete', async (req, res) => {
       transports: row[idx('transports')] ? JSON.parse(row[idx('transports')]) : [],
     };
 
+    const effectiveRPID = getRPID(req);
+
     const verification = await verifyAuthenticationResponse({
       response: credential,
       expectedChallenge: storedData.challenge,
       expectedOrigin: ORIGINS,
-      expectedRPID: RP_ID,
+      expectedRPID: effectiveRPID,
       credential: {
         id: storedCredential.id,
         publicKey: isoBase64URL.toBuffer(storedCredential.publicKey),
@@ -788,21 +891,22 @@ app.post('/api/auth/passkey/login/complete', async (req, res) => {
     });
 
     if (!verification.verified) {
-      return res.status(400).json({ error: 'Verificación biométrica fallida' });
+      return res.status(400).json({ error: 'Verificación biométrica fallida. La firma no coincide.' });
     }
 
-    // Actualizar contador de la credencial
     const newCounter = verification.authenticationInfo?.newCounter || storedCredential.counter;
     await dbRun(`UPDATE passkeys SET counter = ? WHERE credential_id = ?`, [newCounter, credId]);
 
-    challengeStore.delete(`login:${username}`);
+    await challengeStore.delete(`login:${effectiveUsername}`);
 
-    // Obtener datos completos del usuario
-    const userResult = await dbExec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [username]);
+    const userResult = await dbExec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [effectiveUsername]);
 
-    // Emitir token JWT biométrico
+    if (!userResult.length || !userResult[0].values.length) {
+      return res.status(500).json({ error: 'Usuario no encontrado en la base de datos' });
+    }
+
     const token = jwt.sign(
-      { id: userResult[0].values[0][0], username, role: userResult[0].values[0][3], authMethod: 'passkey', credentialId: credId },
+      { id: userResult[0].values[0][0], username: effectiveUsername, role: userResult[0].values[0][3], authMethod: 'passkey', credentialId: credId },
       JWT_WEBAUTHN_SECRET,
       { expiresIn: '24h' }
     );
@@ -821,7 +925,7 @@ app.post('/api/auth/passkey/login/complete', async (req, res) => {
     });
   } catch (e) {
     console.error('Error en login/complete:', e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: `Error al verificar biometría: ${e.message}` });
   }
 });
 
@@ -881,6 +985,289 @@ app.delete('/api/auth/passkey/:id', anyAuthMiddleware, async (req, res) => {
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ========================
+// QR CROSS-DEVICE AUTH
+// ========================
+
+// Almacén de sesiones QR
+const qrSessionStore = {
+  _sessions: new Map(),
+  create(username) {
+    const sessionId = uuidv4();
+    const session = {
+      id: sessionId,
+      username,
+      status: 'pending', // pending | scanned | authenticated | expired | failed
+      qrCode: null,
+      createdAt: Date.now(),
+      expiresAt: Date.now() + CHALLENGE_TTL,
+      token: null,
+      error: null,
+    };
+    this._sessions.set(sessionId, session);
+    return session;
+  },
+  get(sessionId) {
+    const session = this._sessions.get(sessionId);
+    if (!session) return null;
+    if (Date.now() > session.expiresAt) {
+      session.status = 'expired';
+      return session;
+    }
+    return session;
+  },
+  setStatus(sessionId, status, extra = {}) {
+    const session = this._sessions.get(sessionId);
+    if (!session) return;
+    Object.assign(session, { status, ...extra });
+  },
+  cleanup() {
+    const now = Date.now();
+    for (const [id, session] of this._sessions) {
+      if (now > session.expiresAt + 60000) {
+        this._sessions.delete(id);
+      }
+    }
+  }
+};
+
+// Limpiar sesiones expiradas cada 5 minutos
+setInterval(() => qrSessionStore.cleanup(), 300000);
+
+// 10. Generar QR para login cross-device
+app.post('/api/auth/qr/generate', async (req, res) => {
+  try {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: 'Username requerido' });
+    console.log(`📱 QR solicitud generación para username="${username}" (DB mode: ${DATABASE_URL ? 'PostgreSQL' : 'SQLite'})`);
+
+    const userResult = await dbExec(`SELECT id, username FROM users WHERE username = ?`, [username]);
+    console.log(`📱 QR resultado búsqueda: encontrado=${userResult.length > 0 && userResult[0].values.length > 0}`);
+    if (!userResult.length || !userResult[0].values.length) {
+      console.warn(`❌ QR usuario "${username}" NO encontrado en DB`);
+      // Debug: listar usuarios existentes
+      try {
+        const allUsers = await dbExec(`SELECT username FROM users ORDER BY created_at DESC LIMIT 10`);
+        if (allUsers.length > 0 && allUsers[0].values.length > 0) {
+          const names = allUsers[0].values.map(r => r[0]);
+          console.log(`📱 QR usuarios en DB: ${JSON.stringify(names)}`);
+        } else {
+          console.log(`📱 QR NO HAY usuarios en DB`);
+        }
+      } catch (listErr) {
+        console.error(`📱 QR error listando usuarios:`, listErr.message);
+      }
+      return res.status(404).json({ error: 'Usuario no encontrado. Regístrate primero.' });
+    }
+    console.log(`📱 QR usuario "${username}" encontrado en DB correctamente`);
+
+    const session = qrSessionStore.create(username);
+
+    // Crear payload QR como URL navegable (usar siempre la URL pública)
+    const publicOrigin = process.env.ORIGIN || `https://${getRPID(req)}`;
+    const effectiveRPID = getRPID(req);
+    const qrURL = `${publicOrigin}/qr-auth.html?s=${encodeURIComponent(session.id)}&r=${encodeURIComponent(effectiveRPID)}`;
+    const qrPayload = qrURL;
+
+    const qrDataURL = await QRCode.toDataURL(qrPayload, {
+      width: 300,
+      margin: 2,
+      color: { dark: '#00eaff', light: '#00000000' },
+    });
+
+    session.qrCode = qrDataURL;
+
+    res.json({
+      sessionId: session.id,
+      qrCode: qrDataURL,
+      qrPayload,
+      expiresAt: session.expiresAt,
+      status: 'pending',
+    });
+  } catch (e) {
+    console.error('Error generando QR:', e);
+    res.status(500).json({ error: `Error al generar QR: ${e.message}` });
+  }
+});
+
+// 11. Escanear QR desde el móvil e iniciar autenticación
+app.post('/api/auth/qr/scan', async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ error: 'sessionId requerido' });
+
+    const session = qrSessionStore.get(sessionId);
+    if (!session) return res.status(404).json({ error: 'Sesión QR no encontrada o expirada' });
+
+    if (session.status !== 'pending') {
+      return res.status(400).json({ error: `Sesión QR ya no está pendiente (estado: ${session.status})` });
+    }
+
+    qrSessionStore.setStatus(sessionId, 'scanned');
+
+    const effectiveRPID = getRPID(req);
+
+    const allowCredentials = [];
+    const existingKeys = await dbExec(`SELECT credential_id, transports FROM passkeys WHERE username = ?`, [session.username]);
+    if (existingKeys.length && existingKeys[0].values.length) {
+      existingKeys[0].values.forEach(row => {
+        allowCredentials.push({
+          id: row[0],
+          transports: row[1] ? JSON.parse(row[1]) : [],
+        });
+      });
+    }
+
+    const authOptions = {
+      rpID: effectiveRPID,
+      userVerification: 'required',
+    };
+    if (allowCredentials.length > 0) {
+      authOptions.allowCredentials = allowCredentials;
+    }
+
+    const options = await generateAuthenticationOptions(authOptions);
+
+    await challengeStore.set(`qrauth:${sessionId}`, {
+      challenge: options.challenge,
+      sessionId,
+      username: session.username,
+      expiresAt: Date.now() + CHALLENGE_TTL,
+    });
+
+    res.json({
+      status: 'scanned',
+      username: session.username,
+      challenge: options.challenge,
+      rpID: effectiveRPID,
+      options,
+    });
+  } catch (e) {
+    console.error('Error escaneando QR:', e);
+    res.status(500).json({ error: `Error al escanear QR: ${e.message}` });
+  }
+});
+
+// 12. Completar autenticación desde el móvil (después de escanear QR)
+app.post('/api/auth/qr/authenticate', async (req, res) => {
+  try {
+    const { sessionId, credential } = req.body;
+    if (!sessionId || !credential) return res.status(400).json({ error: 'sessionId y credential requeridos' });
+
+    const session = qrSessionStore.get(sessionId);
+    if (!session) return res.status(404).json({ error: 'Sesión QR no encontrada o expirada' });
+
+    const storedData = await challengeStore.get(`qrauth:${sessionId}`);
+    if (!storedData) return res.status(400).json({ error: 'Challenge no encontrado. Escanea el QR primero.' });
+
+    if (Date.now() > storedData.expiresAt) {
+      await challengeStore.delete(`qrauth:${sessionId}`);
+      qrSessionStore.setStatus(sessionId, 'expired');
+      return res.status(400).json({ error: 'Challenge expirado. Escanea el QR de nuevo.' });
+    }
+
+    // Buscar la credencial
+    const credId = credential.id;
+    const credResult = await dbExec(`SELECT * FROM passkeys WHERE credential_id = ?`, [credId]);
+    if (!credResult.length || !credResult[0].values.length) {
+      qrSessionStore.setStatus(sessionId, 'failed', { error: 'Credencial no encontrada' });
+      return res.status(404).json({ error: 'Credencial no encontrada. Registra tu passkey primero.' });
+    }
+
+    const cols = credResult[0].columns;
+    const row = credResult[0].values[0];
+    const idx = (name) => cols.indexOf(name);
+    const credUsername = row[idx('username')];
+
+    if (credUsername !== session.username) {
+      qrSessionStore.setStatus(sessionId, 'failed', { error: 'Credencial no pertenece al usuario' });
+      return res.status(403).json({ error: 'Esta credencial no pertenece al usuario de la sesión QR' });
+    }
+
+    const storedCredential = {
+      id: row[idx('credential_id')],
+      publicKey: row[idx('public_key')],
+      counter: parseInt(row[idx('counter')] || 0),
+      transports: row[idx('transports')] ? JSON.parse(row[idx('transports')]) : [],
+    };
+
+    const effectiveRPID = getRPID(req);
+
+    const verification = await verifyAuthenticationResponse({
+      response: credential,
+      expectedChallenge: storedData.challenge,
+      expectedOrigin: ORIGINS,
+      expectedRPID: effectiveRPID,
+      credential: {
+        id: storedCredential.id,
+        publicKey: isoBase64URL.toBuffer(storedCredential.publicKey),
+        counter: storedCredential.counter,
+        transports: storedCredential.transports,
+      },
+    });
+
+    if (!verification.verified) {
+      qrSessionStore.setStatus(sessionId, 'failed', { error: 'Verificación fallida' });
+      return res.status(400).json({ error: 'Verificación biométrica fallida' });
+    }
+
+    const newCounter = verification.authenticationInfo?.newCounter || storedCredential.counter;
+    await dbRun(`UPDATE passkeys SET counter = ? WHERE credential_id = ?`, [newCounter, credId]);
+
+    await challengeStore.delete(`qrauth:${sessionId}`);
+
+    const userResult = await dbExec(`SELECT id, username, email, role, stellar_public FROM users WHERE username = ?`, [session.username]);
+
+    const token = jwt.sign(
+      { id: userResult[0].values[0][0], username: session.username, role: userResult[0].values[0][3], authMethod: 'passkey', credentialId: credId },
+      JWT_WEBAUTHN_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    qrSessionStore.setStatus(sessionId, 'authenticated', { token });
+
+    res.json({
+      verified: true,
+      token,
+      user: {
+        id: userResult[0].values[0][0],
+        username: userResult[0].values[0][1],
+        email: userResult[0].values[0][2],
+        role: userResult[0].values[0][3],
+        stellarPublic: userResult[0].values[0][4],
+      },
+      walletId: credId.substring(0, 12) + '...'
+    });
+  } catch (e) {
+    console.error('Error en QR authenticate:', e);
+    res.status(500).json({ error: `Error en autenticación QR: ${e.message}` });
+  }
+});
+
+// 13. Polling: el desktop consulta el estado de la sesión QR
+app.get('/api/auth/qr/status/:sessionId', (req, res) => {
+  const { sessionId } = req.params;
+  const session = qrSessionStore.get(sessionId);
+  if (!session) {
+    return res.json({ status: 'expired', error: 'Sesión no encontrada o expirada' });
+  }
+
+  const response = {
+    status: session.status,
+    username: session.username,
+  };
+
+  if (session.status === 'authenticated' && session.token) {
+    response.token = session.token;
+  }
+
+  if (session.status === 'failed') {
+    response.error = session.error;
+  }
+
+  res.json(response);
 });
 
 // ========================
@@ -1012,7 +1399,10 @@ app.post('/api/counter/reset', anyAuthMiddleware, async (req, res) => {
 app.post('/api/auth/register', rateLimit(60000, 5), async (req, res) => {
   try {
     const { username, email, password, role, stellarPublic, stellarSecretEncrypted } = req.body;
+    console.log(`📝 REGISTER solicitud recibida: username="${username}", email="${email}", role="${role}"`);
+
     if (!username || !email || !password) {
+      console.warn(`❌ REGISTER campos faltantes: username=${!!username}, email=${!!email}, password=${!!password}`);
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
     if (username.length < 3) return res.status(400).json({ error: 'Usuario debe tener al menos 3 caracteres' });
@@ -1021,14 +1411,17 @@ app.post('/api/auth/register', rateLimit(60000, 5), async (req, res) => {
     const allowedRoles = ['estudiante', 'docente'];
     const finalRole = allowedRoles.includes(role) ? role : 'estudiante';
 
+    console.log(`🔍 REGISTER buscando duplicados para "${username}" o "${email}"...`);
     const existing = await dbExec(`SELECT id FROM users WHERE username = ? OR email = ?`, [username, email]);
     if (existing.length > 0 && existing[0].values.length > 0) {
+      console.warn(`❌ REGISTER usuario duplicado: "${username}" o "${email}" ya existe`);
       return res.status(400).json({ error: 'Usuario o email ya registrado' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
     const id = uuidv4();
     const now = new Date().toISOString();
+    console.log(`🔑 REGISTER hash generado, id="${id}"`);
 
     // Generar par de llaves Stellar automáticamente si no se proporcionaron
     let finalStellarPublic = stellarPublic || null;
@@ -1038,32 +1431,66 @@ app.post('/api/auth/register', rateLimit(60000, 5), async (req, res) => {
       const kp = StellarSdk.Keypair.random();
       finalStellarPublic = stellarPublic || kp.publicKey();
       finalStellarSecretEncrypted = stellarSecretEncrypted || kp.secret();
-      // Nota: la clave secreta se almacena en texto plano en DB solo si el
-      // cliente no la envió cifrada. En producción, el cliente DEBE cifrarla
-      // con la contraseña del usuario antes de enviarla.
-      console.log(`✅ Cuenta Stellar generada para ${username}: ${finalStellarPublic.substring(0, 8)}...`);
+      console.log(`✅ REGISTER cuenta Stellar generada para ${username}: ${finalStellarPublic.substring(0, 8)}...`);
     } catch (stellarErr) {
-      console.warn('No se pudo generar cuenta Stellar:', stellarErr.message);
+      console.warn('⚠️ REGISTER no se pudo generar cuenta Stellar:', stellarErr.message);
     }
 
+    console.log(`💾 REGISTER insertando usuario "${username}" en DB...`);
+    console.log(`   DB mode: ${DATABASE_URL ? 'PostgreSQL' : 'SQLite'}`);
     await dbRun(`INSERT INTO users (id, username, email, password_hash, role, stellar_public, stellar_secret_encrypted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, username, email, passwordHash, finalRole, finalStellarPublic, finalStellarSecretEncrypted, now]);
 
+    // VERIFICAR que el usuario se guardó correctamente
+    const verifyUser = await dbExec(`SELECT id, username FROM users WHERE username = ?`, [username]);
+    if (verifyUser.length > 0 && verifyUser[0].values.length > 0) {
+      console.log(`✅ REGISTER usuario "${username}" verificado en DB correctamente (id=${verifyUser[0].values[0][0]})`);
+    } else {
+      console.error(`❌ REGISTER FALLO CRÍTICO: usuario "${username}" NO se encontró después de insertar!`);
+      return res.status(500).json({ error: 'Error al persistir el usuario. Intenta de nuevo.' });
+    }
+
     const token = jwt.sign({ id, username, email, role: finalRole, stellarPublic: finalStellarPublic }, JWT_SECRET, { expiresIn: '24h' });
+    console.log(`✅ REGISTER exitoso para "${username}", token generado`);
     res.json({ token, user: { id, username, email, role: finalRole, stellarPublic: finalStellarPublic } });
   } catch (e) {
-    console.error('Error en registro:', e);
+    console.error('❌ Error en registro:', e);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
 app.post('/api/auth/login', rateLimit(60000, 10), async (req, res) => {
   try {
+    console.log('═══════════════════════════════════════');
+    console.log('🔐 LOGIN - Request recibido');
+    console.log('Headers:', JSON.stringify(req.headers, null, 2).substring(0, 500));
+    console.log('Body raw keys:', Object.keys(req.body));
+    console.log('Body raw:', JSON.stringify(req.body));
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+    console.log(`🔐 LOGIN username="${typeof username}" value="${username}"`);
+    console.log(`🔐 LOGIN password="${typeof password}" length="${password ? password.length : 'N/A'}"`);
+    if (!username || !password) {
+      console.warn(`❌ LOGIN campos vacíos: username="${typeof username}" password="${typeof password}"`);
+      return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+    }
 
+    console.log(`🔍 LOGIN buscando usuario "${username}" en DB (modo: ${DATABASE_URL ? 'PostgreSQL' : 'SQLite'})...`);
     const result = await dbExec(`SELECT * FROM users WHERE username = ?`, [username]);
+    
     if (!result.length || !result[0].values.length) {
+      console.warn(`❌ LOGIN usuario "${username}" NO encontrado en DB`);
+      // Debug: listar todos los usuarios para diagnóstico
+      try {
+        const allUsers = await dbExec(`SELECT username FROM users ORDER BY created_at DESC LIMIT 10`);
+        if (allUsers.length > 0 && allUsers[0].values.length > 0) {
+          const names = allUsers[0].values.map(r => r[0]);
+          console.log(`📋 LOGIN usuarios existentes (últimos 10): ${JSON.stringify(names)}`);
+        } else {
+          console.log(`📋 LOGIN NO HAY usuarios registrados en DB`);
+        }
+      } catch (listErr) {
+        console.error(`📋 LOGIN error listando usuarios:`, listErr.message);
+      }
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
@@ -1079,17 +1506,24 @@ app.post('/api/auth/login', rateLimit(60000, 10), async (req, res) => {
       stellarPublic: row[idx('stellar_public')],
       stellarSecretEncrypted: row[idx('stellar_secret_encrypted')],
     };
+    console.log(`✅ LOGIN usuario "${user.username}" encontrado en DB (id=${user.id})`);
 
+    console.log(`🔐 LOGIN comparando contraseña para "${username}"...`);
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!valid) {
+      console.warn(`❌ LOGIN contraseña INCORRECTA para "${username}"`);
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
 
+    console.log(`✅ LOGIN contraseña correcta para "${username}", generando JWT...`);
     const token = jwt.sign(
       { id: user.id, username: user.username, email: user.email, role: user.role, stellarPublic: user.stellarPublic },
       JWT_SECRET, { expiresIn: '24h' }
     );
+    console.log(`✅ LOGIN exitoso para "${username}", token generado`);
     res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role, stellarPublic: user.stellarPublic, stellarSecretEncrypted: user.stellarSecretEncrypted } });
   } catch (e) {
-    console.error('Error en login:', e);
+    console.error('❌ Error en login:', e);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -1427,9 +1861,20 @@ app.get('/api/stats/teacher', anyAuthMiddleware, (req, res) => {
 });
 
 // ========================
-// STATIC FILES (Frontend)
+// STATIC FILES (Frontend) - SIN CACHÉ para evitar JS viejo
 // ========================
-app.use(express.static(DOCS_DIR));
+app.use(express.static(DOCS_DIR, {
+  maxAge: 0,
+  etag: false,
+  lastModified: false,
+  setHeaders: (res, path) => {
+    if (path.endsWith('.js') || path.endsWith('.html') || path.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // Catch-all for SPA-style routing (except API)
 app.use((req, res, next) => {
