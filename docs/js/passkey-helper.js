@@ -205,7 +205,11 @@ class PasskeyHelper {
 
   async hasPasskey(username) {
     try {
-      const res = await fetch(`${this.apiBase}/api/auth/passkey/has-passkey/${encodeURIComponent(username)}`);
+      const headers = {};
+      if (window.apiClient && window.apiClient.token) {
+        headers['Authorization'] = `Bearer ${window.apiClient.token}`;
+      }
+      const res = await fetch(`${this.apiBase}/api/auth/passkey/has-passkey/${encodeURIComponent(username)}`, { headers });
       if (!res.ok) return false;
       const data = await res.json();
       return data.hasPasskey;

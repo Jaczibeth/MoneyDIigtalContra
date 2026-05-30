@@ -385,11 +385,13 @@
       const username = document.getElementById('username').value.trim();
       if (!username) { showToast('Ingresa tu nombre de usuario primero', 'error'); return; }
 
+      const btn = document.getElementById('biometricLoginBtn');
       const btnText = document.getElementById('biometricBtnText');
+      btn.disabled = true;
+      const originalText = btnText.textContent;
       try {
         btnText.textContent = '⏳ Verificando...';
         const result = await passkeyHelper.loginWithPasskey(username);
-
         sessionStorage.setItem('auth_token', result.token);
         if (result.user) {
           sessionStorage.setItem('currentUser', JSON.stringify(result.user));
@@ -397,16 +399,19 @@
         if (typeof apiClient !== 'undefined') {
           apiClient.setToken(result.token);
         }
-
         showToast(`Bienvenido ${username}`, 'success');
         setTimeout(() => window.location.href = "Inicio.html", 1000);
       } catch (e) {
-        btnText.textContent = BiometricHelper.getResponsiveButtonConfig().biometricText;
-        if (e.message?.includes('Cancelaste')) {
+        btnText.textContent = originalText;
+        if (e.message?.includes('Credencial no encontrada')) {
+          showToast('No hay ninguna passkey registrada para este usuario. Regístrala primero iniciando sesión con tu contraseña y aceptando el consentimiento.', 'error');
+        } else if (e.message?.includes('Cancelaste')) {
           showToast('Verificación cancelada. Usa tu contraseña.', 'error');
         } else {
           showToast(e.message || 'Error en autenticación biométrica', 'error');
         }
+      } finally {
+        btn.disabled = false;
       }
     }
 
