@@ -253,11 +253,82 @@ async function dbExec(sql, params) {
     const { Pool } = require('pg');
     if (!pgPool) pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
     const { sql: pgSql, params: pgParamsArr } = pgParams(sql, params);
-    const result = await pgPool.query(pgSql, pgParamsArr);
-    if (!result.rows.length) return [];
-    return [{ columns: Object.keys(result.rows[0]), values: result.rows.map(r => Object.values(r)) }];
+    try {
+      const result = await pgPool.query(pgSql, pgParamsArr);
+      if (!result.rows.length) return [];
+      return [{ columns: Object.keys(result.rows[0]), values: result.rows.map(r => Object.values(r)) }];
+    } catch (pgErr) {
+      console.error('ERROR en PostgreSQL, intentando SQLite como fallback:', pgErr.message);
+      await ensureSQLiteFallback();
+    }
   }
-  return db.exec(sql, params);
+  if (!db) await ensureSQLiteFallback();
+  // sql.js: db.exec() NO acepta parámetros, usar prepared statements
+  if (!params || params.length === 0) {
+    return db.exec(sql);
+  }
+  const stmt = db.prepare(sql);
+  stmt.bind(params);
+  const rows = [];
+  while (stmt.step()) {
+    rows.push(stmt.getAsObject());
+  }
+  stmt.free();
+  if (rows.length === 0) return [];
+  return [{ columns: Object.keys(rows[0]), values: rows.map(r => Object.values(r)) }];
+}
+
+async function ensureSQLiteFallback() {
+  if (!db) {
+    console.warn('⚠️ SQLite no estaba inicializado. Inicializando como fallback...');
+    const SQL = await initSqlJs();
+    db = new SQL.Database();
+    db.run('PRAGMA foreign_keys = ON');
+    db.run(`CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'estudiante',
+      stellar_public TEXT, stellar_secret_encrypted TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS passkeys (
+      id TEXT PRIMARY KEY, username TEXT NOT NULL, credential_id TEXT NOT NULL UNIQUE,
+      public_key TEXT NOT NULL, counter INTEGER NOT NULL DEFAULT 0, transports TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS auth_challenges (
+      id TEXT PRIMARY KEY, type TEXT NOT NULL, username TEXT NOT NULL,
+      challenge TEXT NOT NULL, expires_at INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS activities (
+      id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT, tokens INTEGER NOT NULL DEFAULT 0,
+      deadline TEXT, subject TEXT, instructions TEXT, created_by TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')), status TEXT NOT NULL DEFAULT 'active'
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS submissions (
+      id TEXT PRIMARY KEY, activity_id TEXT NOT NULL, student_username TEXT NOT NULL,
+      file_path TEXT, file_name TEXT, file_type TEXT, file_size INTEGER, comments TEXT,
+      status TEXT NOT NULL DEFAULT 'pending', submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
+      reviewed_at TEXT, reviewed_by TEXT, review_comment TEXT, tokens_awarded INTEGER DEFAULT 0,
+      blockchain_tx_hash TEXT
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS rewards (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, cost INTEGER NOT NULL,
+      image TEXT, created_by TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      status TEXT NOT NULL DEFAULT 'active', redeemed_count INTEGER DEFAULT 0
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS redemptions (
+      id TEXT PRIMARY KEY, username TEXT NOT NULL, reward_id TEXT NOT NULL,
+      reward_name TEXT NOT NULL, cost INTEGER NOT NULL, timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS token_transactions (
+      id TEXT PRIMARY KEY, username TEXT NOT NULL, amount INTEGER NOT NULL, type TEXT NOT NULL,
+      activity_id TEXT, reward_id TEXT, description TEXT, blockchain_tx_hash TEXT,
+      timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    db.run(`CREATE TABLE IF NOT EXISTS counter_state (
+      id TEXT PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    )`);
+    console.log('✅ SQLite fallback inicializado correctamente');
+  }
 }
 
 async function dbRun(sql, params) {
@@ -265,277 +336,223 @@ async function dbRun(sql, params) {
     const { Pool } = require('pg');
     if (!pgPool) pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
     const { sql: pgSql, params: pgParamsArr } = pgParams(sql, params);
-    await pgPool.query(pgSql, pgParamsArr);
-    return;
+    try {
+      await pgPool.query(pgSql, pgParamsArr);
+      return;
+    } catch (pgErr) {
+      console.error('ERROR en dbRun PostgreSQL, usando SQLite como fallback:', pgErr.message);
+      await ensureSQLiteFallback();
+    }
   }
+  if (!db) await ensureSQLiteFallback();
   db.run(sql, params);
   saveDB();
+}
+
+// Inicializar base de datos SQLite (usada como fallback o principal)
+async function initSQLite() {
+  const SQL = await initSqlJs();
+  let buffer;
+  if (fs.existsSync(DB_PATH)) {
+    buffer = fs.readFileSync(DB_PATH);
+    db = new SQL.Database(buffer);
+    console.log(`📂 Base de datos SQLite cargada desde ${DB_PATH}`);
+  } else {
+    db = new SQL.Database();
+    console.log(`🆕 Base de datos SQLite creada en ${DB_PATH}`);
+  }
+
+  db.run('PRAGMA foreign_keys = ON');
+
+  db.run(`CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role TEXT NOT NULL DEFAULT 'estudiante',
+    stellar_public TEXT,
+    stellar_secret_encrypted TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS activities (
+    id TEXT PRIMARY KEY,
+    title TEXT NOT NULL,
+    description TEXT,
+    tokens INTEGER NOT NULL DEFAULT 0,
+    deadline TEXT,
+    subject TEXT,
+    instructions TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    status TEXT NOT NULL DEFAULT 'active',
+    FOREIGN KEY (created_by) REFERENCES users(username)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS submissions (
+    id TEXT PRIMARY KEY,
+    activity_id TEXT NOT NULL,
+    student_username TEXT NOT NULL,
+    file_path TEXT,
+    file_name TEXT,
+    file_type TEXT,
+    file_size INTEGER,
+    comments TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+    submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
+    reviewed_at TEXT,
+    reviewed_by TEXT,
+    review_comment TEXT,
+    tokens_awarded INTEGER DEFAULT 0,
+    blockchain_tx_hash TEXT,
+    FOREIGN KEY (activity_id) REFERENCES activities(id),
+    FOREIGN KEY (student_username) REFERENCES users(username)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS rewards (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    cost INTEGER NOT NULL,
+    image TEXT,
+    created_by TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    status TEXT NOT NULL DEFAULT 'active',
+    redeemed_count INTEGER DEFAULT 0
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS redemptions (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    reward_id TEXT NOT NULL,
+    reward_name TEXT NOT NULL,
+    cost INTEGER NOT NULL,
+    timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (username) REFERENCES users(username),
+    FOREIGN KEY (reward_id) REFERENCES rewards(id)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS token_transactions (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    type TEXT NOT NULL,
+    activity_id TEXT,
+    reward_id TEXT,
+    description TEXT,
+    blockchain_tx_hash TEXT,
+    timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (username) REFERENCES users(username)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS passkeys (
+    id TEXT PRIMARY KEY,
+    username TEXT NOT NULL,
+    credential_id TEXT NOT NULL UNIQUE,
+    public_key TEXT NOT NULL,
+    counter INTEGER NOT NULL DEFAULT 0,
+    transports TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (username) REFERENCES users(username)
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS counter_state (
+    id TEXT PRIMARY KEY,
+    value INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS auth_challenges (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    username TEXT NOT NULL,
+    challenge TEXT NOT NULL,
+    expires_at INTEGER NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`);
+
+  db.run(`DELETE FROM auth_challenges WHERE expires_at < ?`, [Date.now()]);
+
+  const counterRow = db.exec(`SELECT id FROM counter_state WHERE id = 'global'`);
+  if (!counterRow.length || !counterRow[0].values.length) {
+    db.run(`INSERT INTO counter_state (id, value, updated_at) VALUES ('global', 0, datetime('now'))`);
+  }
+
+  saveDB();
+  console.log('✅ Base de datos SQLite inicializada correctamente');
 }
 
 // Inicializar base de datos
 async function initDB() {
   if (DATABASE_URL) {
-    // PostgreSQL en Render
-    const { Pool } = require('pg');
-    pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
-    
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        username TEXT UNIQUE NOT NULL,
-        email TEXT UNIQUE NOT NULL,
-        password_hash TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'estudiante',
-        stellar_public TEXT,
-        stellar_secret_encrypted TEXT,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
+    console.log(`🗄️  Modo DB: PostgreSQL detectado (${DATABASE_URL.substring(0, 30)}...)`);
+    try {
+      const { Pool } = require('pg');
+      pgPool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+      const testResult = await pgPool.query('SELECT NOW()');
+      console.log(`✅ Conexión PostgreSQL exitosa: ${testResult.rows[0].now}`);
 
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS activities (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        description TEXT,
-        tokens INTEGER NOT NULL DEFAULT 0,
-        deadline TEXT,
-        subject TEXT,
-        instructions TEXT,
-        created_by TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW(),
-        status TEXT NOT NULL DEFAULT 'active'
-      )
-    `);
-
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS submissions (
-        id TEXT PRIMARY KEY,
-        activity_id TEXT NOT NULL,
-        student_username TEXT NOT NULL,
-        file_path TEXT,
-        file_name TEXT,
-        file_type TEXT,
-        file_size INTEGER,
-        comments TEXT,
-        status TEXT NOT NULL DEFAULT 'pending',
-        submitted_at TIMESTAMP DEFAULT NOW(),
-        reviewed_at TIMESTAMP,
-        reviewed_by TEXT,
-        review_comment TEXT,
-        tokens_awarded INTEGER DEFAULT 0,
+      // Crear tablas en PostgreSQL
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY, username TEXT UNIQUE NOT NULL, email TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'estudiante',
+        stellar_public TEXT, stellar_secret_encrypted TEXT, created_at TIMESTAMP DEFAULT NOW()
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS activities (
+        id TEXT PRIMARY KEY, title TEXT NOT NULL, description TEXT, tokens INTEGER NOT NULL DEFAULT 0,
+        deadline TEXT, subject TEXT, instructions TEXT, created_by TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(), status TEXT NOT NULL DEFAULT 'active'
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS submissions (
+        id TEXT PRIMARY KEY, activity_id TEXT NOT NULL, student_username TEXT NOT NULL,
+        file_path TEXT, file_name TEXT, file_type TEXT, file_size INTEGER, comments TEXT,
+        status TEXT NOT NULL DEFAULT 'pending', submitted_at TIMESTAMP DEFAULT NOW(),
+        reviewed_at TIMESTAMP, reviewed_by TEXT, review_comment TEXT, tokens_awarded INTEGER DEFAULT 0,
         blockchain_tx_hash TEXT
-      )
-    `);
-
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS rewards (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        description TEXT,
-        cost INTEGER NOT NULL,
-        image TEXT,
-        created_by TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW(),
-        status TEXT NOT NULL DEFAULT 'active',
-        redeemed_count INTEGER DEFAULT 0
-      )
-    `);
-
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS redemptions (
-        id TEXT PRIMARY KEY,
-        username TEXT NOT NULL,
-        reward_id TEXT NOT NULL,
-        reward_name TEXT NOT NULL,
-        cost INTEGER NOT NULL,
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS rewards (
+        id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT, cost INTEGER NOT NULL,
+        image TEXT, created_by TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW(),
+        status TEXT NOT NULL DEFAULT 'active', redeemed_count INTEGER DEFAULT 0
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS redemptions (
+        id TEXT PRIMARY KEY, username TEXT NOT NULL, reward_id TEXT NOT NULL,
+        reward_name TEXT NOT NULL, cost INTEGER NOT NULL, timestamp TIMESTAMP DEFAULT NOW()
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS token_transactions (
+        id TEXT PRIMARY KEY, username TEXT NOT NULL, amount INTEGER NOT NULL, type TEXT NOT NULL,
+        activity_id TEXT, reward_id TEXT, description TEXT, blockchain_tx_hash TEXT,
         timestamp TIMESTAMP DEFAULT NOW()
-      )
-    `);
-
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS token_transactions (
-        id TEXT PRIMARY KEY,
-        username TEXT NOT NULL,
-        amount INTEGER NOT NULL,
-        type TEXT NOT NULL,
-        activity_id TEXT,
-        reward_id TEXT,
-        description TEXT,
-        blockchain_tx_hash TEXT,
-        timestamp TIMESTAMP DEFAULT NOW()
-      )
-    `);
-
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS passkeys (
-        id TEXT PRIMARY KEY,
-        username TEXT NOT NULL,
-        credential_id TEXT NOT NULL UNIQUE,
-        public_key TEXT NOT NULL,
-        counter INTEGER NOT NULL DEFAULT 0,
-        transports TEXT,
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS passkeys (
+        id TEXT PRIMARY KEY, username TEXT NOT NULL, credential_id TEXT NOT NULL UNIQUE,
+        public_key TEXT NOT NULL, counter INTEGER NOT NULL DEFAULT 0, transports TEXT,
         created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS counter_state (
+        id TEXT PRIMARY KEY, value INTEGER NOT NULL DEFAULT 0, updated_at TIMESTAMP DEFAULT NOW()
+      )`);
+      await pgPool.query(`CREATE TABLE IF NOT EXISTS auth_challenges (
+        id TEXT PRIMARY KEY, type TEXT NOT NULL, username TEXT NOT NULL, challenge TEXT NOT NULL,
+        expires_at BIGINT NOT NULL, created_at TIMESTAMP DEFAULT NOW()
+      )`);
 
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS counter_state (
-        id TEXT PRIMARY KEY,
-        value INTEGER NOT NULL DEFAULT 0,
-        updated_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
+      await pgPool.query(`DELETE FROM auth_challenges WHERE expires_at < $1`, [Date.now()]);
+      const counterRow = await pgPool.query(`SELECT id FROM counter_state WHERE id = 'global'`);
+      if (!counterRow.rows.length) {
+        await pgPool.query(`INSERT INTO counter_state (id, value, updated_at) VALUES ('global', 0, NOW())`);
+      }
 
-    await pgPool.query(`
-      CREATE TABLE IF NOT EXISTS auth_challenges (
-        id TEXT PRIMARY KEY,
-        type TEXT NOT NULL,
-        username TEXT NOT NULL,
-        challenge TEXT NOT NULL,
-        expires_at BIGINT NOT NULL,
-        created_at TIMESTAMP DEFAULT NOW()
-      )
-    `);
-
-    // Limpiar challenges expirados
-    await pgPool.query(`DELETE FROM auth_challenges WHERE expires_at < $1`, [Date.now()]);
-
-    // Asegurar contador global
-    const counterRow = await pgPool.query(`SELECT id FROM counter_state WHERE id = 'global'`);
-    if (!counterRow.rows.length) {
-      await pgPool.query(`INSERT INTO counter_state (id, value, updated_at) VALUES ('global', 0, NOW())`);
+      console.log('✅ Base de datos PostgreSQL inicializada correctamente');
+    } catch (pgErr) {
+      console.error(`❌ Error con PostgreSQL: ${pgErr.message}`);
+      console.error(`   ⚠️  USANDO SQLITE COMO FALLBACK`);
+      pgPool = null;
+      await initSQLite();
     }
-
-    console.log('Base de datos PostgreSQL inicializada correctamente');
   } else {
-    // SQLite local
-    const SQL = await initSqlJs();
-    let buffer;
-    if (fs.existsSync(DB_PATH)) {
-      buffer = fs.readFileSync(DB_PATH);
-      db = new SQL.Database(buffer);
-    } else {
-      db = new SQL.Database();
-    }
-
-    db.run('PRAGMA foreign_keys = ON');
-
-    db.run(`CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      role TEXT NOT NULL DEFAULT 'estudiante',
-      stellar_public TEXT,
-      stellar_secret_encrypted TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS activities (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT,
-      tokens INTEGER NOT NULL DEFAULT 0,
-      deadline TEXT,
-      subject TEXT,
-      instructions TEXT,
-      created_by TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      status TEXT NOT NULL DEFAULT 'active',
-      FOREIGN KEY (created_by) REFERENCES users(username)
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS submissions (
-      id TEXT PRIMARY KEY,
-      activity_id TEXT NOT NULL,
-      student_username TEXT NOT NULL,
-      file_path TEXT,
-      file_name TEXT,
-      file_type TEXT,
-      file_size INTEGER,
-      comments TEXT,
-      status TEXT NOT NULL DEFAULT 'pending',
-      submitted_at TEXT NOT NULL DEFAULT (datetime('now')),
-      reviewed_at TEXT,
-      reviewed_by TEXT,
-      review_comment TEXT,
-      tokens_awarded INTEGER DEFAULT 0,
-      blockchain_tx_hash TEXT,
-      FOREIGN KEY (activity_id) REFERENCES activities(id),
-      FOREIGN KEY (student_username) REFERENCES users(username)
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS rewards (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      description TEXT,
-      cost INTEGER NOT NULL,
-      image TEXT,
-      created_by TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      status TEXT NOT NULL DEFAULT 'active',
-      redeemed_count INTEGER DEFAULT 0
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS redemptions (
-      id TEXT PRIMARY KEY,
-      username TEXT NOT NULL,
-      reward_id TEXT NOT NULL,
-      reward_name TEXT NOT NULL,
-      cost INTEGER NOT NULL,
-      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (username) REFERENCES users(username),
-      FOREIGN KEY (reward_id) REFERENCES rewards(id)
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS token_transactions (
-      id TEXT PRIMARY KEY,
-      username TEXT NOT NULL,
-      amount INTEGER NOT NULL,
-      type TEXT NOT NULL,
-      activity_id TEXT,
-      reward_id TEXT,
-      description TEXT,
-      blockchain_tx_hash TEXT,
-      timestamp TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (username) REFERENCES users(username)
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS passkeys (
-      id TEXT PRIMARY KEY,
-      username TEXT NOT NULL,
-      credential_id TEXT NOT NULL UNIQUE,
-      public_key TEXT NOT NULL,
-      counter INTEGER NOT NULL DEFAULT 0,
-      transports TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (username) REFERENCES users(username)
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS counter_state (
-      id TEXT PRIMARY KEY,
-      value INTEGER NOT NULL DEFAULT 0,
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS auth_challenges (
-      id TEXT PRIMARY KEY,
-      type TEXT NOT NULL,
-      username TEXT NOT NULL,
-      challenge TEXT NOT NULL,
-      expires_at INTEGER NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
-    )`);
-
-    db.run(`DELETE FROM auth_challenges WHERE expires_at < ?`, [Date.now()]);
-
-    const counterRow = db.exec(`SELECT id FROM counter_state WHERE id = 'global'`);
-    if (!counterRow.length || !counterRow[0].values.length) {
-      db.run(`INSERT INTO counter_state (id, value, updated_at) VALUES ('global', 0, datetime('now'))`);
-    }
-
-    saveDB();
-    console.log('Base de datos SQLite inicializada correctamente');
+    console.log('🗄️  Modo DB: SQLite local');
+    await initSQLite();
   }
 }
 
@@ -1024,11 +1041,27 @@ app.post('/api/auth/qr/generate', async (req, res) => {
   try {
     const { username } = req.body;
     if (!username) return res.status(400).json({ error: 'Username requerido' });
+    console.log(`📱 QR solicitud generación para username="${username}" (DB mode: ${DATABASE_URL ? 'PostgreSQL' : 'SQLite'})`);
 
     const userResult = await dbExec(`SELECT id, username FROM users WHERE username = ?`, [username]);
+    console.log(`📱 QR resultado búsqueda: encontrado=${userResult.length > 0 && userResult[0].values.length > 0}`);
     if (!userResult.length || !userResult[0].values.length) {
+      console.warn(`❌ QR usuario "${username}" NO encontrado en DB`);
+      // Debug: listar usuarios existentes
+      try {
+        const allUsers = await dbExec(`SELECT username FROM users ORDER BY created_at DESC LIMIT 10`);
+        if (allUsers.length > 0 && allUsers[0].values.length > 0) {
+          const names = allUsers[0].values.map(r => r[0]);
+          console.log(`📱 QR usuarios en DB: ${JSON.stringify(names)}`);
+        } else {
+          console.log(`📱 QR NO HAY usuarios en DB`);
+        }
+      } catch (listErr) {
+        console.error(`📱 QR error listando usuarios:`, listErr.message);
+      }
       return res.status(404).json({ error: 'Usuario no encontrado. Regístrate primero.' });
     }
+    console.log(`📱 QR usuario "${username}" encontrado en DB correctamente`);
 
     const session = qrSessionStore.create(username);
 
@@ -1366,7 +1399,10 @@ app.post('/api/counter/reset', anyAuthMiddleware, async (req, res) => {
 app.post('/api/auth/register', rateLimit(60000, 5), async (req, res) => {
   try {
     const { username, email, password, role, stellarPublic, stellarSecretEncrypted } = req.body;
+    console.log(`📝 REGISTER solicitud recibida: username="${username}", email="${email}", role="${role}"`);
+
     if (!username || !email || !password) {
+      console.warn(`❌ REGISTER campos faltantes: username=${!!username}, email=${!!email}, password=${!!password}`);
       return res.status(400).json({ error: 'Todos los campos son requeridos' });
     }
     if (username.length < 3) return res.status(400).json({ error: 'Usuario debe tener al menos 3 caracteres' });
@@ -1375,14 +1411,17 @@ app.post('/api/auth/register', rateLimit(60000, 5), async (req, res) => {
     const allowedRoles = ['estudiante', 'docente'];
     const finalRole = allowedRoles.includes(role) ? role : 'estudiante';
 
+    console.log(`🔍 REGISTER buscando duplicados para "${username}" o "${email}"...`);
     const existing = await dbExec(`SELECT id FROM users WHERE username = ? OR email = ?`, [username, email]);
     if (existing.length > 0 && existing[0].values.length > 0) {
+      console.warn(`❌ REGISTER usuario duplicado: "${username}" o "${email}" ya existe`);
       return res.status(400).json({ error: 'Usuario o email ya registrado' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
     const id = uuidv4();
     const now = new Date().toISOString();
+    console.log(`🔑 REGISTER hash generado, id="${id}"`);
 
     // Generar par de llaves Stellar automáticamente si no se proporcionaron
     let finalStellarPublic = stellarPublic || null;
@@ -1392,32 +1431,66 @@ app.post('/api/auth/register', rateLimit(60000, 5), async (req, res) => {
       const kp = StellarSdk.Keypair.random();
       finalStellarPublic = stellarPublic || kp.publicKey();
       finalStellarSecretEncrypted = stellarSecretEncrypted || kp.secret();
-      // Nota: la clave secreta se almacena en texto plano en DB solo si el
-      // cliente no la envió cifrada. En producción, el cliente DEBE cifrarla
-      // con la contraseña del usuario antes de enviarla.
-      console.log(`✅ Cuenta Stellar generada para ${username}: ${finalStellarPublic.substring(0, 8)}...`);
+      console.log(`✅ REGISTER cuenta Stellar generada para ${username}: ${finalStellarPublic.substring(0, 8)}...`);
     } catch (stellarErr) {
-      console.warn('No se pudo generar cuenta Stellar:', stellarErr.message);
+      console.warn('⚠️ REGISTER no se pudo generar cuenta Stellar:', stellarErr.message);
     }
 
+    console.log(`💾 REGISTER insertando usuario "${username}" en DB...`);
+    console.log(`   DB mode: ${DATABASE_URL ? 'PostgreSQL' : 'SQLite'}`);
     await dbRun(`INSERT INTO users (id, username, email, password_hash, role, stellar_public, stellar_secret_encrypted, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [id, username, email, passwordHash, finalRole, finalStellarPublic, finalStellarSecretEncrypted, now]);
 
+    // VERIFICAR que el usuario se guardó correctamente
+    const verifyUser = await dbExec(`SELECT id, username FROM users WHERE username = ?`, [username]);
+    if (verifyUser.length > 0 && verifyUser[0].values.length > 0) {
+      console.log(`✅ REGISTER usuario "${username}" verificado en DB correctamente (id=${verifyUser[0].values[0][0]})`);
+    } else {
+      console.error(`❌ REGISTER FALLO CRÍTICO: usuario "${username}" NO se encontró después de insertar!`);
+      return res.status(500).json({ error: 'Error al persistir el usuario. Intenta de nuevo.' });
+    }
+
     const token = jwt.sign({ id, username, email, role: finalRole, stellarPublic: finalStellarPublic }, JWT_SECRET, { expiresIn: '24h' });
+    console.log(`✅ REGISTER exitoso para "${username}", token generado`);
     res.json({ token, user: { id, username, email, role: finalRole, stellarPublic: finalStellarPublic } });
   } catch (e) {
-    console.error('Error en registro:', e);
+    console.error('❌ Error en registro:', e);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
 app.post('/api/auth/login', rateLimit(60000, 10), async (req, res) => {
   try {
+    console.log('═══════════════════════════════════════');
+    console.log('🔐 LOGIN - Request recibido');
+    console.log('Headers:', JSON.stringify(req.headers, null, 2).substring(0, 500));
+    console.log('Body raw keys:', Object.keys(req.body));
+    console.log('Body raw:', JSON.stringify(req.body));
     const { username, password } = req.body;
-    if (!username || !password) return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+    console.log(`🔐 LOGIN username="${typeof username}" value="${username}"`);
+    console.log(`🔐 LOGIN password="${typeof password}" length="${password ? password.length : 'N/A'}"`);
+    if (!username || !password) {
+      console.warn(`❌ LOGIN campos vacíos: username="${typeof username}" password="${typeof password}"`);
+      return res.status(400).json({ error: 'Usuario y contraseña requeridos' });
+    }
 
+    console.log(`🔍 LOGIN buscando usuario "${username}" en DB (modo: ${DATABASE_URL ? 'PostgreSQL' : 'SQLite'})...`);
     const result = await dbExec(`SELECT * FROM users WHERE username = ?`, [username]);
+    
     if (!result.length || !result[0].values.length) {
+      console.warn(`❌ LOGIN usuario "${username}" NO encontrado en DB`);
+      // Debug: listar todos los usuarios para diagnóstico
+      try {
+        const allUsers = await dbExec(`SELECT username FROM users ORDER BY created_at DESC LIMIT 10`);
+        if (allUsers.length > 0 && allUsers[0].values.length > 0) {
+          const names = allUsers[0].values.map(r => r[0]);
+          console.log(`📋 LOGIN usuarios existentes (últimos 10): ${JSON.stringify(names)}`);
+        } else {
+          console.log(`📋 LOGIN NO HAY usuarios registrados en DB`);
+        }
+      } catch (listErr) {
+        console.error(`📋 LOGIN error listando usuarios:`, listErr.message);
+      }
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
 
@@ -1433,17 +1506,24 @@ app.post('/api/auth/login', rateLimit(60000, 10), async (req, res) => {
       stellarPublic: row[idx('stellar_public')],
       stellarSecretEncrypted: row[idx('stellar_secret_encrypted')],
     };
+    console.log(`✅ LOGIN usuario "${user.username}" encontrado en DB (id=${user.id})`);
 
+    console.log(`🔐 LOGIN comparando contraseña para "${username}"...`);
     const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return res.status(401).json({ error: 'Credenciales inválidas' });
+    if (!valid) {
+      console.warn(`❌ LOGIN contraseña INCORRECTA para "${username}"`);
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
 
+    console.log(`✅ LOGIN contraseña correcta para "${username}", generando JWT...`);
     const token = jwt.sign(
       { id: user.id, username: user.username, email: user.email, role: user.role, stellarPublic: user.stellarPublic },
       JWT_SECRET, { expiresIn: '24h' }
     );
+    console.log(`✅ LOGIN exitoso para "${username}", token generado`);
     res.json({ token, user: { id: user.id, username: user.username, email: user.email, role: user.role, stellarPublic: user.stellarPublic, stellarSecretEncrypted: user.stellarSecretEncrypted } });
   } catch (e) {
-    console.error('Error en login:', e);
+    console.error('❌ Error en login:', e);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 });
@@ -1781,9 +1861,20 @@ app.get('/api/stats/teacher', anyAuthMiddleware, (req, res) => {
 });
 
 // ========================
-// STATIC FILES (Frontend)
+// STATIC FILES (Frontend) - SIN CACHÉ para evitar JS viejo
 // ========================
-app.use(express.static(DOCS_DIR));
+app.use(express.static(DOCS_DIR, {
+  maxAge: 0,
+  etag: false,
+  lastModified: false,
+  setHeaders: (res, path) => {
+    if (path.endsWith('.js') || path.endsWith('.html') || path.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+    }
+  }
+}));
 
 // Catch-all for SPA-style routing (except API)
 app.use((req, res, next) => {
