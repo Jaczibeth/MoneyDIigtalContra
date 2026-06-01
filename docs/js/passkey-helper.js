@@ -93,7 +93,7 @@ class PasskeyHelper {
       throw new Error(`Error biométrico: ${e.message}`);
     }
 
-    const completeRes = await fetch(`${this.apiBase}/api/auth/passkey/register/complete?skipVerification=1`, {
+    const completeRes = await fetch(`${this.apiBase}/api/auth/passkey/register/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, credential: this.serializeCredential(credential) })
@@ -120,6 +120,7 @@ class PasskeyHelper {
       throw new Error(err.error || 'Error al iniciar sesión biométrica');
     }
     const requestOpts = await beginRes.json();
+    requestOpts.userVerification = 'required';
 
     let assertion;
     try {
@@ -167,12 +168,12 @@ class PasskeyHelper {
       throw new Error(err.error || 'Error al iniciar sesión');
     }
     const requestOpts = await beginRes.json();
-
+    
     let assertion;
     try {
       assertion = await navigator.credentials.get({
         publicKey: this.prepareRequestOpts(requestOpts),
-        mediation: 'conditional' // Para usar autofill conditionally
+        mediation: 'conditional'
       });
     } catch (e) {
       if (e.name === 'NotAllowedError') {

@@ -780,17 +780,7 @@ if (existingKeys.length && existingKeys[0].values.length) {
     const effectiveRPID = getRPID(req);
     const effectiveOrigin = getOrigin(req);
 
-      const deserialized = {
-        ...credential,
-        response: {
-          ...credential.response,
-          attestationObject: isoBase64URL.toBuffer(credential.response.attestationObject),
-          clientDataJSON: isoBase64URL.toBuffer(credential.response.clientDataJSON),
-          authenticatorData: credential.response.authenticatorData ? isoBase64URL.toBuffer(credential.response.authenticatorData) : undefined,
-          signature: credential.response.signature ? isoBase64URL.toBuffer(credential.response.signature) : undefined,
-          userHandle: credential.response.userHandle ? isoBase64URL.toBuffer(credential.response.userHandle) : undefined,
-        },
-      };
+      const deserialized = credential;
       const verification = await verifyRegistrationResponse({
         response: deserialized,
         expectedChallenge: storedData.challenge,
@@ -823,13 +813,14 @@ if (existingKeys.length && existingKeys[0].values.length) {
       return res.status(400).json({ error: 'Verificación biométrica fallida. El navegador no pudo validar la credencial.' });
     }
 
-    const { credentialPublicKey, credentialID, counter } = verification.registrationInfo;
-    if (!credentialPublicKey || !credentialID) {
+    const authCredential = verification.registrationInfo.credential;
+    if (!authCredential || !authCredential.publicKey || !authCredential.id) {
       return res.status(400).json({ error: 'Missing credential data from verification.' });
     }
     const id = uuidv4();
-    const credentialIdBase64 = isoBase64URL.fromBuffer(credentialID);
-    const publicKeyBase64 = isoBase64URL.fromBuffer(credentialPublicKey);
+    const credentialIdBase64 = authCredential.id;
+    const publicKeyBase64 = Buffer.from(authCredential.publicKey).toString('base64url');
+    const counter = authCredential.counter || 0;
     let transports = [];
     if (credential.response && Array.isArray(credential.response.transports)) {
       transports = credential.response.transports;
@@ -952,16 +943,8 @@ app.post('/api/auth/passkey/login/complete', async (req, res) => {
     };
 
     // Verify authentication response using SimpleWebAuthn
-    const deserializedLogin = {
-      ...credential,
-      response: {
-        ...credential.response,
-        clientDataJSON: isoBase64URL.toBuffer(credential.response.clientDataJSON),
-        authenticatorData: isoBase64URL.toBuffer(credential.response.authenticatorData),
-        signature: isoBase64URL.toBuffer(credential.response.signature),
-        userHandle: credential.response.userHandle ? isoBase64URL.toBuffer(credential.response.userHandle) : undefined,
-      },
-    };
+    const deserializedLogin = credential;
+    const effectiveOrigin = getOrigin(req);
     const verification = await verifyAuthenticationResponse({
       response: deserializedLogin,
       expectedChallenge: storedData.challenge,
@@ -969,7 +952,7 @@ app.post('/api/auth/passkey/login/complete', async (req, res) => {
       expectedRPID: getRPID(req),
       credential: {
         id: storedCredential.id,
-        publicKey: isoBase64URL.toBuffer(storedCredential.publicKey),
+        publicKey: Buffer.from(storedCredential.publicKey, 'base64url'),
         counter: storedCredential.counter,
         transports: storedCredential.transports,
       },
