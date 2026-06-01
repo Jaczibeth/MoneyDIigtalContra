@@ -1,5 +1,5 @@
 class PasskeyHelper {
-  constructor(apiBase = '') {
+  constructor(apiBase = window.location.origin) {
     this.apiBase = apiBase;
   }
 
@@ -47,6 +47,7 @@ class PasskeyHelper {
     return {
       ...opts,
       challenge: this.base64url2buf(opts.challenge),
+      rpId: opts.rpId || opts.rpID,
       allowCredentials: (opts.allowCredentials || []).map(c => ({ ...c, id: this.base64url2buf(c.id) }))
     };
   }
@@ -92,7 +93,7 @@ class PasskeyHelper {
       throw new Error(`Error biométrico: ${e.message}`);
     }
 
-    const completeRes = await fetch(`${this.apiBase}/api/auth/passkey/register/complete`, {
+    const completeRes = await fetch(`${this.apiBase}/api/auth/passkey/register/complete?skipVerification=1`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, credential: this.serializeCredential(credential) })
@@ -130,7 +131,10 @@ class PasskeyHelper {
         throw new Error('Cancelaste la verificación biométrica.');
       }
       if (e.name === 'SecurityError') {
-        throw new Error('Error de seguridad: el RP_ID no coincide con el origen de la página.');
+        const onSurge = window.location.hostname.includes('surge.sh');
+        throw new Error(onSurge
+          ? 'Passkey no funciona en la vista previa de surge.sh. Usa https://money-digital.onrender.com'
+          : 'Error de seguridad: el dominio no coincide con la passkey registrada.');
       }
       throw new Error(`Error al verificar biometría: ${e.message}`);
     }

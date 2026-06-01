@@ -366,7 +366,8 @@
 
       try {
         const status = await BiometricHelper.getSupportStatus();
-        if (!status.platformBiometric) {
+        const onSurge = window.location.hostname.includes('surge.sh');
+        if (!status.platformBiometric || onSurge) {
           bioBtn.style.display = 'none';
           if (qrBtn) { qrBtn.style.flex = '1'; }
         } else {
@@ -385,6 +386,11 @@
       const username = document.getElementById('username').value.trim();
       if (!username) { showToast('Ingresa tu nombre de usuario primero', 'error'); return; }
 
+      if (window.location.hostname.includes('surge.sh')) {
+        showToast('Passkey solo funciona en money-digital.onrender.com (no en la vista previa estática)', 'error');
+        return;
+      }
+
       const btn = document.getElementById('biometricLoginBtn');
       const btnText = document.getElementById('biometricBtnText');
       btn.disabled = true;
@@ -399,7 +405,7 @@
         if (typeof apiClient !== 'undefined') {
           apiClient.setToken(result.token);
         }
-        showToast(`Bienvenido ${username}`, 'success');
+        showToast(`Bienvenido ${result.user?.username || username}`, 'success');
         setTimeout(() => window.location.href = "Inicio.html", 1000);
       } catch (e) {
         btnText.textContent = originalText;
